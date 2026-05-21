@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: appointment-db
+spec:
+  serviceName: appointment-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: appointment-db
+  template:
+    metadata:
+      labels:
+        app: appointment-db
+    spec:
+      containers:
+        - name: appointment-db
+          image: postgres:15
+          args:
+            - -c
+            - shared_buffers=16MB
+            - -c
+            - effective_cache_size=64MB
+            - -c
+            - work_mem=1MB
+            - -c
+            - maintenance_work_mem=16MB
+            - -c
+            - max_connections=20
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - user
+                - -d
+                - appointment_db
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          env:
+            - name: POSTGRES_USER
+              value: user
+            - name: POSTGRES_PASSWORD
+              value: password
+            - name: POSTGRES_DB
+              value: appointment_db
+          volumeMounts:
+            - name: appointment-db-storage
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              memory: 192Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: appointment-db-storage
+      spec:
+        volumeName: appointment-db-pv
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

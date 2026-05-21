@@ -1,0 +1,131 @@
+alertmanager:
+  enabled: false
+
+defaultRules:
+  create: false
+
+grafana:
+  enabled: true
+  adminPassword: admin
+  image:
+    registry: 10.10.10.10:5000/docker.io
+    repository: grafana/grafana
+    tag: "13.0.1"
+  initChownData:
+    image:
+      registry: 10.10.10.10:5000/docker.io
+      repository: library/busybox
+      tag: "1.37.0"
+  sidecar:
+    image:
+      registry: 10.10.10.10:5000/quay.io
+      repository: kiwigrid/k8s-sidecar
+      tag: 2.7.3
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: observability
+      provider:
+        allowUiUpdates: false
+        disableDelete: false
+        foldersFromFilesStructure: true
+  persistence:
+    enabled: true
+    type: pvc
+    size: 2Gi
+    storageClassName: ""
+    volumeName: observability-grafana-pv
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi
+  nodeSelector:
+    workload.medical-platform.io/tier: platform
+
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    retention: 6h
+    retentionSize: 2GB
+    image:
+      registry: 10.10.10.10:5000/quay.io
+      repository: prometheus/prometheus
+      tag: v3.11.3-distroless
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: ""
+          volumeName: observability-prometheus-pv
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 4Gi
+    nodeSelector:
+      workload.medical-platform.io/tier: platform
+
+prometheusOperator:
+  image:
+    registry: 10.10.10.10:5000/quay.io
+    repository: prometheus-operator/prometheus-operator
+    tag: v0.90.1
+  prometheusConfigReloader:
+    image:
+      registry: 10.10.10.10:5000/quay.io
+      repository: prometheus-operator/prometheus-config-reloader
+      tag: v0.90.1
+  admissionWebhooks:
+    patch:
+      image:
+        registry: 10.10.10.10:5000/ghcr.io
+        repository: jkroepke/kube-webhook-certgen
+        tag: 1.8.2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  nodeSelector:
+    workload.medical-platform.io/tier: platform
+
+kube-state-metrics:
+  image:
+    registry: 10.10.10.10:5000/registry.k8s.io
+    repository: kube-state-metrics/kube-state-metrics
+    tag: v2.18.0
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  nodeSelector:
+    workload.medical-platform.io/tier: platform
+
+prometheus-node-exporter:
+  image:
+    registry: 10.10.10.10:5000/quay.io
+    repository: prometheus/node-exporter
+    tag: v1.11.1
+    distroless: true
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi

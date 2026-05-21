@@ -1,0 +1,186 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: medical-platform
+resources:
+  - namespace.yaml
+  - ../../base
+images:
+  - name: zexpand/api-gateway
+    newName: localhost:5001/medical-platform/api-gateway
+    newTag: local
+  - name: zexpand/patient-service
+    newName: localhost:5001/medical-platform/patient-service
+    newTag: local
+  - name: zexpand/appointment-service
+    newName: localhost:5001/medical-platform/appointment-service
+    newTag: local
+  - name: zexpand/prescription-service
+    newName: localhost:5001/medical-platform/prescription-service
+    newTag: local
+  - name: zexpand/notification-service
+    newName: localhost:5001/medical-platform/notification-service
+    newTag: local
+  - name: zexpand/dashboard
+    newName: localhost:5001/medical-platform/dashboard
+    newTag: local
+patches:
+  - target:
+      version: v1
+      kind: Service
+      name: api-gateway
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: LoadBalancer
+  - target:
+      version: v1
+      kind: Service
+      name: dashboard
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: LoadBalancer
+      - op: replace
+        path: /spec/ports/0/port
+        value: 8088
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: api-gateway
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: EUREKA_CLIENT_ENABLED
+          value: "false"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: SPRING_APPLICATION_JSON
+          value: >-
+            {"eureka":{"client":{"enabled":false}},"spring":{"cloud":{"gateway":{"discovery":{"locator":{"enabled":false}},"routes":[{"id":"patient-service","uri":"http://patient-service:8081","predicates":["Path=/patient-service/**"],"filters":["StripPrefix=1"]},{"id":"appointment-service","uri":"http://appointment-service:8082","predicates":["Path=/appointment-service/**"],"filters":["StripPrefix=1","JwtAuthenticationFilter"]},{"id":"prescription-service","uri":"http://prescription-service:8083","predicates":["Path=/prescription-service/**"],"filters":["StripPrefix=1","JwtAuthenticationFilter"]},{"id":"notification-service","uri":"http://notification-service:8084","predicates":["Path=/notification-service/**"],"filters":["StripPrefix=1"]}]}}}}
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: patient-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: EUREKA_CLIENT_ENABLED
+          value: "false"
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: appointment-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: EUREKA_CLIENT_ENABLED
+          value: "false"
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: prescription-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: EUREKA_CLIENT_ENABLED
+          value: "false"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: PATIENT_SERVICE_URL
+          value: http://patient-service:8081
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: notification-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: EUREKA_CLIENT_ENABLED
+          value: "false"
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+  - target:
+      version: v1
+      kind: PersistentVolume
+      name: patient-db-pv
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: patient-db-pv
+  - target:
+      version: v1
+      kind: PersistentVolume
+      name: appointment-db-pv
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: appointment-db-pv
+  - target:
+      version: v1
+      kind: PersistentVolume
+      name: prescription-db-pv
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: prescription-db-pv
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: patient-db
+    patch: |-
+      - op: add
+        path: /spec/volumeClaimTemplates/0/spec/storageClassName
+        value: hostpath
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: appointment-db
+    patch: |-
+      - op: add
+        path: /spec/volumeClaimTemplates/0/spec/storageClassName
+        value: hostpath
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: prescription-db
+    patch: |-
+      - op: add
+        path: /spec/volumeClaimTemplates/0/spec/storageClassName
+        value: hostpath
+  - target:
+      version: v1
+      kind: PersistentVolumeClaim
+      name: kafka-pvc
+    patch: |-
+      - op: replace
+        path: /spec/storageClassName
+        value: hostpath
+      - op: remove
+        path: /spec/selector

@@ -1,0 +1,18 @@
+gateway:
+  env:
+    database: "off"
+  proxy:
+    type: LoadBalancer
+    loadBalancerIP: 10.10.10.240
+    annotations:
+      metallb.io/address-pool: medikong-pool
+    http:
+      enabled: true
+      servicePort: 80
+      containerPort: 8000
+    tls:
+      enabled: false
+
+controller:
+  ingressController:
+    ingressClass: kong

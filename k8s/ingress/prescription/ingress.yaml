@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prescription-api
+  annotations:
+    konghq.com/plugins: medikong-jwt,medikong-identity-headers,medikong-rate-limit-prescriptions,medikong-correlation-id,medikong-prometheus
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /prescriptions
+            pathType: Prefix
+            backend:
+              service:
+                name: prescription-service
+                port:
+                  number: 8083

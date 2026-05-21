@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - correlation-id.yaml
+  - identity-headers.yaml
+  - jwt.yaml
+  - prometheus.yaml
+  - rate-limiting.yaml

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: zexpand/notification-service:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: MONGODB_URL
+              value: mongodb://notification-db:27017
+            - name: MONGODB_DB_NAME
+              value: notification_db
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka.medical-platform.svc.cluster.local:9092
+            - name: KAFKA_GROUP_ID
+              value: notification-service
+            - name: APPOINTMENT_CONFIRMED_TOPIC
+              value: appointment-confirmed
+            - name: PRESCRIPTION_ISSUED_TOPIC
+              value: prescription-issued
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8084
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8084
+            initialDelaySeconds: 15
+            periodSeconds: 20

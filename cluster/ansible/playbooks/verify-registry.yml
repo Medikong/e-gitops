@@ -1,0 +1,37 @@
+---
+- name: Verify local registry reachability
+  hosts: k8s_cluster
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+
+  tasks:
+    - name: Check registry API from each node
+      ansible.builtin.uri:
+        url: "https://{{ local_registry_endpoint }}/v2/"
+        ca_path: "{{ containerd_registry_config_path }}/{{ local_registry_endpoint }}/ca.crt"
+        status_code: 200
+      register: registry_api
+      retries: 12
+      delay: 5
+      until: registry_api.status == 200
+
+- name: Show local registry catalog
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+
+  tasks:
+    - name: Query registry catalog
+      ansible.builtin.uri:
+        url: "https://127.0.0.1:{{ local_registry_port }}/v2/_catalog"
+        ca_path: "{{ local_registry_ca_cert_path }}"
+        return_content: true
+      register: registry_catalog
+
+    - name: Print registry catalog
+      ansible.builtin.debug:
+        var: registry_catalog.content

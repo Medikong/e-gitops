@@ -1,0 +1,61 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: medikong-identity-headers
+  annotations:
+    kubernetes.io/ingress.class: kong
+plugin: pre-function
+config:
+  access:
+    - |
+      local auth = kong.request.get_header("authorization")
+      if not auth then
+        return
+      end
+
+      local token = auth:match("[Bb]earer%s+(.+)")
+      if not token then
+        return
+      end
+
+      local payload_b64 = token:match("^[^.]+%.([^.]+)%.")
+      if not payload_b64 then
+        return
+      end
+
+      payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+      local padding = #payload_b64 % 4
+      if padding > 0 then
+        payload_b64 = payload_b64 .. string.rep("=", 4 - padding)
+      end
+
+      local payload_json = ngx.decode_base64(payload_b64)
+      if not payload_json then
+        return
+      end
+
+      local function claim_value(key)
+        local quoted = payload_json:match('"' .. key .. '"%s*:%s*"([^"]*)"')
+        if quoted then
+          return quoted
+        end
+        return payload_json:match('"' .. key .. '"%s*:%s*([%d%-]+)')
+      end
+
+      local sub = claim_value("sub")
+      local role = claim_value("role")
+      local patient_id = claim_value("patientId")
+      local doctor_id = claim_value("doctorId")
+
+      if sub then
+        kong.service.request.set_header("X-User-Id", tostring(sub))
+      end
+      if role then
+        kong.service.request.set_header("X-User-Role", tostring(role))
+      end
+      if patient_id then
+        kong.service.request.set_header("X-Patient-Id", tostring(patient_id))
+      end
+      if doctor_id then
+        kong.service.request.set_header("X-Doctor-Id", tostring(doctor_id))
+      end

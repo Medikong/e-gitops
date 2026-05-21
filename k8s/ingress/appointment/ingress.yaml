@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: appointment-api
+  annotations:
+    konghq.com/plugins: medikong-jwt,medikong-identity-headers,medikong-rate-limit-appointments,medikong-correlation-id,medikong-prometheus
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /appointments
+            pathType: Prefix
+            backend:
+              service:
+                name: appointment-service
+                port:
+                  number: 8082

@@ -1,0 +1,82 @@
+---
+- name: Verify Kubernetes Metrics Server
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+
+  tasks:
+    - name: Check Metrics Server deployment
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - -n
+          - kube-system
+          - get
+          - deployment
+          - metrics-server
+          - -o
+          - wide
+      environment:
+        KUBECONFIG: "{{ kubernetes_admin_conf_path }}"
+      register: metrics_server_deployment
+      changed_when: false
+
+    - name: Print Metrics Server deployment
+      ansible.builtin.debug:
+        var: metrics_server_deployment.stdout_lines
+
+    - name: Verify node metrics are available
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - top
+          - nodes
+      environment:
+        KUBECONFIG: "{{ kubernetes_admin_conf_path }}"
+      register: node_metrics
+      retries: 18
+      delay: 5
+      until: node_metrics.rc == 0
+      changed_when: false
+
+    - name: Print node metrics
+      ansible.builtin.debug:
+        var: node_metrics.stdout_lines
+
+    - name: Check app namespace
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - namespace
+          - "{{ lookup('env', 'APP_NAMESPACE') | default('medical-patient', true) }}"
+      environment:
+        KUBECONFIG: "{{ kubernetes_admin_conf_path }}"
+      register: app_namespace
+      failed_when: false
+      changed_when: false
+
+    - name: Verify app pod metrics are available
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - top
+          - pods
+          - -n
+          - "{{ lookup('env', 'APP_NAMESPACE') | default('medical-patient', true) }}"
+          - --containers
+      environment:
+        KUBECONFIG: "{{ kubernetes_admin_conf_path }}"
+      register: app_pod_metrics
+      retries: 18
+      delay: 5
+      until: app_pod_metrics.rc == 0
+      changed_when: false
+      when: app_namespace.rc == 0
+
+    - name: Print app pod metrics
+      ansible.builtin.debug:
+        var: app_pod_metrics.stdout_lines
+      when: app_namespace.rc == 0

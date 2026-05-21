@@ -1,0 +1,294 @@
+---
+- name: Prepare stable local registry CA on the Ansible controller
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+
+  tasks:
+    - name: Ensure local registry CA cache directory exists
+      ansible.builtin.file:
+        path: "{{ local_registry_host_tls_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Create stable local registry CA key
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - genrsa
+          - -out
+          - "{{ local_registry_host_ca_key_path }}"
+          - "4096"
+        creates: "{{ local_registry_host_ca_key_path }}"
+
+    - name: Create stable local registry CA certificate
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - req
+          - -x509
+          - -new
+          - -nodes
+          - -key
+          - "{{ local_registry_host_ca_key_path }}"
+          - -sha256
+          - -days
+          - "3650"
+          - -subj
+          - /CN=cloudnative-local-registry-ca
+          - -out
+          - "{{ local_registry_host_ca_cert_path }}"
+        creates: "{{ local_registry_host_ca_cert_path }}"
+
+- name: Bootstrap local container registry on the control plane
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+
+  handlers:
+    - name: Restart docker-registry
+      ansible.builtin.service:
+        name: docker-registry
+        state: restarted
+
+  tasks:
+    - name: Install local registry package
+      ansible.builtin.apt:
+        name: docker-registry
+        state: present
+        update_cache: true
+
+    - name: Ensure local registry storage exists
+      ansible.builtin.file:
+        path: "{{ local_registry_storage_path }}"
+        state: directory
+        owner: docker-registry
+        group: docker-registry
+        mode: "0755"
+
+    - name: Ensure local registry TLS directory exists
+      ansible.builtin.file:
+        path: "{{ local_registry_tls_dir }}"
+        state: directory
+        owner: root
+        group: docker-registry
+        mode: "0750"
+
+    - name: Install stable local registry CA key
+      ansible.builtin.copy:
+        src: "{{ local_registry_host_ca_key_path }}"
+        dest: "{{ local_registry_ca_key_path }}"
+        owner: root
+        group: docker-registry
+        mode: "0640"
+      register: local_registry_ca_key
+
+    - name: Install stable local registry CA certificate
+      ansible.builtin.copy:
+        src: "{{ local_registry_host_ca_cert_path }}"
+        dest: "{{ local_registry_ca_cert_path }}"
+        owner: root
+        group: docker-registry
+        mode: "0644"
+      register: local_registry_ca_cert
+
+    - name: Recreate local registry server certificate when the CA changes
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ local_registry_server_cert_path }}"
+        - "{{ local_registry_csr_path }}"
+        - "{{ local_registry_tls_dir }}/ca.srl"
+      when: local_registry_ca_key.changed or local_registry_ca_cert.changed
+
+    - name: Write local registry certificate request config
+      ansible.builtin.copy:
+        dest: "{{ local_registry_openssl_config_path }}"
+        owner: root
+        group: docker-registry
+        mode: "0640"
+        content: |
+          [req]
+          default_bits = 2048
+          prompt = no
+          default_md = sha256
+          distinguished_name = dn
+          req_extensions = req_ext
+
+          [dn]
+          CN = {{ local_registry_host }}
+
+          [req_ext]
+          subjectAltName = @alt_names
+
+          [alt_names]
+          IP.1 = {{ local_registry_host }}
+          DNS.1 = control-plane-1
+          DNS.2 = localhost
+          IP.2 = 127.0.0.1
+
+    - name: Create local registry server key
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - genrsa
+          - -out
+          - "{{ local_registry_server_key_path }}"
+          - "2048"
+        creates: "{{ local_registry_server_key_path }}"
+
+    - name: Create local registry server CSR
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - req
+          - -new
+          - -key
+          - "{{ local_registry_server_key_path }}"
+          - -out
+          - "{{ local_registry_csr_path }}"
+          - -config
+          - "{{ local_registry_openssl_config_path }}"
+        creates: "{{ local_registry_csr_path }}"
+
+    - name: Sign local registry server certificate
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - x509
+          - -req
+          - -in
+          - "{{ local_registry_csr_path }}"
+          - -CA
+          - "{{ local_registry_ca_cert_path }}"
+          - -CAkey
+          - "{{ local_registry_ca_key_path }}"
+          - -CAcreateserial
+          - -out
+          - "{{ local_registry_server_cert_path }}"
+          - -days
+          - "825"
+          - -sha256
+          - -extensions
+          - req_ext
+          - -extfile
+          - "{{ local_registry_openssl_config_path }}"
+        creates: "{{ local_registry_server_cert_path }}"
+      notify: Restart docker-registry
+
+    - name: Ensure registry private key is readable by docker-registry
+      ansible.builtin.file:
+        path: "{{ local_registry_server_key_path }}"
+        owner: root
+        group: docker-registry
+        mode: "0640"
+      notify: Restart docker-registry
+
+    - name: Configure registry to listen with TLS
+      ansible.builtin.copy:
+        dest: /etc/docker/registry/config.yml
+        mode: "0644"
+        content: |
+          version: 0.1
+          log:
+            fields:
+              service: registry
+          storage:
+            cache:
+              blobdescriptor: inmemory
+            filesystem:
+              rootdirectory: {{ local_registry_storage_path }}
+            delete:
+              enabled: true
+          http:
+            addr: :{{ local_registry_port }}
+            tls:
+              certificate: {{ local_registry_server_cert_path }}
+              key: {{ local_registry_server_key_path }}
+            headers:
+              X-Content-Type-Options: [nosniff]
+      notify: Restart docker-registry
+
+    - name: Apply registry config before checking the API
+      ansible.builtin.meta: flush_handlers
+
+    - name: Ensure registry service is enabled
+      ansible.builtin.service:
+        name: docker-registry
+        enabled: true
+        state: started
+
+    - name: Check local registry API
+      ansible.builtin.uri:
+        url: "https://127.0.0.1:{{ local_registry_port }}/v2/"
+        ca_path: "{{ local_registry_ca_cert_path }}"
+        status_code: 200
+      register: registry_api
+      retries: 12
+      delay: 5
+      until: registry_api.status == 200
+
+- name: Trust the local registry CA from every Kubernetes node
+  hosts: k8s_cluster
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+
+  handlers:
+    - name: Restart containerd
+      ansible.builtin.service:
+        name: containerd
+        state: restarted
+
+  tasks:
+    - name: Configure containerd registry config path
+      ansible.builtin.replace:
+        path: "{{ containerd_config_path }}"
+        regexp: "(?s)(\\[plugins\\.'io\\.containerd\\.cri\\.v1\\.images'\\.registry\\])\\s*config_path\\s*=.*?(\\n\\s*\\[plugins\\.'io\\.containerd\\.cri\\.v1\\.images'\\.image_decryption\\])"
+        replace: |-
+          \1
+                config_path = "{{ containerd_registry_config_path }}"
+          \2
+      notify: Restart containerd
+
+    - name: Ensure local registry trust directory exists
+      ansible.builtin.file:
+        path: "{{ containerd_registry_config_path }}/{{ local_registry_endpoint }}"
+        state: directory
+        mode: "0755"
+
+    - name: Fetch local registry CA from the control plane
+      ansible.builtin.slurp:
+        src: "{{ local_registry_ca_cert_path }}"
+      register: local_registry_ca
+      delegate_to: "{{ groups['control_plane'][0] }}"
+      run_once: true
+
+    - name: Install local registry CA for containerd
+      ansible.builtin.copy:
+        dest: "{{ containerd_registry_config_path }}/{{ local_registry_endpoint }}/ca.crt"
+        mode: "0644"
+        content: "{{ local_registry_ca.content | b64decode }}"
+      notify: Restart containerd
+
+    - name: Configure containerd to trust the HTTPS local registry
+      ansible.builtin.copy:
+        dest: "{{ containerd_registry_config_path }}/{{ local_registry_endpoint }}/hosts.toml"
+        mode: "0644"
+        content: |
+          server = "https://{{ local_registry_endpoint }}"
+
+          [host."https://{{ local_registry_endpoint }}"]
+            capabilities = ["pull", "resolve", "push"]
+            ca = "{{ containerd_registry_config_path }}/{{ local_registry_endpoint }}/ca.crt"
+      notify: Restart containerd
+
+    - name: Apply containerd registry trust changes before verification
+      ansible.builtin.meta: flush_handlers

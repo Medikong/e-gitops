@@ -1,0 +1,43 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: medikong-rate-limit-patients
+  annotations:
+    kubernetes.io/ingress.class: kong
+plugin: rate-limiting
+config:
+  minute: 60
+  policy: local
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: medikong-rate-limit-appointments
+  annotations:
+    kubernetes.io/ingress.class: kong
+plugin: rate-limiting
+config:
+  minute: 60
+  policy: local
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: medikong-rate-limit-prescriptions
+  annotations:
+    kubernetes.io/ingress.class: kong
+plugin: rate-limiting
+config:
+  minute: 30
+  policy: local
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: medikong-rate-limit-notifications
+  annotations:
+    kubernetes.io/ingress.class: kong
+plugin: rate-limiting
+config:
+  minute: 120
+  policy: local

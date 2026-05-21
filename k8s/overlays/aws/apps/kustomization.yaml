@@ -1,0 +1,112 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: medical-platform
+resources:
+  - ../../../base/apps
+images:
+  - name: zexpand/api-gateway
+    newTag: latest
+  - name: zexpand/patient-service
+    newTag: latest
+  - name: zexpand/appointment-service
+    newTag: latest
+  - name: zexpand/prescription-service
+    newTag: latest
+  - name: zexpand/notification-service
+    newTag: latest
+  - name: zexpand/dashboard
+    newTag: latest
+patches:
+  - target:
+      version: v1
+      kind: Service
+      name: api-gateway
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: NodePort
+      - op: add
+        path: /spec/ports/0/nodePort
+        value: 30080
+  - target:
+      version: v1
+      kind: Service
+      name: dashboard
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: NodePort
+      - op: add
+        path: /spec/ports/0/nodePort
+        value: 30088
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: api-gateway
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: EUREKA_CLIENT_ENABLED
+          value: "false"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: SPRING_APPLICATION_JSON
+          value: >-
+            {"eureka":{"client":{"enabled":false}},"spring":{"cloud":{"discovery":{"enabled":false},"gateway":{"discovery":{"locator":{"enabled":false}},"routes":[{"id":"patient-service","uri":"http://patient-service:8081","predicates":["Path=/patient-service/**"],"filters":["StripPrefix=1"]},{"id":"appointment-service","uri":"http://appointment-service:8082","predicates":["Path=/appointment-service/**"],"filters":["StripPrefix=1","JwtAuthenticationFilter"]},{"id":"prescription-service","uri":"http://prescription-service:8083","predicates":["Path=/prescription-service/**"],"filters":["StripPrefix=1","JwtAuthenticationFilter"]},{"id":"notification-service","uri":"http://notification-service:8084","predicates":["Path=/notification-service/**"],"filters":["StripPrefix=1"]}]}}}}
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: patient-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: EUREKA_CLIENT_ENABLED
+          value: "false"
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: appointment-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: EUREKA_CLIENT_ENABLED
+          value: "false"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: kafka:9092
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: SPRING_KAFKA_PRODUCER_KEY_SERIALIZER
+          value: org.apache.kafka.common.serialization.StringSerializer
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER
+          value: org.springframework.kafka.support.serializer.JsonSerializer
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: prescription-service
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: EUREKA_CLIENT_ENABLED
+          value: "false"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: PATIENT_SERVICE_URL
+          value: http://patient-service:8081
+

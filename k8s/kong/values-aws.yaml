@@ -1,0 +1,22 @@
+gateway:
+  env:
+    database: "off"
+  proxy:
+    type: ClusterIP
+    http:
+      enabled: true
+      servicePort: 80
+      containerPort: 8000
+      hostPort: 80
+    tls:
+      enabled: false
+  deployment:
+    daemonset: true
+    podLabels:
+      workload.medikong.io/external-entrypoint: kong
+  manager:
+    enabled: false
+
+controller:
+  ingressController:
+    ingressClass: kong

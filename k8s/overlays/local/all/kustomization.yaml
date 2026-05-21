@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../namespaces
+  - ../../../storage
+  - ../../../kong
+  - ../../../network-policies
+  - ../auth-deps
+  - ../patient-deps
+  - ../appointment-deps
+  - ../prescription-deps
+  - ../notification-deps
+  - ../messaging
+  - ../auth
+  - ../patient
+  - ../appointment
+  - ../prescription
+  - ../notification
+  - ../dashboard
+
+images:
+  - name: zexpand/auth-service
+    newName: 10.10.10.10:5000/auth-service
+    newTag: dev-auth
+  - name: zexpand/patient-service
+    newName: 10.10.10.10:5000/patient-service
+    newTag: dev-auth
+  - name: zexpand/appointment-service
+    newName: 10.10.10.10:5000/appointment-service
+    newTag: dev-auth
+  - name: zexpand/prescription-service
+    newName: 10.10.10.10:5000/prescription-service
+    newTag: dev-auth
+  - name: zexpand/notification-service
+    newName: 10.10.10.10:5000/notification-service
+    newTag: dev-auth
+  - name: zexpand/dashboard
+    newName: 10.10.10.10:5000/dashboard
+    newTag: dev-auth
+  - name: postgres
+    newName: 10.10.10.10:5000/postgres
+    newTag: "15"
+  - name: apache/kafka
+    newName: 10.10.10.10:5000/apache/kafka
+    newTag: "3.8.1"

@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-create-topics
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: kafka-create-topics
+          image: apache/kafka:3.8.1
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do
+                echo "waiting for kafka..."
+                sleep 5
+              done
+
+              /opt/kafka/bin/kafka-topics.sh \
+                --bootstrap-server kafka:9092 \
+                --create \
+                --if-not-exists \
+                --topic appointment-confirmed \
+                --partitions 1 \
+                --replication-factor 1
+
+              /opt/kafka/bin/kafka-topics.sh \
+                --bootstrap-server kafka:9092 \
+                --create \
+                --if-not-exists \
+                --topic prescription-issued \
+                --partitions 1 \
+                --replication-factor 1
+
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list

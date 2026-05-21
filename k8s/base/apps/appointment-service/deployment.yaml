@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appointment-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: appointment-service
+  template:
+    metadata:
+      labels:
+        app: appointment-service
+    spec:
+      containers:
+        - name: appointment-service
+          image: zexpand/appointment-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: DATABASE_URL
+              value: postgresql+psycopg://user:password@appointment-db:5432/appointment_db
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka.medical-messaging.svc.cluster.local:9092
+            - name: APPOINTMENT_CONFIRMED_TOPIC
+              value: appointment-confirmed
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 15
+            periodSeconds: 20

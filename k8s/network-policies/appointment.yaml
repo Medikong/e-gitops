@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-appointment-service-ingress
+  namespace: medical-appointment
+spec:
+  podSelector:
+    matchLabels:
+      app: appointment-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8082
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-appointment-db-ingress
+  namespace: medical-appointment
+spec:
+  podSelector:
+    matchLabels:
+      app: appointment-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: appointment-service
+      ports:
+        - protocol: TCP
+          port: 5432

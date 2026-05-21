@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: notification-db
+spec:
+  serviceName: notification-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-db
+  template:
+    metadata:
+      labels:
+        app: notification-db
+    spec:
+      containers:
+        - name: notification-db
+          image: mongo:7
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: notification-db-storage
+              mountPath: /data/db
+  volumeClaimTemplates:
+    - metadata:
+        name: notification-db-storage
+      spec:
+        volumeName: notification-db-pv
+        storageClassName: ""
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

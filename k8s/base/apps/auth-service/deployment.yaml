@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: zexpand/auth-service:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              value: postgresql+psycopg://user:password@auth-db:5432/auth_db
+            - name: AUTH_TOKEN_TTL_SECONDS
+              value: "900"
+            - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
+              value: "604800"
+            - name: STAFF_JWT_SECRET
+              value: staff-secret
+            - name: PATIENT_JWT_SECRET
+              value: patient-secret
+            - name: DOCTOR_JWT_SECRET
+              value: doctor-secret
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20

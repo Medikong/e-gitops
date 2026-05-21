@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: outbox-publisher
+spec:
+  schedule: "* * * * *"  # 1분마다 실행
+  concurrencyPolicy: Forbid  # 동시 실행 방지
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: outbox-publisher
+              image: python:3.12-slim
+              command:
+                - sh
+                - -c
+                - |
+                  pip install psycopg[binary] kafka-python -q
+                  python - << 'PYEOF'
+                  import psycopg
+                  import json
+                  from kafka import KafkaProducer
+
+                  KAFKA_SERVERS = "kafka.medical-platform.svc.cluster.local:9092"
+
+                  DATABASES = [
+                      "postgresql://user:password@appointment-db:5432/appointment_db",
+                      "postgresql://user:password@prescription-db:5432/prescription_db",
+                  ]
+
+                  producer = KafkaProducer(
+                      bootstrap_servers=KAFKA_SERVERS,
+                      value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+                  )
+
+                  total = 0
+                  for db_url in DATABASES:
+                      with psycopg.connect(db_url) as conn:
+                          with conn.cursor() as cur:
+                              cur.execute(
+                                  "SELECT id, event_id, event_type, payload FROM outbox WHERE published = FALSE ORDER BY created_at LIMIT 100"
+                              )
+                              rows = cur.fetchall()
+                              for row in rows:
+                                  id_, event_id, event_type, payload = row
+                                  producer.send(event_type, value=payload)
+                                  cur.execute(
+                                      "UPDATE outbox SET published = TRUE WHERE id = %s", (id_,)
+                                  )
+                              conn.commit()
+                              total += len(rows)
+
+                  producer.flush()
+                  print(f"Published {total} events")
+                  PYEOF
+              env:
+                - name: PYTHONUNBUFFERED
+                  value: "1"

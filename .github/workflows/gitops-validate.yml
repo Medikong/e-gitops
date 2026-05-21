@@ -1,0 +1,33 @@
+name: GitOps Validate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitops-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kustomize:
+    name: Kustomize render
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Render GitOps overlays
+        run: make validate

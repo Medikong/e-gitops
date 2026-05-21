@@ -1,0 +1,174 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - hpa.yaml
+  - ../../../namespaces
+  - ../../../storage
+  - ../../../kong
+  - ../../../network-policies
+  - ../../local/auth-deps
+  - ../../local/patient-deps
+  - ../../local/appointment-deps
+  - ../../local/prescription-deps
+  - ../../local/notification-deps
+  - ../../local/messaging
+  - ../../local/auth
+  - ../../local/patient
+  - ../../local/appointment
+  - ../../local/prescription
+  - ../../local/notification
+  - ../../local/dashboard
+
+images:
+  - name: zexpand/auth-service
+    newName: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/medikong-smoke1-auth-service
+    newTag: smoke1
+  - name: zexpand/patient-service
+    newName: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/medikong-smoke1-patient-service
+    newTag: smoke1
+  - name: zexpand/appointment-service
+    newName: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/medikong-smoke1-appointment-service
+    newTag: smoke1
+  - name: zexpand/prescription-service
+    newName: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/medikong-smoke1-prescription-service
+    newTag: smoke1
+  - name: zexpand/notification-service
+    newName: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/medikong-smoke1-notification-service
+    newTag: smoke1
+  - name: zexpand/dashboard
+    newName: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/medikong-smoke1-dashboard
+    newTag: smoke1
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: add
+        path: /spec/strategy
+        value:
+          type: RollingUpdate
+          rollingUpdate:
+            maxSurge: 0
+            maxUnavailable: 1
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+          - name: ecr-registry
+      - op: add
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+  - target:
+      version: v1
+      kind: PersistentVolume
+      name: auth-db-pv
+    patch: |-
+      - op: add
+        path: /spec/hostPath/type
+        value: DirectoryOrCreate
+  - target:
+      version: v1
+      kind: PersistentVolume
+      name: patient-db-pv
+    patch: |-
+      - op: add
+        path: /spec/hostPath/type
+        value: DirectoryOrCreate
+  - target:
+      version: v1
+      kind: PersistentVolume
+      name: appointment-db-pv
+    patch: |-
+      - op: add
+        path: /spec/hostPath/type
+        value: DirectoryOrCreate
+  - target:
+      version: v1
+      kind: PersistentVolume
+      name: prescription-db-pv
+    patch: |-
+      - op: add
+        path: /spec/hostPath/type
+        value: DirectoryOrCreate
+  - target:
+      version: v1
+      kind: PersistentVolume
+      name: notification-db-pv
+    patch: |-
+      - op: add
+        path: /spec/hostPath/type
+        value: DirectoryOrCreate
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: auth-db
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: ip-172-31-57-62
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: patient-db
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: ip-172-31-57-62
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: appointment-db
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: ip-172-31-57-62
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: prescription-db
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: ip-172-31-57-62
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: notification-db
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: ip-172-31-57-62
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: kafka
+    patch: |-
+      - op: add
+        path: /spec/template/spec/nodeSelector
+        value:
+          kubernetes.io/hostname: ip-172-31-57-62

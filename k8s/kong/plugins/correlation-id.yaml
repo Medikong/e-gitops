@@ -1,0 +1,11 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: medikong-correlation-id
+  annotations:
+    kubernetes.io/ingress.class: kong
+plugin: correlation-id
+config:
+  header_name: X-Request-Id
+  generator: uuid
+  echo_downstream: true

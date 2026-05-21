@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-outbox-tables
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init-outbox
+          image: postgres:15
+          command:
+            - sh
+            - -c
+            - |
+              echo "Creating outbox table in appointment_db..."
+              PGPASSWORD=password psql -h appointment-db -U user -d appointment_db -c "
+                CREATE TABLE IF NOT EXISTS outbox (
+                  id SERIAL PRIMARY KEY,
+                  event_id VARCHAR(120) UNIQUE NOT NULL,
+                  event_type VARCHAR(80) NOT NULL,
+                  payload JSONB NOT NULL,
+                  published BOOLEAN DEFAULT FALSE,
+                  created_at TIMESTAMP DEFAULT NOW()
+                );"
+
+              echo "Creating outbox table in prescription_db..."
+              PGPASSWORD=password psql -h prescription-db -U user -d prescription_db -c "
+                CREATE TABLE IF NOT EXISTS outbox (
+                  id SERIAL PRIMARY KEY,
+                  event_id VARCHAR(120) UNIQUE NOT NULL,
+                  event_type VARCHAR(80) NOT NULL,
+                  payload JSONB NOT NULL,
+                  published BOOLEAN DEFAULT FALSE,
+                  created_at TIMESTAMP DEFAULT NOW()
+                );"
+
+              echo "Done!"

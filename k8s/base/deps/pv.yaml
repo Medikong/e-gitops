@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: auth-db-pv
+  labels:
+    app: auth-db
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/auth-db
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: patient-db-pv
+  labels:
+    app: patient-db
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/patient-db
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: appointment-db-pv
+  labels:
+    app: appointment-db
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/appointment-db
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: prescription-db-pv
+  labels:
+    app: prescription-db
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/prescription-db
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: kafka-pv
+  labels:
+    app: kafka
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/kafka
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: notification-db-pv
+  labels:
+    app: notification-db
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/notification-db

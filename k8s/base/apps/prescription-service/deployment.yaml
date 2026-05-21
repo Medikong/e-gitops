@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prescription-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prescription-service
+  template:
+    metadata:
+      labels:
+        app: prescription-service
+    spec:
+      containers:
+        - name: prescription-service
+          image: zexpand/prescription-service:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: DATABASE_URL
+              value: postgresql+psycopg://user:password@prescription-db:5432/prescription_db
+            - name: PATIENT_SERVICE_URL
+              value: http://patient-service.medical-patient.svc.cluster.local:8081
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka.medical-messaging.svc.cluster.local:9092
+            - name: PRESCRIPTION_ISSUED_TOPIC
+              value: prescription-issued
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 15
+            periodSeconds: 20

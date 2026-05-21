@@ -1,0 +1,49 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-patient-service-ingress
+  namespace: medical-patient
+spec:
+  podSelector:
+    matchLabels:
+      app: patient-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8081
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: medical-prescription
+          podSelector:
+            matchLabels:
+              app: prescription-service
+      ports:
+        - protocol: TCP
+          port: 8081
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-patient-db-ingress
+  namespace: medical-patient
+spec:
+  podSelector:
+    matchLabels:
+      app: patient-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: patient-service
+      ports:
+        - protocol: TCP
+          port: 5432
