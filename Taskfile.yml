@@ -14,6 +14,7 @@ vars:
   DEV_REGISTRY_CONTAINER: '{{default "medikong-registry" .DEV_REGISTRY_CONTAINER}}'
   DEV_IMAGE_NAMESPACE: '{{default "" .DEV_IMAGE_NAMESPACE}}'
   DEV_IMAGE_TAG: '{{default "dev" .DEV_IMAGE_TAG}}'
+  DEV_ROLLOUT_ID: '{{default "" .DEV_ROLLOUT_ID}}'
   KONG_CHART: '{{default "kong/kong" .KONG_CHART}}'
   KONG_CHART_VERSION: '{{default "3.2.0" .KONG_CHART_VERSION}}'
   KONG_NAMESPACE: '{{default "kong" .KONG_NAMESPACE}}'
@@ -48,21 +49,35 @@ tasks:
     cmds:
       - task dev:check
       - task dev:images
+      - task dev:platform
+      - task dev:services
+
+  dev:platform:
+    desc: Docker Desktop dev의 namespace, data, Kong 기반 리소스를 준비합니다.
+    cmds:
       - '{{.KUBECTL}} apply -k platform/namespaces'
       - task dev:data
       - task dev:kong
+
+  dev:services:
+    desc: Docker Desktop dev에 모든 서비스 Helm release를 병렬 배포하고 병렬로 rollout을 기다립니다.
+    cmds:
       - |
         set -eu
         image_registry='{{.DEV_REGISTRY}}'
         image_namespace='{{.DEV_IMAGE_NAMESPACE}}'
+        rollout_id='{{.DEV_ROLLOUT_ID}}'
+        if [ -z "${rollout_id}" ]; then
+          rollout_id="$(date -u +%Y%m%dT%H%M%SZ)"
+        fi
         if [ -n "${image_namespace}" ]; then
           image_registry="${image_registry%/}/${image_namespace#/}"
         fi
-        app_field() {
-          awk -v wanted="$2" '
-            $1 == "app:" { in_app = 1; next }
-            in_app && /^[^[:space:]]/ { in_app = 0 }
-            in_app {
+        yaml_section_field() {
+          awk -v section="$2" -v wanted="$3" '
+            $1 == section ":" { in_section = 1; next }
+            in_section && /^[^[:space:]]/ { in_section = 0 }
+            in_section {
               line = $0
               sub(/^[[:space:]]+/, "", line)
               key = line
@@ -76,23 +91,171 @@ tasks:
             }
           ' "$1"
         }
+        pids=""
         for service_file in values/services/*.yaml; do
           service="$(basename "${service_file}" .yaml)"
-          namespace="$(app_field "${service_file}" namespace)"
-          app_name="$(app_field "${service_file}" name)"
+          namespace="$(yaml_section_field "${service_file}" app namespace)"
           release="${service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
-          {{.HELM}} upgrade --install "${release}" {{.SERVICE_CHART}} \
-            --namespace "${namespace}" \
-            --create-namespace \
-            -f {{.VALUES_BASE}} \
-            -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
-            -f "${service_file}" \
-            --set-string image.registry="${image_registry}" \
-            --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
-            --set-string image.pullPolicy=Always
-          {{.KUBECTL}} rollout restart "deployment/${app_name}" -n "${namespace}"
-          {{.KUBECTL}} rollout status "deployment/${app_name}" -n "${namespace}" --timeout=180s
+          (
+            {{.HELM}} upgrade --install "${release}" {{.SERVICE_CHART}} \
+              --namespace "${namespace}" \
+              --create-namespace \
+              -f {{.VALUES_BASE}} \
+              -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
+              -f "${service_file}" \
+              --set-string image.registry="${image_registry}" \
+              --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
+              --set-string image.pullPolicy=Always \
+              --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id='"${rollout_id}"
+          ) &
+          pids="${pids} $!"
         done
+        failed=0
+        for pid in ${pids}; do
+          if ! wait "${pid}"; then
+            failed=1
+          fi
+        done
+        if [ "${failed}" -ne 0 ]; then
+          exit 1
+        fi
+        pids=""
+        for service_file in values/services/*.yaml; do
+          app_name="$(yaml_section_field "${service_file}" app name)"
+          namespace="$(yaml_section_field "${service_file}" app namespace)"
+          (
+            {{.KUBECTL}} rollout status "deployment/${app_name}" -n "${namespace}" --timeout=180s
+          ) &
+          pids="${pids} $!"
+        done
+        failed=0
+        for pid in ${pids}; do
+          if ! wait "${pid}"; then
+            failed=1
+          fi
+        done
+        if [ "${failed}" -ne 0 ]; then
+          exit 1
+        fi
+
+  dev:service:
+    desc: SERVICE=<name> 하나만 build/push 후 Docker Desktop dev에 Helm 배포합니다.
+    cmds:
+      - task dev:registry
+      - |
+        set -eu
+        service='{{default "" .SERVICE}}'
+        service_repo='{{.SERVICE_REPO}}'
+        image_registry='{{.DEV_REGISTRY}}'
+        image_namespace='{{.DEV_IMAGE_NAMESPACE}}'
+        rollout_id='{{.DEV_ROLLOUT_ID}}'
+        if [ -z "${service}" ]; then
+          printf '%s\n' 'SERVICE is required, for example: task dev:service SERVICE=concert' >&2
+          exit 2
+        fi
+        service_file="values/services/${service}.yaml"
+        if [ ! -f "${service_file}" ]; then
+          printf 'Unknown SERVICE=%s (expected values/services/%s.yaml).\n' "${service}" "${service}" >&2
+          exit 2
+        fi
+        if [ ! -d "${service_repo}" ]; then
+          printf 'SERVICE_REPO does not exist: %s\n' "${service_repo}" >&2
+          exit 2
+        fi
+        if [ ! -f "${service_repo}/Taskfile.yml" ]; then
+          printf 'SERVICE_REPO has no Taskfile.yml: %s\n' "${service_repo}" >&2
+          exit 2
+        fi
+        if [ -z "${rollout_id}" ]; then
+          rollout_id="$(date -u +%Y%m%dT%H%M%SZ)"
+        fi
+        if [ -n "${image_namespace}" ]; then
+          image_registry="${image_registry%/}/${image_namespace#/}"
+        fi
+        yaml_section_field() {
+          awk -v section="$2" -v wanted="$3" '
+            $1 == section ":" { in_section = 1; next }
+            in_section && /^[^[:space:]]/ { in_section = 0 }
+            in_section {
+              line = $0
+              sub(/^[[:space:]]+/, "", line)
+              key = line
+              sub(/:.*/, "", key)
+              if (key == wanted) {
+                sub(/^[^:]*:[[:space:]]*/, "", line)
+                gsub(/^"|"$/, "", line)
+                print line
+                exit
+              }
+            }
+          ' "$1"
+        }
+        namespace="$(yaml_section_field "${service_file}" app namespace)"
+        app_name="$(yaml_section_field "${service_file}" app name)"
+        image_repository="$(yaml_section_field "${service_file}" image repository)"
+        release="${service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
+        if ! task --dir "${service_repo}" --dry app-image-push \
+          SERVICE="${image_repository}" \
+          IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
+          IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
+          IMAGE_TAG="{{.DEV_IMAGE_TAG}}" >/dev/null 2>&1; then
+          printf '%s\n' 'SERVICE_REPO Taskfile is missing required target: app-image-push' >&2
+          exit 2
+        fi
+        task --dir "${service_repo}" app-image-push \
+          SERVICE="${image_repository}" \
+          IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
+          IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
+          IMAGE_TAG="{{.DEV_IMAGE_TAG}}"
+        {{.HELM}} upgrade --install "${release}" {{.SERVICE_CHART}} \
+          --namespace "${namespace}" \
+          --create-namespace \
+          -f {{.VALUES_BASE}} \
+          -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
+          -f "${service_file}" \
+          --set-string image.registry="${image_registry}" \
+          --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
+          --set-string image.pullPolicy=Always \
+          --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id='"${rollout_id}"
+        {{.KUBECTL}} rollout status "deployment/${app_name}" -n "${namespace}" --timeout=180s
+
+  dev:restart:
+    desc: SERVICE=<name> 하나만 명시적으로 rollout restart합니다.
+    cmds:
+      - |
+        set -eu
+        service='{{default "" .SERVICE}}'
+        if [ -z "${service}" ]; then
+          printf '%s\n' 'SERVICE is required, for example: task dev:restart SERVICE=concert' >&2
+          exit 2
+        fi
+        service_file="values/services/${service}.yaml"
+        if [ ! -f "${service_file}" ]; then
+          printf 'Unknown SERVICE=%s (expected values/services/%s.yaml).\n' "${service}" "${service}" >&2
+          exit 2
+        fi
+        yaml_section_field() {
+          awk -v section="$2" -v wanted="$3" '
+            $1 == section ":" { in_section = 1; next }
+            in_section && /^[^[:space:]]/ { in_section = 0 }
+            in_section {
+              line = $0
+              sub(/^[[:space:]]+/, "", line)
+              key = line
+              sub(/:.*/, "", key)
+              if (key == wanted) {
+                sub(/^[^:]*:[[:space:]]*/, "", line)
+                gsub(/^"|"$/, "", line)
+                print line
+                exit
+              }
+            }
+          ' "$1"
+        }
+        namespace="$(yaml_section_field "${service_file}" app namespace)"
+        app_name="$(yaml_section_field "${service_file}" app name)"
+        {{.KUBECTL}} rollout restart "deployment/${app_name}" -n "${namespace}"
+        {{.KUBECTL}} rollout status "deployment/${app_name}" -n "${namespace}" --timeout=180s
 
   dev:check:
     desc: Docker Desktop Kubernetes에 올릴 서비스 Helm release와 dev image override를 검증합니다.
@@ -116,7 +279,8 @@ tasks:
             -f "${service_file}" \
             --set-string image.registry="${image_registry}" \
             --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
-            --set-string image.pullPolicy=Always >/dev/null
+            --set-string image.pullPolicy=Always \
+            --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id=check' >/dev/null
         done
 
   dev:registry:
@@ -234,6 +398,7 @@ tasks:
         set -eu
         {{.KUBECTL}} delete job/kafka-create-topics -n ticketing-messaging --ignore-not-found=true
         {{.KUBECTL}} apply -k platform/data
+        pids=""
         for item in \
           ticketing-auth/auth-db \
           ticketing-concert/concert-db \
@@ -245,8 +410,20 @@ tasks:
         do
           namespace="${item%%/*}"
           statefulset="${item##*/}"
-          {{.KUBECTL}} rollout status "statefulset/${statefulset}" -n "${namespace}" --timeout=240s
+          (
+            {{.KUBECTL}} rollout status "statefulset/${statefulset}" -n "${namespace}" --timeout=240s
+          ) &
+          pids="${pids} $!"
         done
+        failed=0
+        for pid in ${pids}; do
+          if ! wait "${pid}"; then
+            failed=1
+          fi
+        done
+        if [ "${failed}" -ne 0 ]; then
+          exit 1
+        fi
         {{.KUBECTL}} wait --for=condition=complete job/kafka-create-topics -n ticketing-messaging --timeout=180s
 
   kong:repo:
