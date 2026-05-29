@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: appointment-aws-dev
+  name: reservation-aws-dev
   namespace: argocd
 spec:
   project: default
@@ -10,17 +10,17 @@ spec:
       targetRevision: HEAD
       path: charts/medikong-service
       helm:
-        releaseName: appointment-aws-dev
+        releaseName: reservation-aws-dev
         valueFiles:
           - $values/values/base.yaml
           - $values/values/env/aws-dev.yaml
-          - $values/values/services/appointment.yaml
+          - $values/values/services/reservation.yaml
     - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: medical-appointment
+    namespace: ticketing-reservation
   syncPolicy:
     syncOptions:
       - CreateNamespace=false

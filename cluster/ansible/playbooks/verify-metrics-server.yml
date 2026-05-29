@@ -51,7 +51,7 @@
           - kubectl
           - get
           - namespace
-          - "{{ lookup('env', 'APP_NAMESPACE') | default('medical-patient', true) }}"
+          - "{{ lookup('env', 'APP_NAMESPACE') | default('ticketing-reservation', true) }}"
       environment:
         KUBECONFIG: "{{ kubernetes_admin_conf_path }}"
       register: app_namespace
@@ -65,7 +65,7 @@
           - top
           - pods
           - -n
-          - "{{ lookup('env', 'APP_NAMESPACE') | default('medical-patient', true) }}"
+          - "{{ lookup('env', 'APP_NAMESPACE') | default('ticketing-reservation', true) }}"
           - --containers
       environment:
         KUBECONFIG: "{{ kubernetes_admin_conf_path }}"

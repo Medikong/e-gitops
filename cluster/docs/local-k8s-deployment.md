@@ -46,7 +46,7 @@ kubectl kustomize archive/k8s-kustomize/overlays/local/deps
 새 기준에서는 서비스별 values를 바꾼다.
 
 ```bash
-task helm:template:one SERVICE=patient ENV=local-vm-kubeadm
+task helm:template:one SERVICE=reservation ENV=local-vm-kubeadm
 ```
 
 기존 Kustomize image tag helper는 Makefile의 deprecated wrapper로만 남긴다.
@@ -74,6 +74,9 @@ ANSIBLE_INVENTORY=/path/to/inventory.ini cluster/scripts/install-registry-ca.sh
 
 ## Smoke
 
+새 기준의 smoke는 서비스별 API 스크립트가 아니라 GitOps render와 cluster 상태 확인으로 나눈다.
+
 ```bash
-cluster/scripts/local-k8s-crud-scenario.sh
+task validate
+task dev:status
 ```

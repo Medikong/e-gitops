@@ -34,7 +34,7 @@
 
 **`선택`**
 
-- Kafka를 StatefulSet으로 배포하여 서비스 간 주요 이벤트(`appointment-confirmed`, `prescription-issued` 등)를 토픽으로 정의하고 비동기 이벤트 통신을 구현한다.
+- Kafka를 StatefulSet으로 배포하여 서비스 간 주요 이벤트(`reservation-created`, `ticket-issued` 등)를 토픽으로 정의하고 비동기 이벤트 통신을 구현한다.
 - 이벤트 소싱(Event Sourcing) 패턴을 1개 서비스에 적용하여 변경 이력을 이벤트 저장소에 보관한다.
 
 ---

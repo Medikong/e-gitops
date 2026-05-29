@@ -20,7 +20,7 @@ spec:
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: medical-notification
+    namespace: ticketing-notification
   syncPolicy:
     syncOptions:
       - CreateNamespace=false

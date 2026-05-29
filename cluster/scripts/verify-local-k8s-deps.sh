@@ -2,7 +2,7 @@
 set -euo pipefail
 
 timeout="${LOCAL_K8S_WAIT_TIMEOUT:-300s}"
-targets="${DEPENDENCY_ROLLOUT_TARGETS:-medical-auth:statefulset/auth-db medical-patient:statefulset/patient-db medical-appointment:statefulset/appointment-db medical-prescription:statefulset/prescription-db medical-notification:statefulset/notification-db medical-messaging:statefulset/kafka}"
+targets="${DEPENDENCY_ROLLOUT_TARGETS:-ticketing-auth:statefulset/auth-db ticketing-concert:statefulset/concert-db ticketing-reservation:statefulset/reservation-db ticketing-payment:statefulset/payment-db ticketing-ticket:statefulset/ticket-db ticketing-notification:statefulset/notification-db ticketing-messaging:statefulset/kafka}"
 
 timeout_seconds() {
   case "$timeout" in

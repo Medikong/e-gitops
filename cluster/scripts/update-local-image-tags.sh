@@ -20,7 +20,7 @@ if [[ -z "$kustomization_file" || ! -f "$kustomization_file" ]]; then
   exit 2
 fi
 
-app_images="zexpand/auth-service zexpand/patient-service zexpand/appointment-service zexpand/prescription-service zexpand/notification-service zexpand/dashboard"
+app_images="zexpand/auth-service zexpand/concert-service zexpand/reservation-service zexpand/payment-service zexpand/ticket-service zexpand/notification-service zexpand/dashboard"
 tmp_file="$(mktemp)"
 trap 'rm -f "$tmp_file"' EXIT
 

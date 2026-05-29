@@ -28,7 +28,7 @@ sources:
       valueFiles:
         - $values/values/base.yaml
         - $values/values/env/aws-dev.yaml
-        - $values/values/services/patient.yaml
+        - $values/values/services/reservation.yaml
   - ref: values
 ```
 

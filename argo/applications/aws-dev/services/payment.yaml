@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: patient-aws-dev
+  name: payment-aws-dev
   namespace: argocd
 spec:
   project: default
@@ -10,17 +10,17 @@ spec:
       targetRevision: HEAD
       path: charts/medikong-service
       helm:
-        releaseName: patient-aws-dev
+        releaseName: payment-aws-dev
         valueFiles:
           - $values/values/base.yaml
           - $values/values/env/aws-dev.yaml
-          - $values/values/services/patient.yaml
+          - $values/values/services/payment.yaml
     - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: medical-patient
+    namespace: ticketing-payment
   syncPolicy:
     syncOptions:
       - CreateNamespace=false
