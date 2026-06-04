@@ -8,6 +8,17 @@
 - `values/local.yaml`: Docker Desktop 로컬 렌더링과 수동 dev 배포용 values다.
 - `Taskfile.yml`: Helm chart 렌더링과 선택적 로컬 배포 명령을 둔다.
 
+## 배포 기준
+
+```text
+log path
+  stdout/stderr JSON
+  -> Kubernetes container log
+  -> OpenTelemetry Collector filelog receiver
+  -> Loki
+  -> Grafana
+```
+
 ## Label 정책
 
 Loki label은 낮은 cardinality 값만 허용한다.
