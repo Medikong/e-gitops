@@ -104,3 +104,19 @@ http://kube-prometheus-stack-prometheus.monitoring:9090
 
 If the monitoring stack uses a different service name, update
 `argocd/kiali.yaml`.
+
+Mesh metric collection is owned by the monitoring platform layer, not this
+Istio bootstrap layer. The first rollout adds PodMonitors in:
+
+```text
+platform/monitoring/manifests/istio-mesh-podmonitors.yaml
+```
+
+Initial scrape scope:
+
+- `istiod` metrics from `istio-system`
+- `concert-service` Envoy sidecar metrics from `ticketing-concert`
+
+This keeps the first mesh monitoring rollout aligned with the first sidecar
+target. Expand the PodMonitor selector only after additional service namespaces
+are opted into sidecar injection.

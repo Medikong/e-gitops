@@ -1,0 +1,46 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: istiod
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: istiod
+    app.kubernetes.io/part-of: medikong-platform
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - istio-system
+  selector:
+    matchLabels:
+      app: istiod
+  podMetricsEndpoints:
+    - port: http-monitoring
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: concert-envoy-sidecar
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: concert-envoy-sidecar
+    app.kubernetes.io/part-of: medikong-platform
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - ticketing-concert
+  selector:
+    matchLabels:
+      app: concert-service
+  podMetricsEndpoints:
+    - port: http-envoy-prom
+      path: /stats/prometheus
+      interval: 30s
+      relabelings:
+        - action: keep
+          sourceLabels:
+            - __meta_kubernetes_pod_container_name
+          regex: istio-proxy

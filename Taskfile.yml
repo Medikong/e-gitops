@@ -590,6 +590,28 @@ tasks:
             ;;
         esac
 
+  mesh-monitoring:render:
+    desc: Istio/Kiali/Prometheus mesh monitoring 리소스를 렌더링합니다.
+    cmds:
+      - '{{.KUBECTL}} kustomize platform/monitoring >/dev/null'
+      - '{{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}} >/dev/null'
+
+  mesh-monitoring-check:
+    desc: Mesh Monitoring용 PodMonitor, Kiali, Prometheus/Grafana service 상태를 확인합니다.
+    cmds:
+      - |
+        set -eu
+        {{.KUBECTL}} get crd podmonitors.monitoring.coreos.com
+        {{.KUBECTL}} get podmonitor -n monitoring istiod concert-envoy-sidecar
+        {{.KUBECTL}} get svc -n monitoring kube-prometheus-stack-prometheus kube-prometheus-stack-grafana
+        {{.KUBECTL}} get svc -n istio-system kiali
+        {{.KUBECTL}} get pods -n istio-system -l app=istiod
+        {{.KUBECTL}} get pods -n ticketing-concert -l app=concert-service
+        printf '%s\n' 'Prometheus queries to verify after traffic exists:'
+        printf '%s\n' '  istio_requests_total'
+        printf '%s\n' '  istio_request_duration_milliseconds_bucket'
+        printf '%s\n' '  pilot_xds_pushes'
+
   dev:kong:check:
     internal: true
     desc: Docker Desktop dev용 Kong chart values와 Kong shared resource 렌더링을 검증합니다.
