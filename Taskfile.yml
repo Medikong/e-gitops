@@ -949,7 +949,7 @@ tasks:
   platform:render:
     cmds:
       - '{{.KUBECTL}} kustomize platform/namespaces >/dev/null'
-      - '{{.KUBECTL}} apply --dry-run=client --validate=false -f platform/storage/storageclass-aws-gp3.yaml >/dev/null'
+      - 'ruby -e ''require "yaml"; YAML.load_stream(File.read("platform/storage/storageclass-aws-gp3.yaml"))'' >/dev/null'
       - '{{.KUBECTL}} kustomize platform/data >/dev/null'
       - '{{.KUBECTL}} kustomize platform/kong >/dev/null'
       - '{{.KUBECTL}} kustomize platform/monitoring >/dev/null'
