@@ -1,0 +1,25 @@
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: reservation-service
+  namespace: ticketing-reservation
+  labels:
+    app.kubernetes.io/name: reservation-service
+    app.kubernetes.io/part-of: medikong
+    medikong.io/traffic-policy: canary
+spec:
+  host: reservation-service.ticketing-reservation.svc.cluster.local
+  subsets:
+    - name: v1
+      labels:
+        version: v1
+    - name: v2
+      labels:
+        version: v2
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 50

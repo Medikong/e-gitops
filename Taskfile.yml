@@ -612,6 +612,38 @@ tasks:
         printf '%s\n' '  istio_request_duration_milliseconds_bucket'
         printf '%s\n' '  pilot_xds_pushes'
 
+  canary:render:
+    desc: reservation-service canary Helm/VirtualService/DestinationRule manifest를 렌더링합니다.
+    cmds:
+      - |
+        set -eu
+        {{.HELM}} template reservation-canary {{.SERVICE_CHART}} \
+          -f {{.VALUES_BASE}} \
+          -f values/env/aws-dev.yaml \
+          -f values/services/reservation.yaml \
+          -f values/scenarios/istio/reservation-canary-v2.yaml >/dev/null
+        {{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/reservation >/dev/null
+        for scenario in canary-20 canary-50 canary-100 rollback; do
+          {{.KUBECTL}} kustomize "{{.ISTIO_PLATFORM}}/traffic/reservation/scenarios/${scenario}" >/dev/null
+        done
+
+  canary:check:
+    desc: reservation-service canary routing과 v1/v2 Pod label 상태를 확인합니다.
+    cmds:
+      - |
+        set -eu
+        {{.KUBECTL}} get destinationrule -n ticketing-reservation reservation-service
+        {{.KUBECTL}} get virtualservice -n ticketing-reservation reservation-service
+        {{.KUBECTL}} get pods -n ticketing-reservation -l app=reservation-service --show-labels
+        printf '%s\n' 'Expected subsets:'
+        printf '%s\n' '  version=v1 -> stable reservation-service deployment'
+        printf '%s\n' '  version=v2 -> reservation-service-v2 canary deployment'
+        printf '%s\n' 'Scenario manifests:'
+        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/canary-20'
+        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/canary-50'
+        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/canary-100'
+        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/rollback'
+
   dev:kong:check:
     internal: true
     desc: Docker Desktop dev용 Kong chart values와 Kong shared resource 렌더링을 검증합니다.

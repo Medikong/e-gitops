@@ -120,3 +120,66 @@ Initial scrape scope:
 This keeps the first mesh monitoring rollout aligned with the first sidecar
 target. Expand the PodMonitor selector only after additional service namespaces
 are opted into sidecar injection.
+
+## Reservation canary routing
+
+`reservation-service` is the first canary routing target. The default GitOps
+state keeps traffic stable:
+
+```text
+reservation-service -> subset v1 100%
+```
+
+The stable policy is included in:
+
+```text
+platform/istio/traffic/reservation
+```
+
+The canary scenario manifests are stored but not included in the default
+`platform/istio` kustomization:
+
+```text
+platform/istio/traffic/reservation/scenarios/canary-20
+platform/istio/traffic/reservation/scenarios/canary-50
+platform/istio/traffic/reservation/scenarios/canary-100
+platform/istio/traffic/reservation/scenarios/rollback
+```
+
+The scenarios render only the `VirtualService` for each traffic weight. The
+base `DestinationRule` remains in `platform/istio/traffic/reservation` and must
+exist before applying a scenario.
+
+The subsets are based on Pod labels:
+
+```text
+version=v1 -> stable reservation-service Deployment
+version=v2 -> optional reservation-service-v2 canary Deployment
+```
+
+The shared service chart supports the v2 workload through `canary.enabled`.
+Keep it disabled in normal stable state. Enable it only for a canary rollout or
+a dedicated validation branch.
+
+The v2 workload scenario values are stored in:
+
+```text
+values/scenarios/istio/reservation-canary-v2.yaml
+```
+
+Render validation:
+
+```bash
+task canary:render
+```
+
+Runtime validation:
+
+```bash
+task canary:check
+```
+
+The VirtualService uses the `mesh` gateway. If Kong remains outside the mesh,
+weight-based routing is verified from mesh-internal clients first. To route
+external Kong traffic through the same Istio weights, Kong must participate in
+the mesh or forward through an Istio gateway path.

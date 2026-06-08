@@ -11,6 +11,19 @@ image:
 
 deployment:
   replicas: 2
+  podLabels:
+    version: v1
+  podAnnotations:
+    sidecar.istio.io/inject: "true"
+
+canary:
+  enabled: false
+  version: v2
+  replicas: 1
+  podLabels:
+    medikong.io/canary: "true"
+  podAnnotations:
+    sidecar.istio.io/inject: "true"
 
 container:
   port: 8083

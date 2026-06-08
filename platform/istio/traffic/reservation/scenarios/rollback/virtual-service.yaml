@@ -1,0 +1,22 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: reservation-service
+  namespace: ticketing-reservation
+  labels:
+    app.kubernetes.io/name: reservation-service
+    app.kubernetes.io/part-of: medikong
+    medikong.io/traffic-policy: rollback
+spec:
+  hosts:
+    - reservation-service
+    - reservation-service.ticketing-reservation.svc.cluster.local
+  gateways:
+    - mesh
+  http:
+    - name: reservation-rollback
+      route:
+        - destination:
+            host: reservation-service.ticketing-reservation.svc.cluster.local
+            subset: v1
+          weight: 100
