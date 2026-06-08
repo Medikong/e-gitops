@@ -5,7 +5,9 @@ alertmanager:
   enabled: true
   alertmanagerSpec:
     replicas: 1
-    nodeSelector:
+    # aws-dev 3-node cluster currently has no dedicated platform worker.
+    # Keep this empty temporarily so the scheduler can place Alertmanager on available workers.
+    nodeSelector: {}
     resources:
       requests:
         cpu: 50m
@@ -93,7 +95,9 @@ grafana:
     limits:
       cpu: 300m
       memory: 384Mi
-  nodeSelector:
+  # aws-dev 3-node cluster currently has no dedicated platform worker.
+  # Keep this empty temporarily so the scheduler can place Grafana on available workers.
+  nodeSelector: {}
 
 prometheus:
   prometheusSpec:
@@ -167,7 +171,9 @@ prometheus:
           resources:
             requests:
               storage: 30Gi
-    nodeSelector:
+    # aws-dev 3-node cluster currently has no dedicated platform worker.
+    # Keep this empty temporarily so the scheduler can place Prometheus on available workers.
+    nodeSelector: {}
 
 prometheusOperator:
   image:
@@ -192,7 +198,9 @@ prometheusOperator:
     limits:
       cpu: 200m
       memory: 256Mi
-  nodeSelector:
+  # aws-dev 3-node cluster currently has no dedicated platform worker.
+  # Keep this empty temporarily so the scheduler can place the operator on available workers.
+  nodeSelector: {}
 
 kube-state-metrics:
   image:
@@ -206,7 +214,9 @@ kube-state-metrics:
     limits:
       cpu: 100m
       memory: 128Mi
-  nodeSelector:
+  # aws-dev 3-node cluster currently has no dedicated platform worker.
+  # Keep this empty temporarily so the scheduler can place kube-state-metrics on available workers.
+  nodeSelector: {}
 
 prometheus-node-exporter:
   image:

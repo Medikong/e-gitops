@@ -126,8 +126,9 @@ resources:
     cpu: 300m
     memory: 512Mi
 
-nodeSelector:
-  workload.medical-platform.io/tier: platform
+# aws-dev 3-node cluster currently has no dedicated platform worker.
+# Keep this empty temporarily so the scheduler can place the collector on available workers.
+nodeSelector: {}
 
 podLabels:
   app.kubernetes.io/part-of: medikong

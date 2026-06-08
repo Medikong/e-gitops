@@ -64,8 +64,9 @@ singleBinary:
     limits:
       cpu: 500m
       memory: 768Mi
-  nodeSelector:
-    workload.medical-platform.io/tier: platform
+  # aws-dev 3-node cluster currently has no dedicated platform worker.
+  # Keep this empty temporarily so the scheduler can place Loki on available workers.
+  nodeSelector: {}
 
 sidecar:
   image:
