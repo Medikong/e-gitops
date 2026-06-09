@@ -1,0 +1,51 @@
+env:
+  database: "off"
+
+replicaCount: 1
+
+deployment:
+  daemonset: false
+
+admin:
+  enabled: false
+
+manager:
+  enabled: false
+
+portal:
+  enabled: false
+
+portalapi:
+  enabled: false
+
+proxy:
+  type: LoadBalancer
+  http:
+    enabled: true
+    servicePort: 80
+    containerPort: 8000
+  tls:
+    enabled: false
+
+ingressController:
+  enabled: true
+  ingressClass: kong
+  createIngressClass: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi
+
+postgresql:
+  enabled: false
