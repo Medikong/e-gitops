@@ -1,9 +1,0 @@
-apiVersion: networking.k8s.io/v1
-kind: IngressClass
-metadata:
-  name: kong
-  labels:
-    app.kubernetes.io/name: kong
-    app.kubernetes.io/part-of: medikong
-spec:
-  controller: ingress-controllers.konghq.com/kong
