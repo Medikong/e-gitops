@@ -15,6 +15,7 @@ spec:
           - $values/values/base.yaml
           - $values/values/env/aws-dev.yaml
           - $values/values/services/concert.yaml
+          - $values/values/overrides/aws-dev-smoke-stable.yaml
     - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
