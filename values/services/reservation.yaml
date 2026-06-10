@@ -10,7 +10,7 @@ image:
   tag: b8f8ecd7a4ce0e341a20c93855b1089abf629a37
 
 deployment:
-  replicas: 2
+  replicas: 1
   podLabels:
     version: v1
     sidecar.istio.io/inject: "true"
@@ -106,6 +106,6 @@ networkPolicy:
           port: 8083
 hpa:
   enabled: true
-  minReplicas: 2
-  maxReplicas: 10
+  minReplicas: 1
+  maxReplicas: 3
   targetCPUUtilizationPercentage: 70

@@ -8,7 +8,7 @@ imagePullSecrets:
   - name: ecr-registry
 
 deployment:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -37,7 +37,7 @@ pdb:
 hpa:
   enabled: true
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 3
   targetCPUUtilizationPercentage: 70
 
 serviceMonitor:

@@ -10,7 +10,7 @@ image:
   tag: b8f8ecd7a4ce0e341a20c93855b1089abf629a37
 
 deployment:
-  replicas: 2
+  replicas: 1
 
 container:
   port: 8080
@@ -65,6 +65,6 @@ networkPolicy:
           port: 8080
 hpa:
   enabled: true
-  minReplicas: 2
-  maxReplicas: 10
+  minReplicas: 1
+  maxReplicas: 3
   targetCPUUtilizationPercentage: 70

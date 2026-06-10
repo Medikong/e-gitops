@@ -10,7 +10,7 @@ image:
   tag: dev
 
 deployment:
-  replicas: 2
+  replicas: 1
 
 container:
   port: 8080
