@@ -5,3 +5,4 @@ resources:
   - postgres.yaml
   - mongo.yaml
   - kafka.yaml
+  - pgadmin.yaml
