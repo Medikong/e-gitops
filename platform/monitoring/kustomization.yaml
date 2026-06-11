@@ -19,6 +19,7 @@ configMapGenerator:
       - dashboards/00-service-metrics-overview.json
       - dashboards/01-service-runtime-health.json
       - dashboards/02-service-runtime-detail.json
+      - dashboards/03-gateway-mesh-metrics.json
       - dashboards/10-system-kubernetes-overview.json
       - dashboards/11-pod-container-resources.json
       - dashboards/12-node-pressure-overview.json
