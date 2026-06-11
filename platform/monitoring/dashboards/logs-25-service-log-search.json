@@ -1,0 +1,250 @@
+{
+  "title": "Logs 25 - Service Log Search",
+  "uid": "medikong-logs-25-service-log-search",
+  "tags": [
+    "medikong",
+    "logs",
+    "loki",
+    "observability",
+    "service-logs",
+    "trace"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Namespace Regex",
+        "type": "textbox",
+        "query": "ticketing-.*",
+        "current": {
+          "selected": false,
+          "text": "ticketing-.*",
+          "value": "ticketing-.*"
+        }
+      },
+      {
+        "name": "service",
+        "label": "Service Regex",
+        "type": "textbox",
+        "query": ".*-service",
+        "current": {
+          "selected": false,
+          "text": ".*-service",
+          "value": ".*-service"
+        }
+      },
+      {
+        "name": "route",
+        "label": "Route Regex",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "selected": false,
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "trace_id",
+        "label": "Trace ID",
+        "type": "textbox",
+        "query": "__set_me__",
+        "current": {
+          "selected": false,
+          "text": "__set_me__",
+          "value": "__set_me__"
+        }
+      },
+      {
+        "name": "user_id",
+        "label": "User ID",
+        "type": "textbox",
+        "query": "__set_me__",
+        "current": {
+          "selected": false,
+          "text": "__set_me__",
+          "value": "__set_me__"
+        }
+      },
+      {
+        "name": "request_id",
+        "label": "Request ID",
+        "type": "textbox",
+        "query": "__set_me__",
+        "current": {
+          "selected": false,
+          "text": "__set_me__",
+          "value": "__set_me__"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Recent Request Logs with Trace IDs",
+      "type": "logs",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 10
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | event=\"http.request.completed\" | http_route=~\"$route\" | http_route!~\"/health|/healthz|/metrics|/readyz\" | line_format \"service={{.service_name}} method={{.http_method}} route={{.http_route}} status={{.http_status_code}} duration_ms={{.duration_ms}} trace_id={{.trace_id}} request_id={{.request_id}}\"",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Trace ID Search",
+      "type": "logs",
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} |= \"$trace_id\" !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | trace_id=\"$trace_id\" | line_format \"service={{.service_name}} event={{.event}} route={{.http_route}} status={{.http_status_code}} duration_ms={{.duration_ms}} trace_id={{.trace_id}} request_id={{.request_id}}\"",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "id": 3,
+      "title": "User ID Search",
+      "type": "logs",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} |= \"$user_id\" !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | user_id=\"$user_id\" | line_format \"service={{.service_name}} event={{.event}} route={{.http_route}} status={{.http_status_code}} trace_id={{.trace_id}} request_id={{.request_id}} user_id={{.user_id}}\"",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} |= \"$user_id\" !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | userId=\"$user_id\" | line_format \"service={{.service_name}} event={{.event}} route={{.http_route}} status={{.http_status_code}} trace_id={{.trace_id}} request_id={{.request_id}} userId={{.userId}}\"",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Request ID Search",
+      "type": "logs",
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} |= \"$request_id\" !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | request_id=\"$request_id\" | line_format \"service={{.service_name}} event={{.event}} route={{.http_route}} status={{.http_status_code}} duration_ms={{.duration_ms}} trace_id={{.trace_id}} request_id={{.request_id}}\"",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    }
+  ]
+}

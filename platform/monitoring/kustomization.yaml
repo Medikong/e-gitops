@@ -28,6 +28,7 @@ configMapGenerator:
     files:
       - dashboards/logs-10-overview.json
       - dashboards/logs-20-services.json
+      - dashboards/logs-25-service-log-search.json
       - dashboards/logs-30-service-errors.json
       - dashboards/logs-40-drilldown.json
       - dashboards/logs-50-synthetic.json
