@@ -33,3 +33,9 @@ configMapGenerator:
       - dashboards/logs-60-business-flow.json
       - dashboards/logs-70-platform.json
       - dashboards/logs-80-service-trace-detail.json
+  - name: medikong-db-dashboards
+    files:
+      - dashboards/db-10-operations-overview.json
+      - dashboards/db-20-instance-resources.json
+      - dashboards/db-30-workload-and-slow-queries.json
+      - dashboards/db-40-trace-and-log-correlation.json
