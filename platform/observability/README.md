@@ -30,6 +30,7 @@ tempo/
 collector/
   - OpenTelemetry Collector Helm values
   - OTLP receiver와 Tempo exporter trace pipeline
+  - filelog receiver와 Loki OTLP exporter log pipeline
   - ServiceMonitor/NetworkPolicy 기준
   - 로컬 render Taskfile
 
@@ -70,7 +71,9 @@ audit log
   -> 별도 검색/증적 파이프라인
 ```
 
-이번 Collector 기반 작업은 trace용 OTLP receiver와 Tempo exporter pipeline까지만 다룬다. Loki filelog receiver, metric scrape, audit log pipeline, tail sampling 정책은 별도 작업으로 분리한다.
+Collector는 trace용 OTLP receiver와 Tempo exporter pipeline, 기술 로그용 filelog receiver와 Loki OTLP exporter pipeline을 함께 가진다. metric scrape, audit log pipeline, trace tail sampling 정책은 별도 작업으로 분리한다.
+
+운영 로그 수집/보존 정책은 `log-policy.md`가 기준이다. Loki는 모든 request/access log 원장이 아니며, Prometheus/Tempo/Loki/감사성 증적 파이프라인의 책임 경계를 섞지 않는다.
 
 ## Argo CD
 
@@ -125,8 +128,8 @@ platform/observability/loki/values/aws-dev.yaml
 docker.io/grafana/tempo:2.9.0
   -> 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/grafana/tempo:2.9.0
 
-docker.io/otel/opentelemetry-collector:0.153.0
-  -> 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/otel/opentelemetry-collector:0.153.0
+docker.io/otel/opentelemetry-collector-contrib:0.153.0
+  -> 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/otel/opentelemetry-collector-contrib:0.153.0
 
 docker.io/grafana/loki:3.6.7
   -> 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/grafana/loki:3.6.7

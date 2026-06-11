@@ -3,9 +3,9 @@
 # 그래서 배포 values는 순수 chart values로 유지하고, ECR 미러링 기준만 이 파일에 분리한다.
 imageMirror:
   images:
-    - name: opentelemetry-collector
-      description: Upstream OpenTelemetry Collector trace pipeline
-      source: docker.io/otel/opentelemetry-collector:0.153.0
+    - name: opentelemetry-collector-contrib
+      description: OpenTelemetry Collector contrib trace and log pipeline
+      source: docker.io/otel/opentelemetry-collector-contrib:0.153.0
       targetRegistry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
-      targetRepository: otel/opentelemetry-collector
+      targetRepository: otel/opentelemetry-collector-contrib
       tag: 0.153.0

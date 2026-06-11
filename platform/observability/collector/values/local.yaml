@@ -1,13 +1,13 @@
-mode: deployment
+mode: daemonset
 fullnameOverride: opentelemetry-collector
 
 image:
-  repository: otel/opentelemetry-collector
+  repository: otel/opentelemetry-collector-contrib
   tag: 0.153.0
   pullPolicy: IfNotPresent
 
 command:
-  name: otelcol
+  name: otelcol-contrib
 
 serviceAccount:
   create: true
@@ -20,12 +20,14 @@ ports:
     enabled: true
     containerPort: 4317
     servicePort: 4317
+    hostPort: null
     protocol: TCP
     appProtocol: grpc
   otlp-http:
     enabled: true
     containerPort: 4318
     servicePort: 4318
+    hostPort: null
     protocol: TCP
   jaeger-compact:
     enabled: false
@@ -49,11 +51,47 @@ alternateConfig:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
+    filelog/kubernetes:
+      include:
+        - /var/log/pods/*/*/*.log
+      exclude:
+        - /var/log/pods/observability_opentelemetry-collector-*/*/*.log
+      start_at: end
+      include_file_path: true
+      operators:
+        - type: container
+          id: container-parser
+        - type: json_parser
+          id: parse-json-body
+          if: body matches "^\\{"
+          parse_from: body
+          parse_to: attributes
+        - type: regex_parser
+          id: parse-kubernetes-log-path
+          parse_from: attributes["log.file.path"]
+          regex: '^/var/log/pods/(?P<k8s_namespace>[^_]+)_(?P<k8s_pod>[^_]+)_(?P<k8s_pod_uid>[^/]+)/(?P<k8s_container>[^/]+)/(?P<k8s_restart_count>\d+)\.log$'
   processors:
     memory_limiter:
       check_interval: 1s
       limit_percentage: 75
       spike_limit_percentage: 20
+    transform/log_context:
+      error_mode: ignore
+      log_statements:
+        - context: log
+          statements:
+            - set(resource.attributes["service.name"], attributes["service.name"]) where attributes["service.name"] != nil
+            - set(resource.attributes["service.version"], attributes["service.version"]) where attributes["service.version"] != nil
+            - set(resource.attributes["deployment.environment.name"], attributes["service.environment"]) where attributes["service.environment"] != nil
+            - set(resource.attributes["k8s.namespace.name"], attributes["k8s_namespace"]) where attributes["k8s_namespace"] != nil
+            - set(resource.attributes["k8s.pod.name"], attributes["k8s_pod"]) where attributes["k8s_pod"] != nil
+            - set(resource.attributes["k8s.container.name"], attributes["k8s_container"]) where attributes["k8s_container"] != nil
+            - set(severity_text, attributes["severity_text"]) where attributes["severity_text"] != nil
+    filter/drop_probe_success:
+      error_mode: ignore
+      logs:
+        log_record:
+          - attributes["event"] == "http.request.completed" and attributes["log.policy"] == "drop"
     batch:
       timeout: 5s
       send_batch_size: 8192
@@ -62,6 +100,8 @@ alternateConfig:
       endpoint: tempo.observability.svc.cluster.local:4317
       tls:
         insecure: true
+    otlphttp/loki:
+      endpoint: http://loki.observability.svc.cluster.local:3100/otlp
   extensions:
     health_check:
       endpoint: 0.0.0.0:13133
@@ -85,6 +125,16 @@ alternateConfig:
           - batch
         exporters:
           - otlp/tempo
+      logs:
+        receivers:
+          - filelog/kubernetes
+        processors:
+          - memory_limiter
+          - transform/log_context
+          - filter/drop_probe_success
+          - batch
+        exporters:
+          - otlphttp/loki
 
 serviceMonitor:
   enabled: true
@@ -95,11 +145,13 @@ serviceMonitor:
   extraLabels:
     release: kube-prometheus-stack
 
+service:
+  enabled: true
+
 podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 10001
-  runAsGroup: 10001
-  fsGroup: 10001
+  runAsNonRoot: false
+  runAsUser: 0
+  runAsGroup: 0
   seccompProfile:
     type: RuntimeDefault
 
@@ -120,7 +172,23 @@ resources:
 
 podLabels:
   app.kubernetes.io/part-of: medikong
-  app.kubernetes.io/component: trace-collector
+  app.kubernetes.io/component: trace-log-collector
+
+extraVolumes:
+  - name: varlogpods
+    hostPath:
+      path: /var/log/pods
+  - name: varlibdockercontainers
+    hostPath:
+      path: /var/lib/docker/containers
+
+extraVolumeMounts:
+  - name: varlogpods
+    mountPath: /var/log/pods
+    readOnly: true
+  - name: varlibdockercontainers
+    mountPath: /var/lib/docker/containers
+    readOnly: true
 
 extraManifests:
   - apiVersion: networking.k8s.io/v1
@@ -131,7 +199,7 @@ extraManifests:
       labels:
         app.kubernetes.io/name: opentelemetry-collector
         app.kubernetes.io/part-of: medikong
-        app.kubernetes.io/component: trace-collector
+        app.kubernetes.io/component: trace-log-collector
     spec:
       podSelector:
         matchLabels:
@@ -168,6 +236,14 @@ extraManifests:
           ports:
             - protocol: TCP
               port: 4317
+        - to:
+            - podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: loki
+                  app.kubernetes.io/instance: loki
+          ports:
+            - protocol: TCP
+              port: 3100
         - to:
             - namespaceSelector:
                 matchLabels:

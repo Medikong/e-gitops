@@ -26,13 +26,14 @@ Loki label은 낮은 cardinality 값만 허용한다.
 ```text
 허용 후보
   - cluster
-  - namespace
-  - pod
-  - container
+  - namespace / k8s.namespace.name
+  - pod / k8s.pod.name
+  - container / k8s.container.name
   - app
-  - service_name
-  - deployment_environment
-  - level
+  - service / service.name / service_name
+  - environment / deployment.environment.name
+  - scenario
+  - step
 ```
 
 다음 값은 label로 올리지 않는다.
@@ -42,6 +43,8 @@ Loki label은 낮은 cardinality 값만 허용한다.
   - trace_id
   - span_id
   - request_id
+  - client_action_id
+  - synthetic_run_id
   - user_id
   - reservation_id
   - payment_id
@@ -52,6 +55,8 @@ Loki label은 낮은 cardinality 값만 허용한다.
 ```
 
 `trace_id`와 `request_id`는 JSON log field로 남겨 Grafana Explore에서 검색하거나 Tempo 이동 링크에만 사용한다. 업무 객체 ID는 기술 로그 label이 아니라 감사 로그/업무 검색 파이프라인에서 다룬다.
+
+운영 로그 수집/보존 정책과 LogQL 예시는 `platform/observability/log-policy.md`를 기준으로 한다. Loki는 모든 request/access log 원장이 아니며, 일반 2xx/3xx access log는 Collector에서 환경별로 drop 또는 sampling할 수 있다.
 
 ## Grafana datasource
 
