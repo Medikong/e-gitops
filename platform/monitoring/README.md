@@ -158,7 +158,7 @@ DB 관측성은 `DB 10 -> DB 20 -> DB 30 -> DB 40` 순서로 본다. `DB 10 - Op
 
 DB dashboard는 SQL 원문, 사용자 ID, `request_id`, `trace_id`를 metric label로 올리지 않는 정책을 전제로 한다. Slow query/operation 화면은 SQL 원문 대신 `statement_fingerprint` 또는 `normalized_statement` JSON field를 우선 표시한다. `db.query.slow` 로그와 DB span 속성 보강은 `Medikong/service#19` 범위이므로, 해당 신호가 아직 없는 환경에서는 관련 Loki/Tempo 패널이 비어 있을 수 있다. 앱 DB latency/error metric은 `db_client_operation_duration_seconds_*`, `db_client_operation_errors_total` 수집 이후 채워지며, PostgreSQL/MongoDB exporter metric도 수집기가 배포된 뒤 값이 채워진다.
 
-Loki 로그 확인은 `Logs 10 - Overview`부터 시작한다. Overview는 서비스 5xx, slow request, warning/error, synthetic 실패, Kong 4xx/5xx처럼 큰 이상 신호와 24시간 RED(request/error/duration) 흐름을 먼저 보여주고 원문 로그를 많이 두지 않는다. 서비스/route/status/latency 범위를 넓게 비교할 때는 `Logs 20 - Services and Requests`를 보고, 평상시 trace_id 후보를 찾을 때는 `Logs 25 - Service Log Search`에서 최근 서비스 요청 로그와 trace_id, user_id, request_id를 JSON field로 검색한 뒤 같은 화면에서 Tempo trace를 바로 확인한다. 이후 `Logs 30 - Service Errors`에서 서비스별 에러 로그를 나눠 본 뒤, `Logs 40 - Drilldown`에서 `request_id`, `trace_id`, reservation/payment/ticket ID를 JSON field로 검색한다. 특정 서비스 장애를 깊게 볼 때는 `Logs 80 - Service Trace Detail`에서 서비스 하나를 고르고 에러 로그, 요청 흐름, request_id, trace_id, Tempo trace를 한 화면에서 추적한다.
+Loki 로그 확인은 `Logs 10 - Overview`부터 시작한다. Overview는 서비스 5xx, slow request, warning/error, synthetic 실패, Kong 4xx/5xx처럼 큰 이상 신호와 24시간 RED(request/error/duration) 흐름을 먼저 보여주고 원문 로그를 많이 두지 않는다. 서비스/route/status/latency 범위를 넓게 비교할 때는 `Logs 20 - Services and Requests`를 보고, 평상시 trace 후보를 찾을 때는 `Logs 25 - Service Log Search`에서 최근 서비스 요청 로그와 전체 Tempo trace 목록을 함께 본 뒤 trace_id, user_id, request_id를 JSON field로 검색한다. 이후 `Logs 30 - Service Errors`에서 서비스별 에러 로그를 나눠 본 뒤, `Logs 40 - Drilldown`에서 `request_id`, `trace_id`, reservation/payment/ticket ID를 JSON field로 검색한다. 특정 서비스 장애를 깊게 볼 때는 `Logs 80 - Service Trace Detail`에서 서비스 하나를 고르고 에러 로그, 요청 흐름, request_id, trace_id, Tempo trace를 한 화면에서 추적한다.
 
 로그 전용 dashboard는 아래 레이어로 나눈다.
 
@@ -167,7 +167,7 @@ Logs 10 - Overview       큰 이상 신호와 최근 증가 흐름
 Logs 20 - Services and Requests
                          ticketing-* 서비스별 로그량, warn/error, 5xx, slow request, route/status/latency
 Logs 25 - Service Log Search
-                         최근 요청 로그와 trace_id, user_id, request_id 검색
+                         최근 요청 로그, 전체 Tempo trace 목록, trace_id/user_id/request_id 검색
 Logs 30 - Service Errors 서비스별 에러 로그 수치와 서비스별 원문 에러 로그
 Logs 40 - Drilldown      request_id, trace_id, 업무 객체 ID 기반 원문 검색
 Logs 50 - Synthetic      synthetic runner run/step/result 로그

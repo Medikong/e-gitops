@@ -96,7 +96,7 @@
         "x": 0,
         "y": 0,
         "w": 24,
-        "h": 10
+        "h": 20
       },
       "datasource": {
         "type": "loki",
@@ -131,9 +131,9 @@
       "type": "logs",
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 36,
         "w": 24,
-        "h": 8
+        "h": 16
       },
       "datasource": {
         "type": "loki",
@@ -164,17 +164,27 @@
     },
     {
       "id": 3,
-      "title": "Tempo Trace by Trace ID - All Services",
-      "type": "traces",
+      "title": "Recent Tempo Traces - All Services",
+      "type": "table",
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 20,
         "w": 24,
-        "h": 9
+        "h": 16
       },
       "datasource": {
         "type": "tempo",
         "uid": "tempo"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
       },
       "targets": [
         {
@@ -182,14 +192,14 @@
             "type": "tempo",
             "uid": "tempo"
           },
-          "query": "$trace_id",
-          "queryType": "traceId",
+          "editorMode": "builder",
+          "query": "{}",
+          "queryType": "traceql",
+          "limit": 100,
+          "range": true,
           "refId": "A"
         }
-      ],
-      "options": {
-        "showMiniMap": true
-      }
+      ]
     },
     {
       "id": 4,
@@ -197,9 +207,9 @@
       "type": "logs",
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 52,
         "w": 24,
-        "h": 8
+        "h": 16
       },
       "datasource": {
         "type": "loki",
@@ -244,9 +254,9 @@
       "type": "logs",
       "gridPos": {
         "x": 0,
-        "y": 35,
+        "y": 68,
         "w": 24,
-        "h": 8
+        "h": 16
       },
       "datasource": {
         "type": "loki",
