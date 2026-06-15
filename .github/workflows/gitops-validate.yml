@@ -33,7 +33,9 @@ jobs:
         uses: azure/setup-helm@v4
 
       - name: Install Task
-        uses: arduino/setup-task@v2
+        uses: go-task/setup-task@v2
+        with:
+          repo-token: ${{ github.token }}
 
       - name: Validate GitOps manifests
         run: |
