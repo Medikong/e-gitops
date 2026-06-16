@@ -64,7 +64,7 @@ spec:
           command:
             - sh
             - -c
-            - mkdir -p /var/lib/kafka/data && chown -R 1000:1000 /var/lib/kafka/data && chmod -R 0775 /var/lib/kafka/data
+            - mkdir -p /var/lib/kafka/data/kafka-logs && chown -R 1000:1000 /var/lib/kafka/data && chmod -R 0775 /var/lib/kafka/data
           volumeMounts:
             - name: data
               mountPath: /var/lib/kafka/data
@@ -102,7 +102,7 @@ spec:
             - name: KAFKA_INTER_BROKER_LISTENER_NAME
               value: PLAINTEXT
             - name: KAFKA_LOG_DIRS
-              value: /var/lib/kafka/data
+              value: /var/lib/kafka/data/kafka-logs
             - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
               value: "1"
             - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
