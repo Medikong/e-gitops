@@ -148,10 +148,12 @@ tasks:
         set -e
 
         if [ -d "${report_dir}" ]; then
-          rm -f "${report_root}/latest"
-          ln -s "${run_id}" "${report_root}/latest"
+          if [ "${scenario}" != "report-smoke" ]; then
+            rm -f "${report_root}/latest"
+            ln -s "${run_id}" "${report_root}/latest"
+            printf 'Latest report: %s/latest\n' "${report_root}"
+          fi
           printf 'Loadtest report: %s\n' "${report_dir}"
-          printf 'Latest report: %s/latest\n' "${report_root}"
         fi
         exit "${exit_code}"
 

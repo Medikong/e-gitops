@@ -74,6 +74,20 @@
         "livenessProbe": { "type": ["object", "null"] }
       }
     },
+    "database": {
+      "type": "object",
+      "properties": {
+        "sqlalchemy": {
+          "type": "object",
+          "properties": {
+            "poolSize": { "type": "integer", "minimum": 1 },
+            "maxOverflow": { "type": "integer", "minimum": 0 },
+            "poolTimeoutSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "poolRecycleSeconds": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
     "observability": {
       "type": "object",
       "properties": {

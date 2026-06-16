@@ -3,6 +3,7 @@ import { Rate } from 'k6/metrics';
 
 import { getConfig, requireCustomerPool } from '../lib/config.js';
 import { customerPoolAccount, customerPoolIndexForIteration } from '../lib/customer-pool.js';
+import { httpStepThresholds, RESERVATION_JOURNEY_STEPS } from '../lib/http-metrics.js';
 import {
   logExperimentConditions,
   logJourneyStep,
@@ -120,6 +121,7 @@ export const options = {
     loadtest_reservation_journey_success: [`rate>${config.thresholds.reservationJourneySuccessRate}`],
     loadtest_reservation_conflict_rate: [`rate<${config.thresholds.reservationConflictRate}`],
     loadtest_ticket_issued_rate: [`rate>${config.thresholds.ticketIssuedRate}`],
+    ...httpStepThresholds(RESERVATION_JOURNEY_STEPS, config.thresholds),
   },
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   tags: {

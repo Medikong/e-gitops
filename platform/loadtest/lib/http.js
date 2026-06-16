@@ -1,6 +1,7 @@
 import http from 'k6/http';
 import { check, fail } from 'k6';
 
+import { routeLabel } from './http-metrics.js';
 import { logStep } from './log.js';
 
 function encodeQuery(params) {
@@ -19,24 +20,6 @@ export function authHeaders(token) {
   return {
     Authorization: `Bearer ${token}`,
   };
-}
-
-function routeLabel(step, method, path) {
-  const knownReadRoutes = {
-    'read_api.concerts': 'GET /concerts',
-    'read_api.performances': 'GET /concerts/{id}/performances',
-    'read_api.seats': 'GET /performances/{id}/seats',
-    'dataset.customer.signup': 'POST /auth/signup',
-    'dataset.customer.login_verify': 'POST /auth/login',
-    'reservation_journey.auth.login': 'POST /auth/login',
-    'reservation_journey.concerts': 'GET /concerts',
-    'reservation_journey.performances': 'GET /concerts/{id}/performances',
-    'reservation_journey.seats': 'GET /performances/{id}/seats',
-    'reservation_journey.reservation.create': 'POST /reservations',
-    'reservation_journey.payment.approve': 'POST /payments',
-    'reservation_journey.ticket.list': 'GET /tickets/me',
-  };
-  return knownReadRoutes[step] || `${method} ${step || path}`;
 }
 
 export function requestJson(config, step, method, path, body = null, extraHeaders = {}, query = {}) {

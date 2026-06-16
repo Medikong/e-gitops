@@ -31,7 +31,8 @@ observability:
   profiling:
     enabled: true
     serverAddress: http://pyroscope.observability.svc.cluster.local:4040
-    sampleRate: 100
+    sampleRate: 25
+    spanProfilesEnabled: true
 
 pdb:
   enabled: false

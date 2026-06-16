@@ -83,9 +83,9 @@ audit log
   -> 별도 검색/증적 파이프라인
 ```
 
-Collector는 trace용 OTLP receiver와 Tempo exporter pipeline, 기술 로그용 filelog receiver와 Loki OTLP exporter pipeline을 함께 가진다. metric scrape, audit log pipeline, trace tail sampling 정책은 별도 작업으로 분리한다.
+Collector는 trace용 OTLP receiver와 Tempo exporter pipeline, 기술 로그용 filelog receiver와 Loki OTLP exporter pipeline을 함께 가진다. trace 저장량은 Collector의 tail sampling 정책으로 조절하고, metric scrape와 audit log pipeline은 별도 책임으로 둔다.
 
-Profile은 OpenTelemetry Collector를 기본 수집 경로로 쓰지 않는다. Python 서비스가 `PYROSCOPE_ENABLED=true`일 때만 Pyroscope SDK로 `pyroscope.observability.svc.cluster.local:4040`에 push한다.
+Profile은 OpenTelemetry Collector를 기본 수집 경로로 쓰지 않는다. Python 서비스가 `PYROSCOPE_ENABLED=true`일 때 Pyroscope SDK로 `pyroscope.observability.svc.cluster.local:4040`에 push한다. 수집 단위는 process-level continuous profiling이고, API별 분석은 Tempo span에서 Pyroscope profile로 이동해 확인한다.
 
 운영 로그 수집/보존 정책은 `log-policy.md`가 기준이다. Loki는 모든 request/access log 원장이 아니며, Prometheus/Tempo/Loki/감사성 증적 파이프라인의 책임 경계를 섞지 않는다.
 
@@ -221,19 +221,22 @@ task platform:render
 task validate
 ```
 
-auth-service 부하테스트에서 CPU hotspot을 볼 때는 기본 off 상태를 유지하다가 실험 배포에서만 켠다.
+운영 레버는 GitOps values가 소유한다. `observability.profiling.sampleRate`는 Pyroscope SDK sample rate를 조절하고, `observability.profiling.spanProfilesEnabled`는 `pyroscope-otel` span/profile correlation을 켜고 끈다. aws-dev는 process-level profile을 낮은 sample rate로 계속 수집하고, 부하 구간에서만 override로 sample rate나 span profile correlation을 높인다.
 
 ```bash
 helm upgrade --install auth charts/medikong-service \
   -f values/base.yaml \
   -f values/env/aws-dev.yaml \
   -f values/services/auth.yaml \
-  --set observability.profiling.enabled=true \
+  --set observability.profiling.sampleRate=100 \
+  --set observability.profiling.spanProfilesEnabled=true \
   --set-string observability.profiling.tags.scenario=reservation-journey-load-test \
   --set-string observability.profiling.tags.run_id=<loadtest-run-id>
 ```
 
 profile tag는 낮은 cardinality만 사용한다. 허용 기준은 `service`, `environment`, `version`, `scenario`, `run_id`이며 `user_id`, `reservation_id`, `payment_id`, `ticket_id` 같은 요청별 ID는 tag로 넣지 않는다.
+
+Trace 저장량은 `platform/observability/collector/values/*.yaml`의 `tail_sampling/read_api` processor로 제어한다. 정책 순서는 error trace keep, latency threshold 이상 keep, baseline probabilistic sampling 순서다. Grafana Tempo datasource는 Pyroscope datasource uid `pyroscope`와 연결되어 있으며, OTel resource `service.name`은 Pyroscope label `service`로 매핑한다.
 
 Docker Desktop 로컬 배포는 `task dev` 한 번으로 Prometheus/Grafana, Tempo/Loki, Kong, data, service release를 함께 올린다. Tempo/Loki만 따로 확인하려면 각 컴포넌트 Taskfile의 `up`을 사용할 수 있다.
 

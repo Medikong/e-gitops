@@ -79,4 +79,3 @@ hpa:
 observability:
   profiling:
     serverAddress: http://pyroscope.observability.svc.cluster.local:4040
-    sampleRate: 100

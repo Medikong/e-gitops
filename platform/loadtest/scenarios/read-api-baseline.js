@@ -3,6 +3,7 @@ import { Rate } from 'k6/metrics';
 
 import { getConfig } from '../lib/config.js';
 import { getJson } from '../lib/http.js';
+import { httpStepThresholds, READ_API_STEPS } from '../lib/http-metrics.js';
 import {
   logExperimentConditions,
   logRunFailed,
@@ -66,6 +67,7 @@ export const options = {
     ],
     checks: [`rate>${config.thresholds.checksRate}`],
     loadtest_read_iteration_success: [`rate>${config.thresholds.checksRate}`],
+    ...httpStepThresholds(READ_API_STEPS, config.thresholds),
   },
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   tags: {

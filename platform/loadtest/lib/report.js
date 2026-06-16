@@ -1,4 +1,5 @@
 import { summaryLine } from './log.js';
+import { HTTP_STEP_ROUTES } from './http-metrics.js';
 
 function metricValue(metrics, name, key) {
   const metric = metrics && metrics[name];
@@ -22,9 +23,24 @@ function formatRate(value) {
   return `${(Number(value) * 100).toFixed(2)}%`;
 }
 
+function stepFromMetricName(metricName) {
+  const match = metricName.match(/^[^{]+\{step:([^}]+)\}$/);
+  return match ? match[1] : null;
+}
+
+function stepRequestCount(metrics, step) {
+  return metricValue(metrics, metricNameWithStep('http_reqs', step), 'count');
+}
+
 function thresholdRows(data) {
   const rows = [];
-  for (const [metricName, metric] of Object.entries(data.metrics || {})) {
+  const metrics = data.metrics || {};
+  for (const [metricName, metric] of Object.entries(metrics)) {
+    const step = stepFromMetricName(metricName);
+    const requestCount = step === null ? null : stepRequestCount(metrics, step);
+    if (step !== null && (requestCount === null || requestCount <= 0)) {
+      continue;
+    }
     for (const [expression, threshold] of Object.entries(metric.thresholds || {})) {
       rows.push({
         metric: metricName,
@@ -62,6 +78,57 @@ function reportSummary(data) {
   };
 }
 
+function metricNameWithStep(name, step) {
+  return `${name}{step:${step}}`;
+}
+
+function stepsFromMetrics(metrics) {
+  const steps = new Set(Object.keys(HTTP_STEP_ROUTES));
+  for (const metricName of Object.keys(metrics || {})) {
+    const step = stepFromMetricName(metricName);
+    if (step !== null) {
+      steps.add(step);
+    }
+  }
+  return [...steps];
+}
+
+function httpStepRows(data) {
+  const metrics = data.metrics || {};
+  return stepsFromMetrics(metrics)
+    .map((step) => ({
+      step,
+      route: HTTP_STEP_ROUTES[step] || step,
+      http_req_duration_p95_ms: metricValue(metrics, metricNameWithStep('http_req_duration', step), 'p(95)'),
+      http_req_duration_p99_ms: metricValue(metrics, metricNameWithStep('http_req_duration', step), 'p(99)'),
+      http_req_failed_rate: metricValue(metrics, metricNameWithStep('http_req_failed', step), 'rate'),
+      checks_pass_rate: metricValue(metrics, metricNameWithStep('checks', step), 'rate'),
+      http_reqs_count: metricValue(metrics, metricNameWithStep('http_reqs', step), 'count'),
+      http_reqs_rate: metricValue(metrics, metricNameWithStep('http_reqs', step), 'rate'),
+    }))
+    .filter((row) => row.http_reqs_count > 0);
+}
+
+function markdownHttpStepRows(rows) {
+  if (rows.length === 0) {
+    return ['No step-level HTTP metrics captured.'];
+  }
+  return [
+    '| step | route | p95 | p99 | error rate | checks | requests | RPS |',
+    '|---|---|---:|---:|---:|---:|---:|---:|',
+    ...rows.map((row) => [
+      row.step,
+      row.route,
+      `${formatNumber(row.http_req_duration_p95_ms)} ms`,
+      `${formatNumber(row.http_req_duration_p99_ms)} ms`,
+      formatRate(row.http_req_failed_rate),
+      formatRate(row.checks_pass_rate),
+      formatNumber(row.http_reqs_count, 0),
+      formatNumber(row.http_reqs_rate),
+    ].join(' | ')).map((line) => `| ${line} |`),
+  ];
+}
+
 function metadata(config) {
   return {
     run_id: config.runId,
@@ -79,6 +146,7 @@ function metadata(config) {
 function markdownReport(config, data) {
   const meta = metadata(config);
   const result = reportSummary(data);
+  const stepRows = httpStepRows(data);
   const thresholdLines = result.thresholds.length === 0
     ? ['- WARN n/a']
     : result.thresholds.map((row) => {
@@ -111,6 +179,10 @@ function markdownReport(config, data) {
     `- RPS: ${formatNumber(result.http_reqs_rate)}`,
     `- iterations: ${formatNumber(result.iterations_count, 0)} (${formatNumber(result.iterations_rate)}/s)`,
     '',
+    '## HTTP Metrics By Step',
+    '',
+    ...markdownHttpStepRows(stepRows),
+    '',
     '## Thresholds',
     '',
     ...thresholdLines,
@@ -129,6 +201,8 @@ function escapeHtml(value) {
 function htmlReport(config, data) {
   const meta = metadata(config);
   const result = reportSummary(data);
+  const stepRows = httpStepRows(data);
+  const stepRowsHtml = stepRows.map((row) => `<tr><td>${escapeHtml(row.step)}</td><td>${escapeHtml(row.route)}</td><td>${escapeHtml(formatNumber(row.http_req_duration_p95_ms))} ms</td><td>${escapeHtml(formatNumber(row.http_req_duration_p99_ms))} ms</td><td>${escapeHtml(formatRate(row.http_req_failed_rate))}</td><td>${escapeHtml(formatRate(row.checks_pass_rate))}</td><td>${escapeHtml(formatNumber(row.http_reqs_count, 0))}</td><td>${escapeHtml(formatNumber(row.http_reqs_rate))}</td></tr>`).join('');
   const thresholdRowsHtml = result.thresholds.map((row) => {
     const status = row.ok === false ? 'FAIL' : row.ok === null ? 'WARN' : 'PASS';
     return `<tr><td>${escapeHtml(row.metric)}</td><td>${escapeHtml(row.expression)}</td><td>${status}</td></tr>`;
@@ -174,6 +248,11 @@ function htmlReport(config, data) {
     <dt>RPS</dt><dd>${escapeHtml(formatNumber(result.http_reqs_rate))}</dd>
     <dt>iterations</dt><dd>${escapeHtml(formatNumber(result.iterations_count, 0))} (${escapeHtml(formatNumber(result.iterations_rate))}/s)</dd>
   </dl>
+  <h2>HTTP Metrics By Step</h2>
+  <table>
+    <thead><tr><th>Step</th><th>Route</th><th>p95</th><th>p99</th><th>Error rate</th><th>Checks</th><th>Requests</th><th>RPS</th></tr></thead>
+    <tbody>${stepRowsHtml || '<tr><td colspan="8">No step-level HTTP metrics captured.</td></tr>'}</tbody>
+  </table>
   <h2>Thresholds</h2>
   <table>
     <thead><tr><th>Metric</th><th>Threshold</th><th>Status</th></tr></thead>
