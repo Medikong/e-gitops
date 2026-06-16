@@ -10,6 +10,7 @@ Docker Desktop 로컬 개발에서는 `task dev`가 namespace 생성 후 이 디
 | pgAdmin | `pgadmin.yaml` | 로컬 DB 확인용 web admin, Kong 경로 `http://localhost/pgadmin` |
 | MongoDB StatefulSet/Service | `mongo.yaml` | notification 로컬 DB |
 | Kafka StatefulSet/Service/topic Job | `kafka.yaml` | reservation/payment/ticket/notification 이벤트 흐름 |
+| Data NetworkPolicy | `networkpolicies.yaml` | 서비스별 DB, Kafka, pgAdmin 접근 제어 |
 | Static PV | 사용하지 않음 | Docker Desktop 기본 local-path provisioner를 사용한다. |
 
 ## 로컬 pgAdmin

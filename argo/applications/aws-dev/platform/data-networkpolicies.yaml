@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: data-networkpolicies-aws-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-19"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Medikong/gitops.git
+    targetRevision: HEAD
+    path: platform/data-aws-dev-networkpolicies
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

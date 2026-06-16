@@ -1,0 +1,79 @@
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: concert-service-strict-mtls
+  namespace: ticketing-concert
+  labels:
+    app.kubernetes.io/name: concert-service
+    app.kubernetes.io/part-of: medikong
+    medikong.io/security-scenario: mtls-strict-meshed-backends
+spec:
+  selector:
+    matchLabels:
+      app: concert-service
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: reservation-service-strict-mtls
+  namespace: ticketing-reservation
+  labels:
+    app.kubernetes.io/name: reservation-service
+    app.kubernetes.io/part-of: medikong
+    medikong.io/security-scenario: mtls-strict-meshed-backends
+spec:
+  selector:
+    matchLabels:
+      app: reservation-service
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: payment-service-strict-mtls
+  namespace: ticketing-payment
+  labels:
+    app.kubernetes.io/name: payment-service
+    app.kubernetes.io/part-of: medikong
+    medikong.io/security-scenario: mtls-strict-meshed-backends
+spec:
+  selector:
+    matchLabels:
+      app: payment-service
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: ticket-service-strict-mtls
+  namespace: ticketing-ticket
+  labels:
+    app.kubernetes.io/name: ticket-service
+    app.kubernetes.io/part-of: medikong
+    medikong.io/security-scenario: mtls-strict-meshed-backends
+spec:
+  selector:
+    matchLabels:
+      app: ticket-service
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: notification-service-strict-mtls
+  namespace: ticketing-notification
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: medikong
+    medikong.io/security-scenario: mtls-strict-meshed-backends
+spec:
+  selector:
+    matchLabels:
+      app: notification-service
+  mtls:
+    mode: STRICT

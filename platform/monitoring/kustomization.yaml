@@ -6,6 +6,7 @@ resources:
   - manifests/grafana-ingress.yaml
   - manifests/istio-mesh-podmonitors.yaml
   - manifests/kong-servicemonitor.yaml
+  - manifests/prometheusrules/service-slo-alerts.yaml
   - manifests/prometheusrules/system-kubernetes-alerts.yaml
 generatorOptions:
   disableNameSuffixHash: true
@@ -24,6 +25,7 @@ configMapGenerator:
       - dashboards/ops/02-service-runtime-detail.json
       - dashboards/ops/03-gateway-mesh-metrics.json
       - dashboards/ops/04-pod-logs-and-waiting-reasons.json
+      - dashboards/ops/04-business-kpi-overview.json
       - dashboards/ops/10-system-kubernetes-overview.json
       - dashboards/ops/11-pod-container-resources.json
       - dashboards/ops/12-node-pressure-overview.json

@@ -165,7 +165,8 @@
       "properties": {
         "enabled": { "type": "boolean" },
         "policyTypes": { "type": "array" },
-        "ingress": { "type": "array" }
+        "ingress": { "type": "array" },
+        "egress": { "type": "array" }
       }
     },
     "pdb": {

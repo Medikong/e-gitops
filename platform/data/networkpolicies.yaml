@@ -1,0 +1,271 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-auth-db-ingress
+  namespace: ticketing-auth
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: auth-db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: auth-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: auth-service
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ticketing-payment
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: pgadmin
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-concert-db-ingress
+  namespace: ticketing-concert
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: concert-db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: concert-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: concert-service
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ticketing-payment
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: pgadmin
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-reservation-db-ingress
+  namespace: ticketing-reservation
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: reservation-db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: reservation-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: reservation-service
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ticketing-payment
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: pgadmin
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-payment-db-ingress
+  namespace: ticketing-payment
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: payment-db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: payment-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: payment-service
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: pgadmin
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ticket-db-ingress
+  namespace: ticketing-ticket
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: ticket-db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ticket-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: ticket-service
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ticketing-payment
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: pgadmin
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-notification-db-ingress
+  namespace: ticketing-notification
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: notification-db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: notification-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: notification-service
+      ports:
+        - protocol: TCP
+          port: 27017
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kafka-ingress
+  namespace: ticketing-messaging
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: kafka
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - ticketing-reservation
+                  - ticketing-payment
+                  - ticketing-ticket
+                  - ticketing-notification
+          podSelector:
+            matchExpressions:
+              - key: ticketing.io/service
+                operator: In
+                values:
+                  - reservation
+                  - payment
+                  - ticket
+                  - notification
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka-create-topics
+      ports:
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 9093
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-pgadmin-runtime
+  namespace: ticketing-payment
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: pgadmin
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: pgadmin
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 80
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - ticketing-auth
+                  - ticketing-concert
+                  - ticketing-reservation
+                  - ticketing-payment
+                  - ticketing-ticket
+          podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - auth-db
+                  - concert-db
+                  - reservation-db
+                  - payment-db
+                  - ticket-db
+      ports:
+        - protocol: TCP
+          port: 5432

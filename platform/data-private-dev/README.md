@@ -31,3 +31,14 @@ kubectl -n ticketing-payment get secret pgadmin-private-dev-credentials -o jsonp
 ```
 
 All StatefulSet and PVC resources in this path use `storageClassName: medikong-longhorn`.
+
+## NetworkPolicy
+
+`networkpolicies.yaml` mirrors the service/data access model used by the shared data path:
+
+- service pods can access only their own DB ports.
+- event-driven services can access Kafka on `9092`.
+- Kafka can talk to itself on `9092` and `9093`.
+- pgAdmin is reachable only through Kong and can egress only to PostgreSQL services plus DNS.
+
+Keep this file aligned with `platform/data/networkpolicies.yaml` when the data access model changes.

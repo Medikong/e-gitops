@@ -112,6 +112,7 @@ networkPolicy:
   policyTypes:
     - Ingress
   ingress: []
+  egress: []
 
 pdb:
   enabled: false

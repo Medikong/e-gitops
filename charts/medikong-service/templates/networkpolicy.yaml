@@ -39,4 +39,10 @@ spec:
 {{- else }}
   ingress: []
 {{- end }}
+{{- if .Values.networkPolicy.egress }}
+  egress:
+{{ toYaml .Values.networkPolicy.egress | nindent 4 }}
+{{- else if has "Egress" .Values.networkPolicy.policyTypes }}
+  egress: []
+{{- end }}
 {{- end }}

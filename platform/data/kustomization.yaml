@@ -6,3 +6,4 @@ resources:
   - mongo.yaml
   - kafka.yaml
   - pgadmin.yaml
+  - networkpolicies.yaml

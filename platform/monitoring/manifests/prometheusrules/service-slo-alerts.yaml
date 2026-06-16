@@ -1,0 +1,66 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: service-slo-alerts
+  labels:
+    app.kubernetes.io/name: service-slo-alerts
+    app.kubernetes.io/part-of: medikong-platform
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: medikong.service.slo
+      rules:
+        - alert: MedikongServiceHigh5xxErrorRate
+          expr: |
+            (
+              sum by (service_name) (
+                rate(http_server_request_duration_seconds_count{
+                  service_name=~".+-service",
+                  http_response_status_code=~"5.."
+                }[5m])
+              )
+              /
+              clamp_min(
+                sum by (service_name) (
+                  rate(http_server_request_duration_seconds_count{
+                    service_name=~".+-service"
+                  }[5m])
+                ),
+                0.001
+              )
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Service 5xx error rate is above 5%"
+            description: "{{ $labels.service_name }} has a 5xx error rate above 5% for more than 5 minutes."
+        - alert: MedikongServiceP99LatencyHigh
+          expr: |
+            histogram_quantile(
+              0.99,
+              sum by (service_name, le) (
+                rate(http_server_request_duration_seconds_bucket{
+                  service_name=~".+-service"
+                }[5m])
+              )
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Service P99 latency is above 2 seconds"
+            description: "{{ $labels.service_name }} has P99 request latency above 2 seconds for more than 5 minutes."
+        - alert: MedikongServiceNoTraffic
+          expr: |
+            sum by (service_name) (
+              rate(http_server_request_duration_seconds_count{
+                service_name=~".+-service"
+              }[15m])
+            ) == 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Service has no observed HTTP traffic"
+            description: "{{ $labels.service_name }} has no observed HTTP request metric samples for more than 30 minutes."

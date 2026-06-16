@@ -17,6 +17,7 @@ spec:
           - $values/values/services/reservation.yaml
           - $values/values/services/private-dev/reservation.yaml
           - $values/values/overrides/private-dev-smoke-stable.yaml
+          - $values/values/scenarios/istio/reservation-canary-v2.yaml
     - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
