@@ -1,0 +1,15 @@
+container:
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-auth-credentials
+          key: database-url
+    - name: AUTH_TOKEN_TTL_SECONDS
+      value: "900"
+    - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
+      value: "604800"
+    - name: JWT_SECRET
+      value: ticketing-dev-secret
+    - name: JWT_ISSUER
+      value: auth-service

@@ -1,0 +1,7 @@
+container:
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-concert-credentials
+          key: database-url

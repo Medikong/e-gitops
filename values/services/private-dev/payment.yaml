@@ -1,0 +1,13 @@
+container:
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-payment-credentials
+          key: database-url
+    - name: KAFKA_BOOTSTRAP_SERVERS
+      value: kafka.ticketing-messaging.svc.cluster.local:9092
+    - name: PAYMENT_APPROVED_TOPIC
+      value: payment-approved
+    - name: PAYMENT_FAILED_TOPIC
+      value: payment-failed
