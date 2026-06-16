@@ -64,6 +64,8 @@ spec:
                   key: password
             - name: POSTGRES_DB
               value: auth_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           resources:
             requests:
               cpu: 50m
@@ -150,6 +152,8 @@ spec:
                   key: password
             - name: POSTGRES_DB
               value: concert_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           resources:
             requests:
               cpu: 50m
@@ -236,6 +240,8 @@ spec:
                   key: password
             - name: POSTGRES_DB
               value: reservation_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           resources:
             requests:
               cpu: 50m
@@ -322,6 +328,8 @@ spec:
                   key: password
             - name: POSTGRES_DB
               value: payment_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           resources:
             requests:
               cpu: 50m
@@ -408,6 +416,8 @@ spec:
                   key: password
             - name: POSTGRES_DB
               value: ticket_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           resources:
             requests:
               cpu: 50m
