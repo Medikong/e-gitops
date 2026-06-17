@@ -11,6 +11,14 @@ export const HTTP_STEP_METADATA = {
   'reservation_journey.reservation.create': { route: 'POST /reservations', service: 'reservation-service' },
   'reservation_journey.payment.approve': { route: 'POST /payments', service: 'payment-service' },
   'reservation_journey.ticket.list': { route: 'GET /tickets/me', service: 'ticket-service' },
+  'reservation_create.concerts': { route: 'GET /concerts', service: 'concert-service' },
+  'reservation_create.performances': { route: 'GET /concerts/{id}/performances', service: 'concert-service' },
+  'reservation_create.seats': { route: 'GET /performances/{id}/seats', service: 'concert-service' },
+  'reservation_create.reservation.create': { route: 'POST /reservations', service: 'reservation-service' },
+  'reservation_seat_contention.concerts': { route: 'GET /concerts', service: 'concert-service' },
+  'reservation_seat_contention.performances': { route: 'GET /concerts/{id}/performances', service: 'concert-service' },
+  'reservation_seat_contention.seats': { route: 'GET /performances/{id}/seats', service: 'concert-service' },
+  'reservation_seat_contention.reservation.create': { route: 'POST /reservations', service: 'reservation-service' },
 };
 
 export const HTTP_STEP_ROUTES = Object.fromEntries(
@@ -34,6 +42,20 @@ export const RESERVATION_JOURNEY_STEPS = [
   'reservation_journey.reservation.create',
   'reservation_journey.payment.approve',
   'reservation_journey.ticket.list',
+];
+
+export const RESERVATION_CREATE_STEPS = [
+  'reservation_create.concerts',
+  'reservation_create.performances',
+  'reservation_create.seats',
+  'reservation_create.reservation.create',
+];
+
+export const RESERVATION_SEAT_CONTENTION_STEPS = [
+  'reservation_seat_contention.concerts',
+  'reservation_seat_contention.performances',
+  'reservation_seat_contention.seats',
+  'reservation_seat_contention.reservation.create',
 ];
 
 export const AUTH_LOGIN_STEPS = [

@@ -95,6 +95,58 @@ data:
   LOADTEST_RESERVATION_JOURNEY_THRESHOLD_SUCCESS_RATE: {{ .Values.scenarios.reservationJourney.thresholds.successRate | quote }}
   LOADTEST_RESERVATION_JOURNEY_THRESHOLD_CONFLICT_RATE: {{ .Values.scenarios.reservationJourney.thresholds.conflictRate | quote }}
   LOADTEST_RESERVATION_JOURNEY_THRESHOLD_TICKET_ISSUED_RATE: {{ .Values.scenarios.reservationJourney.thresholds.ticketIssuedRate | quote }}
+  LOADTEST_RESERVATION_CREATE_REQUEST_PREFIX: {{ .Values.scenarios.reservationCreate.requestPrefix | quote }}
+  LOADTEST_RESERVATION_CREATE_TIMEOUT_SECONDS: {{ .Values.scenarios.reservationCreate.timeoutSeconds | quote }}
+  LOADTEST_RESERVATION_CREATE_SETUP_TIMEOUT: {{ .Values.scenarios.reservationCreate.setupTimeout | quote }}
+  LOADTEST_RESERVATION_CREATE_EXECUTOR: {{ .Values.scenarios.reservationCreate.executor | quote }}
+  LOADTEST_RESERVATION_CREATE_VUS: {{ .Values.scenarios.reservationCreate.vus | quote }}
+  LOADTEST_RESERVATION_CREATE_RATE: {{ .Values.scenarios.reservationCreate.rate | quote }}
+  LOADTEST_RESERVATION_CREATE_TIME_UNIT: {{ .Values.scenarios.reservationCreate.timeUnit | quote }}
+  LOADTEST_RESERVATION_CREATE_PRE_ALLOCATED_VUS: {{ .Values.scenarios.reservationCreate.preAllocatedVUs | quote }}
+  LOADTEST_RESERVATION_CREATE_MAX_VUS: {{ .Values.scenarios.reservationCreate.maxVUs | quote }}
+  LOADTEST_RESERVATION_CREATE_DURATION: {{ .Values.scenarios.reservationCreate.duration | quote }}
+  LOADTEST_RESERVATION_CREATE_STAGES: {{ toJson .Values.scenarios.reservationCreate.stages | quote }}
+  LOADTEST_RESERVATION_CREATE_GRACEFUL_STOP: {{ .Values.scenarios.reservationCreate.gracefulStop | quote }}
+  LOADTEST_RESERVATION_CREATE_THINK_TIME_SECONDS: {{ .Values.scenarios.reservationCreate.thinkTimeSeconds | quote }}
+  LOADTEST_RESERVATION_CREATE_ACTIVE_CUSTOMER_COUNT: {{ .Values.scenarios.reservationCreate.activeCustomerCount | quote }}
+  LOADTEST_RESERVATION_CREATE_MAX_SEAT_ATTEMPTS: {{ .Values.scenarios.reservationCreate.maxSeatAttempts | quote }}
+  LOADTEST_RESERVATION_CREATE_CONCERT_LIMIT: {{ .Values.scenarios.reservationCreate.concertLimit | quote }}
+  LOADTEST_RESERVATION_CREATE_PERFORMANCE_LIMIT: {{ .Values.scenarios.reservationCreate.performanceLimit | quote }}
+  LOADTEST_RESERVATION_CREATE_SEAT_LIMIT: {{ .Values.scenarios.reservationCreate.seatLimit | quote }}
+  LOADTEST_RESERVATION_CREATE_SEAT_CANDIDATE_COUNT: {{ .Values.scenarios.reservationCreate.seatCandidateCount | quote }}
+  LOADTEST_RESERVATION_CREATE_THRESHOLD_HTTP_REQ_FAILED_RATE: {{ .Values.scenarios.reservationCreate.thresholds.httpReqFailedRate | quote }}
+  LOADTEST_RESERVATION_CREATE_THRESHOLD_HTTP_REQ_DURATION_P95_MS: {{ .Values.scenarios.reservationCreate.thresholds.httpReqDurationP95Ms | quote }}
+  LOADTEST_RESERVATION_CREATE_THRESHOLD_HTTP_REQ_DURATION_P99_MS: {{ .Values.scenarios.reservationCreate.thresholds.httpReqDurationP99Ms | quote }}
+  LOADTEST_RESERVATION_CREATE_THRESHOLD_CHECKS_RATE: {{ .Values.scenarios.reservationCreate.thresholds.checksRate | quote }}
+  LOADTEST_RESERVATION_CREATE_THRESHOLD_HANDLED_RATE: {{ .Values.scenarios.reservationCreate.thresholds.handledRate | quote }}
+  LOADTEST_RESERVATION_CREATE_THRESHOLD_CREATED_RATE: {{ .Values.scenarios.reservationCreate.thresholds.createdRate | quote }}
+  LOADTEST_RESERVATION_CREATE_THRESHOLD_INFRA_FAILURE_RATE: {{ .Values.scenarios.reservationCreate.thresholds.infraFailureRate | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_REQUEST_PREFIX: {{ .Values.scenarios.reservationSeatContention.requestPrefix | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_TIMEOUT_SECONDS: {{ .Values.scenarios.reservationSeatContention.timeoutSeconds | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_SETUP_TIMEOUT: {{ .Values.scenarios.reservationSeatContention.setupTimeout | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_EXECUTOR: {{ .Values.scenarios.reservationSeatContention.executor | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_VUS: {{ .Values.scenarios.reservationSeatContention.vus | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_RATE: {{ .Values.scenarios.reservationSeatContention.rate | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_TIME_UNIT: {{ .Values.scenarios.reservationSeatContention.timeUnit | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_PRE_ALLOCATED_VUS: {{ .Values.scenarios.reservationSeatContention.preAllocatedVUs | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_MAX_VUS: {{ .Values.scenarios.reservationSeatContention.maxVUs | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_DURATION: {{ .Values.scenarios.reservationSeatContention.duration | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_STAGES: {{ toJson .Values.scenarios.reservationSeatContention.stages | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_GRACEFUL_STOP: {{ .Values.scenarios.reservationSeatContention.gracefulStop | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_THINK_TIME_SECONDS: {{ .Values.scenarios.reservationSeatContention.thinkTimeSeconds | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_ACTIVE_CUSTOMER_COUNT: {{ .Values.scenarios.reservationSeatContention.activeCustomerCount | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_MAX_SEAT_ATTEMPTS: {{ .Values.scenarios.reservationSeatContention.maxSeatAttempts | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_CONCERT_LIMIT: {{ .Values.scenarios.reservationSeatContention.concertLimit | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_PERFORMANCE_LIMIT: {{ .Values.scenarios.reservationSeatContention.performanceLimit | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_SEAT_LIMIT: {{ .Values.scenarios.reservationSeatContention.seatLimit | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_SEAT_CANDIDATE_COUNT: {{ .Values.scenarios.reservationSeatContention.seatCandidateCount | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_THRESHOLD_HTTP_REQ_FAILED_RATE: {{ .Values.scenarios.reservationSeatContention.thresholds.httpReqFailedRate | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_THRESHOLD_HTTP_REQ_DURATION_P95_MS: {{ .Values.scenarios.reservationSeatContention.thresholds.httpReqDurationP95Ms | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_THRESHOLD_HTTP_REQ_DURATION_P99_MS: {{ .Values.scenarios.reservationSeatContention.thresholds.httpReqDurationP99Ms | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_THRESHOLD_CHECKS_RATE: {{ .Values.scenarios.reservationSeatContention.thresholds.checksRate | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_THRESHOLD_HANDLED_RATE: {{ .Values.scenarios.reservationSeatContention.thresholds.handledRate | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_THRESHOLD_CREATED_RATE: {{ .Values.scenarios.reservationSeatContention.thresholds.createdRate | quote }}
+  LOADTEST_RESERVATION_SEAT_CONTENTION_THRESHOLD_INFRA_FAILURE_RATE: {{ .Values.scenarios.reservationSeatContention.thresholds.infraFailureRate | quote }}
   LOADTEST_CUSTOMER_POOL_SIZE: {{ .Values.dataset.customerPool.size | quote }}
   LOADTEST_CUSTOMER_POOL_EMAIL_PREFIX: {{ .Values.dataset.customerPool.emailPrefix | quote }}
   LOADTEST_CUSTOMER_POOL_EMAIL_DOMAIN: {{ .Values.dataset.customerPool.emailDomain | quote }}

@@ -2,6 +2,7 @@ import { getCommonConfig } from './config/common.js';
 import { getDatasetConfig } from './config/dataset.js';
 import { getAuthLoginConfig } from './config/scenarios/auth-login.js';
 import { getReadApiBaselineConfig } from './config/scenarios/read-api-baseline.js';
+import { getReservationCreateConfig, getReservationSeatContentionConfig } from './config/scenarios/reservation-load.js';
 import { getReservationJourneyConfig } from './config/scenarios/reservation-journey.js';
 
 function scenarioConfig(scenario) {
@@ -13,6 +14,12 @@ function scenarioConfig(scenario) {
   }
   if (scenario === 'reservation-journey-load-test') {
     return getReservationJourneyConfig();
+  }
+  if (scenario === 'reservation-create-load-test') {
+    return getReservationCreateConfig();
+  }
+  if (scenario === 'reservation-seat-contention-load-test') {
+    return getReservationSeatContentionConfig();
   }
   if (scenario === 'auth-login-load-test') {
     return getAuthLoginConfig();

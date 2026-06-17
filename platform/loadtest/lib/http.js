@@ -72,6 +72,14 @@ export function requestJson(config, step, method, path, body = null, extraHeader
 }
 
 export function requestWithExpectedStatuses(config, step, method, path, body = null, extraHeaders = {}, query = {}, expectedStatuses = []) {
+  const response = requestObservedStatuses(config, step, method, path, body, extraHeaders, query, expectedStatuses);
+  if (!expectedStatuses.includes(response.status)) {
+    fail(`${step} failed with status ${response.status}`);
+  }
+  return response;
+}
+
+export function requestObservedStatuses(config, step, method, path, body = null, extraHeaders = {}, query = {}, expectedStatuses = []) {
   const url = `${config.baseUrl}${path}${encodeQuery(query)}`;
   const route = routeLabel(step, method, path);
   const service = serviceLabel(step);
@@ -98,8 +106,8 @@ export function requestWithExpectedStatuses(config, step, method, path, body = n
   });
 
   logStep(config, step, response, { route, service });
-  const ok = check(response, {
-    [`${step} returned expected status`]: (res) => expectedStatuses.includes(res.status),
+  check(response, {
+    [`${step} returned expected status`]: (res) => expectedStatuses.length === 0 || expectedStatuses.includes(res.status),
   }, {
     environment: config.environment,
     profile: config.dataset.profile,
@@ -109,8 +117,5 @@ export function requestWithExpectedStatuses(config, step, method, path, body = n
     step,
     target: config.target,
   });
-  if (!ok) {
-    fail(`${step} failed with status ${response.status}`);
-  }
   return response;
 }

@@ -90,6 +90,22 @@ function metricNameWithStep(name, step) {
   return `${name}{step:${step}}`;
 }
 
+function reservationCreateOutcomeMetrics(metrics, step) {
+  if (!step.endsWith('.reservation.create')) {
+    return {};
+  }
+  return {
+    reservation_create_201_rate: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_201_rate', step), 'rate'),
+    reservation_create_201_count: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_201_count', step), 'count'),
+    reservation_create_409_rate: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_409_rate', step), 'rate'),
+    reservation_create_409_count: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_409_count', step), 'count'),
+    reservation_create_5xx_rate: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_5xx_rate', step), 'rate'),
+    reservation_create_5xx_count: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_5xx_count', step), 'count'),
+    reservation_create_timeout_rate: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_timeout_rate', step), 'rate'),
+    reservation_create_timeout_count: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_timeout_count', step), 'count'),
+  };
+}
+
 function stepsFromMetrics(metrics) {
   const steps = new Set(Object.keys(HTTP_STEP_ROUTES));
   for (const metricName of Object.keys(metrics || {})) {
@@ -114,6 +130,7 @@ function httpStepRows(data) {
       checks_pass_rate: metricValue(metrics, metricNameWithStep('checks', step), 'rate'),
       http_reqs_count: metricValue(metrics, metricNameWithStep('http_reqs', step), 'count'),
       http_reqs_rate: metricValue(metrics, metricNameWithStep('http_reqs', step), 'rate'),
+      ...reservationCreateOutcomeMetrics(metrics, step),
     }))
     .filter((row) => row.http_reqs_count > 0);
 }
@@ -149,6 +166,14 @@ function apiStepResults(rows) {
     http_req_failed_rate: row.http_req_failed_rate,
     http_reqs_rate: row.http_reqs_rate,
     http_reqs_count: row.http_reqs_count,
+    reservation_create_201_rate: row.reservation_create_201_rate,
+    reservation_create_201_count: row.reservation_create_201_count,
+    reservation_create_409_rate: row.reservation_create_409_rate,
+    reservation_create_409_count: row.reservation_create_409_count,
+    reservation_create_5xx_rate: row.reservation_create_5xx_rate,
+    reservation_create_5xx_count: row.reservation_create_5xx_count,
+    reservation_create_timeout_rate: row.reservation_create_timeout_rate,
+    reservation_create_timeout_count: row.reservation_create_timeout_count,
   }));
 }
 
@@ -303,6 +328,9 @@ function runReportLine(config, result, stepRows) {
     http_reqs_rate: result.http_reqs_rate,
     iterations_count: result.iterations_count,
     iterations_rate: result.iterations_rate,
+    reservation_handled_rate: metricValue(data.metrics || {}, 'loadtest_reservation_handled_rate', 'rate'),
+    reservation_created_rate: metricValue(data.metrics || {}, 'loadtest_reservation_created_rate', 'rate'),
+    reservation_infra_failure_rate: metricValue(data.metrics || {}, 'loadtest_reservation_infra_failure_rate', 'rate'),
     execution_conditions: experimentConditionFields(config, 'summary'),
     api_step_results: apiStepResults(stepRows),
   });
@@ -328,6 +356,14 @@ export function summaryOutput(config, data) {
       http_req_failed_rate: row.http_req_failed_rate,
       http_reqs_rate: row.http_reqs_rate,
       http_reqs_count: row.http_reqs_count,
+      reservation_create_201_rate: row.reservation_create_201_rate,
+      reservation_create_201_count: row.reservation_create_201_count,
+      reservation_create_409_rate: row.reservation_create_409_rate,
+      reservation_create_409_count: row.reservation_create_409_count,
+      reservation_create_5xx_rate: row.reservation_create_5xx_rate,
+      reservation_create_5xx_count: row.reservation_create_5xx_count,
+      reservation_create_timeout_rate: row.reservation_create_timeout_rate,
+      reservation_create_timeout_count: row.reservation_create_timeout_count,
     })),
   ];
   const output = {

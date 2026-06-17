@@ -1,0 +1,46 @@
+loadtest:
+  scenario: reservation-create-load-test
+  credentialsSecretName: read-api-loadtest-credentials
+
+dataset:
+  profile: reservation-create
+  revision: reservation-create-v1
+  concerts: 20
+  performancesPerConcert: 3
+  seatSections: 1
+  seatRows: 10
+  seatsPerRow: 30
+  customerPool:
+    size: 200
+    revision: reservation-create-v1
+
+scenarios:
+  reservationCreate:
+    requestPrefix: loadtest-reservation-create
+    executor: ramping-vus
+    vus: 5
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 20
+    maxVUs: 50
+    duration: 2m
+    stages:
+      - duration: 1m
+        target: 2
+      - duration: 1m
+        target: 5
+    thinkTimeSeconds: 0
+    activeCustomerCount: 200
+    maxSeatAttempts: 3
+    concertLimit: 50
+    performanceLimit: 50
+    seatLimit: 300
+    seatCandidateCount: 300
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "750"
+      httpReqDurationP99Ms: "1500"
+      checksRate: "0.99"
+      handledRate: "0.99"
+      createdRate: "0.99"
+      infraFailureRate: "0.01"

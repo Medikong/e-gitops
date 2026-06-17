@@ -148,8 +148,19 @@ tasks:
             export LOADTEST_READ_API_DURATION="${LOADTEST_READ_API_DURATION:-${duration}}"
             ;;
           reservation-journey-load-test)
+            export LOADTEST_RESERVATION_JOURNEY_EXECUTOR="${LOADTEST_RESERVATION_JOURNEY_EXECUTOR:-constant-vus}"
             export LOADTEST_RESERVATION_JOURNEY_VUS="${LOADTEST_RESERVATION_JOURNEY_VUS:-${vus}}"
             export LOADTEST_RESERVATION_JOURNEY_DURATION="${LOADTEST_RESERVATION_JOURNEY_DURATION:-${duration}}"
+            ;;
+          reservation-create-load-test)
+            export LOADTEST_RESERVATION_CREATE_EXECUTOR="${LOADTEST_RESERVATION_CREATE_EXECUTOR:-constant-vus}"
+            export LOADTEST_RESERVATION_CREATE_VUS="${LOADTEST_RESERVATION_CREATE_VUS:-${vus}}"
+            export LOADTEST_RESERVATION_CREATE_DURATION="${LOADTEST_RESERVATION_CREATE_DURATION:-${duration}}"
+            ;;
+          reservation-seat-contention-load-test)
+            export LOADTEST_RESERVATION_SEAT_CONTENTION_EXECUTOR="${LOADTEST_RESERVATION_SEAT_CONTENTION_EXECUTOR:-constant-vus}"
+            export LOADTEST_RESERVATION_SEAT_CONTENTION_VUS="${LOADTEST_RESERVATION_SEAT_CONTENTION_VUS:-${vus}}"
+            export LOADTEST_RESERVATION_SEAT_CONTENTION_DURATION="${LOADTEST_RESERVATION_SEAT_CONTENTION_DURATION:-${duration}}"
             ;;
           auth-login-load-test)
             export LOADTEST_AUTH_LOGIN_EXECUTOR="${LOADTEST_AUTH_LOGIN_EXECUTOR:-constant-vus}"
@@ -298,8 +309,12 @@ tasks:
         export SCENARIO="${scenario}"
         export LOADTEST_SCENARIO_VALUES_FILE="${scenario_values_file}"
         disable_kong_rate_limit="${LOADTEST_DISABLE_KONG_RATE_LIMIT:-}"
-        if [ -z "${disable_kong_rate_limit}" ] && [ "${scenario}" = "reservation-journey-load-test" ]; then
-          disable_kong_rate_limit="true"
+        if [ -z "${disable_kong_rate_limit}" ]; then
+          case "${scenario}" in
+            reservation-journey-load-test|reservation-create-load-test|reservation-seat-contention-load-test)
+              disable_kong_rate_limit="true"
+              ;;
+          esac
         fi
         disable_kong_rate_limit="${disable_kong_rate_limit:-false}"
         printf 'Running loadtest scenario=%s values=%s disable_kong_rate_limit=%s\n' \

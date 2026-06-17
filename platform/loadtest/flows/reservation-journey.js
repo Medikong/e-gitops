@@ -1,6 +1,6 @@
 import { fail, sleep } from 'k6';
 
-import { authHeaders, getJson, requestJson, requestWithExpectedStatuses } from '../lib/http.js';
+import { authHeaders, getJson, requestJson, requestObservedStatuses, requestWithExpectedStatuses } from '../lib/http.js';
 import { itemsFrom, requireField } from '../lib/pick.js';
 
 function hashString(value) {
@@ -22,54 +22,104 @@ function availableSeats(items) {
   return (items || []).filter((seat) => String(seat.status || '').toLowerCase() === 'available');
 }
 
+function stepName(config, suffix) {
+  return `${config.stepPrefix || 'reservation_journey'}.${suffix}`;
+}
+
 function datasetConcerts(config, concerts) {
   const expectedPrefix = `${config.dataset.titlePrefix} ${config.dataset.profile} ${config.dataset.revision} `;
   const candidates = concerts.filter((concert) => String(concert.title || '').startsWith(expectedPrefix));
   if (candidates.length === 0) {
-    fail(`reservation_journey.concerts returned no dataset concerts with prefix ${expectedPrefix}`);
+    fail(`${stepName(config, 'concerts')} returned no dataset concerts with prefix ${expectedPrefix}`);
   }
   return candidates;
 }
 
 export function selectReservationTarget(config, attempt = 0) {
   const selectionId = config.iterationId || config.runId;
-  const concertsBody = getJson(config, 'reservation_journey.concerts', '/concerts', { limit: config.concertLimit });
-  const concerts = datasetConcerts(config, itemsFrom(concertsBody, 'reservation_journey.concerts'));
-  const concert = pickByRunId(concerts, 'reservation_journey.concerts', `${selectionId}:concert`, attempt);
-  const concertId = requireField(concert, 'id', 'reservation_journey.concerts');
+  const concertsStep = stepName(config, 'concerts');
+  const performancesStep = stepName(config, 'performances');
+  const seatsStep = stepName(config, 'seats');
+  const concertsBody = getJson(config, concertsStep, '/concerts', { limit: config.concertLimit });
+  const concerts = datasetConcerts(config, itemsFrom(concertsBody, concertsStep));
+  const concert = pickByRunId(concerts, concertsStep, `${selectionId}:concert`, attempt);
+  const concertId = requireField(concert, 'id', concertsStep);
 
   const performancesBody = getJson(
     config,
-    'reservation_journey.performances',
+    performancesStep,
     `/concerts/${encodeURIComponent(concertId)}/performances`,
     { limit: config.performanceLimit },
   );
-  const performances = itemsFrom(performancesBody, 'reservation_journey.performances');
-  const performance = pickByRunId(performances, 'reservation_journey.performances', `${selectionId}:performance`, attempt);
-  const performanceId = requireField(performance, 'id', 'reservation_journey.performances');
+  const performances = itemsFrom(performancesBody, performancesStep);
+  const performance = pickByRunId(performances, performancesStep, `${selectionId}:performance`, attempt);
+  const performanceId = requireField(performance, 'id', performancesStep);
 
   const seatsBody = getJson(
     config,
-    'reservation_journey.seats',
+    seatsStep,
     `/performances/${encodeURIComponent(performanceId)}/seats`,
     { limit: config.seatLimit },
   );
-  const seats = availableSeats(itemsFrom(seatsBody, 'reservation_journey.seats'));
-  const seat = pickByRunId(seats, 'reservation_journey.seats', `${selectionId}:seat`, attempt);
+  const seats = availableSeats(itemsFrom(seatsBody, seatsStep));
+  const seat = pickByRunId(seats, seatsStep, `${selectionId}:seat`, attempt);
 
   return {
     concertId,
     performanceId,
     showtimeId: performanceId,
-    seatId: requireField(seat, 'id', 'reservation_journey.seats'),
+    seatId: requireField(seat, 'id', seatsStep),
     seatCount: seats.length,
   };
 }
 
-function createReservation(config, token, target, onConflict) {
-  const response = requestWithExpectedStatuses(
+export function selectSeatContentionTarget(config, attempt = 0) {
+  const selectionId = config.runId || config.iterationId;
+  const concertsStep = stepName(config, 'concerts');
+  const performancesStep = stepName(config, 'performances');
+  const seatsStep = stepName(config, 'seats');
+  const concertsBody = getJson(config, concertsStep, '/concerts', { limit: config.concertLimit });
+  const concerts = datasetConcerts(config, itemsFrom(concertsBody, concertsStep));
+  const concert = pickByRunId(concerts, concertsStep, `${selectionId}:concert`, 0);
+  const concertId = requireField(concert, 'id', concertsStep);
+
+  const performancesBody = getJson(
     config,
-    'reservation_journey.reservation.create',
+    performancesStep,
+    `/concerts/${encodeURIComponent(concertId)}/performances`,
+    { limit: config.performanceLimit },
+  );
+  const performances = itemsFrom(performancesBody, performancesStep);
+  const performance = pickByRunId(performances, performancesStep, `${selectionId}:performance`, 0);
+  const performanceId = requireField(performance, 'id', performancesStep);
+
+  const seatsBody = getJson(
+    config,
+    seatsStep,
+    `/performances/${encodeURIComponent(performanceId)}/seats`,
+    { limit: config.seatLimit },
+  );
+  const seats = itemsFrom(seatsBody, seatsStep);
+  if (seats.length === 0) {
+    fail(`${seatsStep} returned no candidate seats`);
+  }
+  const candidateCount = Math.min(config.seatCandidateCount || seats.length, seats.length);
+  const seat = seats[(hashString(`${config.iterationId}:seat`) + attempt) % candidateCount];
+
+  return {
+    concertId,
+    performanceId,
+    showtimeId: performanceId,
+    seatId: requireField(seat, 'id', seatsStep),
+    seatCount: seats.length,
+    seatCandidateCount: candidateCount,
+  };
+}
+
+export function createReservationAttempt(config, token, target) {
+  return requestObservedStatuses(
+    config,
+    stepName(config, 'reservation.create'),
     'POST',
     '/reservations',
     {
@@ -82,18 +132,26 @@ function createReservation(config, token, target, onConflict) {
     {},
     [201, 409],
   );
+}
+
+function createReservation(config, token, target, onConflict) {
+  const step = stepName(config, 'reservation.create');
+  const response = createReservationAttempt(config, token, target);
   const isConflict = response.status === 409;
   onConflict(isConflict);
   if (isConflict) {
     return null;
   }
+  if (response.status !== 201) {
+    fail(`${step} failed with status ${response.status}`);
+  }
   let body;
   try {
     body = response.json();
   } catch (error) {
-    fail(`reservation_journey.reservation.create returned invalid json: ${error.message}`);
+    fail(`${step} returned invalid json: ${error.message}`);
   }
-  requireField(body, 'id', 'reservation_journey.reservation.create');
+  requireField(body, 'id', step);
   return body;
 }
 

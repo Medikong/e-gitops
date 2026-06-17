@@ -41,6 +41,43 @@ measure: GET /tickets/me?limit=...&cursor=...
 단계별 latency는 본 실행 step tag가 붙은 `http_req_duration`으로 보고, setup/pre-login은 step-level threshold와 `loadtest_api_summary` 대상에서 제외한다.
 예매 성공률, 409 비율, 티켓 발급률은 custom metric threshold로 본다.
 
+`reservation-create-load-test`는 예약 생성 경로만 분리한 R2 시나리오다.
+충분한 좌석 풀과 customer 분산으로 정상 생성 기준선을 측정한다.
+실행 전 `setup()`에서 `loadtest_run_id`를 붙인 dataset revision으로 공연/회차/좌석과 customer pool을 새로 만들기 때문에 이전 실험의 예약 데이터와 섞이지 않는다.
+
+```text
+setup/dataset: provider/admin login, 충분한 concert/performance/seat 생성
+setup/account-pool: POST /auth/signup 또는 POST /auth/login 검증
+setup/pre-login: active customer token 준비
+measure: GET /concerts
+measure: GET /concerts/{id}/performances
+measure: GET /performances/{id}/seats
+measure: POST /reservations
+```
+
+분석 기준은 `reservation_create.reservation.create`의 p95/p99, RPS, request count, 201/409/5xx/timeout rate/count다.
+R2에서 409는 낮아야 하며, 409가 늘면 좌석 풀 분산이나 좌석 선택 로직보다 reservation-service의 중복 예약 방지 경계와 DB transaction 시간을 먼저 본다.
+주요 병목 후보는 DB connection pool 대기, transaction 시간 증가, slow query, row lock/unique constraint 대기, reservation-service CPU/memory, HPA 반응 지연이다.
+
+`reservation-seat-contention-load-test`는 좌석 경합을 의도적으로 만드는 R3 시나리오다.
+같은 showtime의 작은 seat candidate pool에 여러 VU가 몰리게 하며, 409는 정상 business conflict로 분리해 보고 5xx/timeout/deadlock만 장애로 본다.
+이 시나리오도 `setup()`에서 `LOADTEST_RUN_ID` 기반 revision을 만들고, 작은 좌석 수와 충분한 customer pool을 같은 실행 단위로 준비한다.
+
+```text
+setup/dataset: 작은 concert/performance/seat candidate pool 생성
+setup/account-pool: POST /auth/signup 또는 POST /auth/login 검증
+setup/pre-login: active customer token 준비
+measure: GET /concerts
+measure: GET /concerts/{id}/performances
+measure: GET /performances/{id}/seats
+measure: POST /reservations
+```
+
+R3 결과는 `reservation_seat_contention.reservation.create`의 201/409/5xx/timeout 비율을 먼저 본다.
+성공 예약 수는 `reservation_create_201_count`, 좌석 수는 `loadtest_experiment_conditions.dataset_seats_per_performance`와 `seat_candidate_count`, 개별 성공 로그는 `loadtest_run_finished.seat_id/reservation_id`로 대조한다.
+성공 예약 수가 후보 좌석 수보다 커지면 중복 예약 방지 결함을 의심한다.
+409가 늘면서 5xx/timeout이 낮으면 정상 경합으로 보고, 5xx/timeout/deadlock이 늘면 DB lock, transaction isolation, unique constraint 처리, pool exhaustion, HPA/CPU/memory를 확인한다.
+
 `auth-login-load-test`는 `/auth/login` 병목만 분리해서 보는 시나리오다.
 실행 전 setup 단계에서 customer pool을 `POST /auth/signup`으로 만들거나 409 재사용을 허용한 뒤 login으로 검증한다.
 측정 구간의 반복 루프는 `POST /auth/login`만 호출하고, step-level `loadtest_api_summary`에는 `auth_login.login` 결과만 남긴다.
@@ -102,17 +139,22 @@ lib/config/common.js
 lib/config/dataset.js
 lib/config/scenarios/read-api-baseline.js
 lib/config/scenarios/reservation-journey.js
+lib/config/scenarios/reservation-load.js
 values/scenarios/setup-read-dataset.yaml
 values/scenarios/read-api-baseline.yaml
 values/scenarios/auth-login-load-test.yaml
 values/scenarios/reservation-journey-load-test.yaml
+values/scenarios/reservation-create-load-test.yaml
+values/scenarios/reservation-seat-contention-load-test.yaml
 ```
 
 조회 기준선의 VU, duration, stages, read limit, threshold는 `scenarios.readApiBaseline`에서만 조절한다.
 auth login의 executor, rate, VU 한도, duration, stages, threshold는 `scenarios.authLogin`에서만 조절한다.
 예매 여정의 executor, rate, VU 한도, duration, stages, polling, ticket list page 범위, active customer 수, 결제 금액, 좌석 재시도, threshold는 `scenarios.reservationJourney`에서만 조절한다.
+예약 생성 기준선의 executor, rate, VU 한도, duration, stages, active customer 수, 좌석 재시도, seat candidate 수, threshold는 `scenarios.reservationCreate`에서만 조절한다.
+좌석 경합의 executor, rate, VU 한도, duration, stages, active customer 수, seat candidate 수, threshold는 `scenarios.reservationSeatContention`에서만 조절한다.
 dataset setup 조건은 `dataset` 아래에 두고, fresh pool은 `dataset.revision` 또는 `dataset.customerPool.revision`으로 분리한다.
-`trafficModel`은 실행값을 만든 사업/트래픽 가정을 기록한다. k6 실행은 `scenarios.reservationJourney` 값을 사용하고, `trafficModel`은 `loadtest_experiment_conditions`에 함께 남겨 나중에 같은 프리셋끼리 비교한다.
+`trafficModel`은 실행값을 만든 사업/트래픽 가정을 기록한다. k6 실행은 선택한 scenario key의 값을 사용하고, `trafficModel`은 `loadtest_experiment_conditions`에 함께 남겨 나중에 같은 프리셋끼리 비교한다.
 프리셋 파일은 `values/presets/<scenario-family>/<preset>.yaml`에 둔다. scenario 파일은 실행 script의 기본 조건이고, preset 파일은 같은 script에 얹는 실험 조건이다.
 
 ## Reservation Journey Presets
@@ -126,10 +168,15 @@ values/presets/reservation-journey/mau10k-normal-peak.yaml
 values/presets/reservation-journey/mau10k-ticket-open.yaml
 values/presets/reservation-journey/mau10k-ticket-open-aggressive.yaml
 values/presets/reservation-journey/stress-find-limit.yaml
+values/presets/reservation-create/mau10k-normal-peak.yaml
+values/presets/reservation-create/mau10k-ticket-open.yaml
+values/presets/reservation-seat-contention/mau10k-ticket-open.yaml
+values/presets/reservation-seat-contention/stress-find-limit.yaml
 ```
 
 `mau10k-normal-peak`는 MAU 1만, DAU/MAU 20%, DAU의 30%가 피크 1시간에 분산되는 일반 피크를 가정한다.
 계산값은 약 `0.17 journey/s`이고 safety factor 3을 적용해 `0.5 journey/s`로 실행한다.
+
 
 `mau10k-ticket-open`은 MAU 1만, DAU/MAU 20%, DAU의 30%가 티켓 오픈 10분 안에 몰리는 상황을 가정한다.
 계산값은 `1 journey/s`이고 safety factor 2를 적용해 `2 journey/s`로 실행한다.
@@ -179,7 +226,11 @@ Kong rate limit을 포함한 제품 경로 기준선을 보려면 `LOADTEST_DISA
 SCENARIO=read-api-baseline task --dir gitops dev:loadtest
 SCENARIO=auth-login-load-test task --dir gitops dev:loadtest
 SCENARIO=reservation-journey-load-test task --dir gitops dev:loadtest
+SCENARIO=reservation-create-load-test task --dir gitops dev:loadtest
+SCENARIO=reservation-seat-contention-load-test task --dir gitops dev:loadtest
 PRESET=mau10k-ticket-open task --dir gitops dev:loadtest
+SCENARIO=reservation-create-load-test PRESET=mau10k-ticket-open task --dir gitops dev:loadtest
+SCENARIO=reservation-seat-contention-load-test PRESET=stress-find-limit task --dir gitops dev:loadtest
 LOADTEST_DISABLE_KONG_RATE_LIMIT=false SCENARIO=reservation-journey-load-test task --dir gitops dev:loadtest
 
 task --dir gitops/platform/loadtest lint
@@ -187,13 +238,21 @@ task --dir gitops/platform/loadtest render
 LOADTEST_VALUES_FILE=values/aws-dev.yaml task --dir gitops/platform/loadtest render
 LOADTEST_SCENARIO_VALUES_FILE=values/scenarios/auth-login-load-test.yaml task --dir gitops/platform/loadtest render
 LOADTEST_SCENARIO_VALUES_FILE=values/scenarios/reservation-journey-load-test.yaml task --dir gitops/platform/loadtest render
+LOADTEST_SCENARIO_VALUES_FILE=values/scenarios/reservation-create-load-test.yaml task --dir gitops/platform/loadtest render
+LOADTEST_SCENARIO_VALUES_FILE=values/scenarios/reservation-seat-contention-load-test.yaml task --dir gitops/platform/loadtest render
 PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest render
+PRESET=mau10k-normal-peak SCENARIO=reservation-create-load-test task --dir gitops/platform/loadtest render
+PRESET=stress-find-limit SCENARIO=reservation-seat-contention-load-test task --dir gitops/platform/loadtest render
 task --dir gitops/platform/loadtest local-report LOADTEST_BASE_URL=http://localhost LOADTEST_VUS=5 LOADTEST_DURATION=1m
 SCENARIO=auth-login-load-test task --dir gitops/platform/loadtest local-report
 task --dir gitops/platform/loadtest local-report-smoke
 SCENARIO=auth-login-load-test task --dir gitops/platform/loadtest run-local
 SCENARIO=reservation-journey-load-test task --dir gitops/platform/loadtest run-local
+SCENARIO=reservation-create-load-test task --dir gitops/platform/loadtest run-local
+SCENARIO=reservation-seat-contention-load-test task --dir gitops/platform/loadtest run-local
 PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest run-local
+SCENARIO=reservation-create-load-test PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest run-local
+SCENARIO=reservation-seat-contention-load-test PRESET=stress-find-limit task --dir gitops/platform/loadtest run-local
 LOADTEST_DISABLE_KONG_RATE_LIMIT=false SCENARIO=reservation-journey-load-test task --dir gitops/platform/loadtest run-local
 task --dir gitops/platform/loadtest kong-rate-limit:status
 task --dir gitops/platform/loadtest kong-rate-limit:restore

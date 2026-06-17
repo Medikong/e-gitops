@@ -13,6 +13,8 @@ import { setupReservationJourneyDataset } from './datasets/reservation-journey.j
 //   datasetProfiles['large-seat-map'] = setupLargeSeatMapDataset;
 const datasetProfiles = {
   'read-api-basic': setupReadApiBasicDataset,
+  'reservation-create': setupReadApiBasicDataset,
+  'reservation-seat-contention': setupReadApiBasicDataset,
   'reservation-journey': setupReservationJourneyDataset,
 };
 

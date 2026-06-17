@@ -94,6 +94,9 @@ export function experimentConditionFields(config, phase) {
     active_customer_count: config.activeCustomerCount,
     payment_amount: config.paymentAmount,
     max_seat_attempts: config.maxSeatAttempts,
+    seat_candidate_count: config.seatCandidateCount,
+    seat_selection_mode: config.seatSelectionMode,
+    allow_reservation_conflicts: config.allowReservationConflicts,
     concert_limit: config.concertLimit,
     performance_limit: config.performanceLimit,
     seat_limit: config.seatLimit,
@@ -159,6 +162,7 @@ export function logRunFinished(config, state = {}) {
     payment_id: state.paymentId,
     ticket_id: state.ticketId,
     seat_count: state.seatCount,
+    seat_candidate_count: state.seatCandidateCount,
   });
 }
 
@@ -179,6 +183,9 @@ export function logRunFailed(config, step, error, state = {}) {
     reservation_id: state.reservationId,
     payment_id: state.paymentId,
     ticket_id: state.ticketId,
+    seat_count: state.seatCount,
+    seat_candidate_count: state.seatCandidateCount,
+    failure_class: state.failureClass,
   });
 }
 
@@ -211,6 +218,8 @@ export function logJourneyStep(config, step, outcome, state = {}) {
     reservation_id: state.reservationId,
     payment_id: state.paymentId,
     ticket_id: state.ticketId,
+    seat_count: state.seatCount,
+    seat_candidate_count: state.seatCandidateCount,
   });
 }
 
