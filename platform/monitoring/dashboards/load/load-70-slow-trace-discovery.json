@@ -100,7 +100,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | event=\"http.request.completed\" | http_route=~\"$route\" | http_route!~\"/health|/healthz|/metrics|/readyz\" | http_status_code=~\"$status_code\" | duration_ms >= $min_duration_ms | trace_id=~\"[a-fA-F0-9]{16,32}\"",
+          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | event=\"http.request.completed\" | http_route=~\"($route).*\" | http_route!~\"/health|/healthz|/metrics|/readyz\" | http_status_code=~\"$status_code\" | duration_ms >= $min_duration_ms | trace_id=~\"[a-fA-F0-9]{16,32}\"",
           "range": true,
           "refId": "A",
           "instant": false
@@ -184,7 +184,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "topk(20, sum by (http_route, http_status_code) (count_over_time({k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | event=\"http.request.completed\" | http_route=~\"$route\" | http_route!~\"/health|/healthz|/metrics|/readyz\" | http_status_code=~\"$status_code\" | duration_ms >= $min_duration_ms [$__range])))",
+          "expr": "topk(20, sum by (http_route, http_status_code) (count_over_time({k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | event=\"http.request.completed\" | http_route=~\"($route).*\" | http_route!~\"/health|/healthz|/metrics|/readyz\" | http_status_code=~\"$status_code\" | duration_ms >= $min_duration_ms [$__range])))",
           "range": false,
           "refId": "A",
           "instant": true
@@ -261,7 +261,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | event=\"http.request.completed\" | http_route=~\"$route\" | http_route!~\"/health|/healthz|/metrics|/readyz\" | http_status_code=~\"$status_code\" | duration_ms >= $min_duration_ms | trace_id=~\"[a-fA-F0-9]{16,32}\" | line_format \"service={{.service_name}} method={{.http_method}} route={{.http_route}} status={{.http_status_code}} duration_ms={{.duration_ms}} trace_id={{.trace_id}} request_id={{.request_id}}\"",
+          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | event=\"http.request.completed\" | http_route=~\"($route).*\" | http_route!~\"/health|/healthz|/metrics|/readyz\" | http_status_code=~\"$status_code\" | duration_ms >= $min_duration_ms | trace_id=~\"[a-fA-F0-9]{16,32}\" | line_format \"service={{.service_name}} method={{.http_method}} route={{.http_route}} status={{.http_status_code}} duration_ms={{.duration_ms}} trace_id={{.trace_id}} request_id={{.request_id}}\"",
           "range": true,
           "refId": "A",
           "instant": false
@@ -361,11 +361,11 @@
         "name": "route",
         "label": "Route Regex",
         "type": "textbox",
-        "query": "/tickets/me",
+        "query": "",
         "current": {
           "selected": false,
-          "text": "/tickets/me",
-          "value": "/tickets/me"
+          "text": "",
+          "value": ""
         }
       },
       {
