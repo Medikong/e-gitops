@@ -6,6 +6,12 @@ replicaCount: 1
 deployment:
   daemonset: false
 
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 0
+    maxUnavailable: 1
+
 admin:
   enabled: false
 
