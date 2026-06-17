@@ -35,6 +35,8 @@ spec:
         app.kubernetes.io/part-of: medikong
         app.kubernetes.io/name: notification-db
     spec:
+      nodeSelector:
+        medikong.io/workload: data
       containers:
         - name: mongo
           image: mongo:7
@@ -59,7 +61,7 @@ spec:
     - metadata:
         name: data
       spec:
-        storageClassName: medikong-longhorn
+        storageClassName: medikong-local-path
         accessModes:
           - ReadWriteOnce
         resources:

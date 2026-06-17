@@ -35,6 +35,8 @@ spec:
         app.kubernetes.io/part-of: medikong
         app.kubernetes.io/name: auth-db
     spec:
+      nodeSelector:
+        medikong.io/workload: data
       containers:
         - name: postgres
           image: postgres:15
@@ -79,7 +81,7 @@ spec:
     - metadata:
         name: data
       spec:
-        storageClassName: medikong-longhorn
+        storageClassName: medikong-local-path
         accessModes:
           - ReadWriteOnce
         resources:
@@ -123,6 +125,8 @@ spec:
         app.kubernetes.io/part-of: medikong
         app.kubernetes.io/name: concert-db
     spec:
+      nodeSelector:
+        medikong.io/workload: data
       containers:
         - name: postgres
           image: postgres:15
@@ -167,7 +171,7 @@ spec:
     - metadata:
         name: data
       spec:
-        storageClassName: medikong-longhorn
+        storageClassName: medikong-local-path
         accessModes:
           - ReadWriteOnce
         resources:
@@ -211,6 +215,8 @@ spec:
         app.kubernetes.io/part-of: medikong
         app.kubernetes.io/name: reservation-db
     spec:
+      nodeSelector:
+        medikong.io/workload: data
       containers:
         - name: postgres
           image: postgres:15
@@ -255,7 +261,7 @@ spec:
     - metadata:
         name: data
       spec:
-        storageClassName: medikong-longhorn
+        storageClassName: medikong-local-path
         accessModes:
           - ReadWriteOnce
         resources:
@@ -299,6 +305,8 @@ spec:
         app.kubernetes.io/part-of: medikong
         app.kubernetes.io/name: payment-db
     spec:
+      nodeSelector:
+        medikong.io/workload: data
       containers:
         - name: postgres
           image: postgres:15
@@ -343,7 +351,7 @@ spec:
     - metadata:
         name: data
       spec:
-        storageClassName: medikong-longhorn
+        storageClassName: medikong-local-path
         accessModes:
           - ReadWriteOnce
         resources:
@@ -387,6 +395,8 @@ spec:
         app.kubernetes.io/part-of: medikong
         app.kubernetes.io/name: ticket-db
     spec:
+      nodeSelector:
+        medikong.io/workload: data
       containers:
         - name: postgres
           image: postgres:15
@@ -431,7 +441,7 @@ spec:
     - metadata:
         name: data
       spec:
-        storageClassName: medikong-longhorn
+        storageClassName: medikong-local-path
         accessModes:
           - ReadWriteOnce
         resources:

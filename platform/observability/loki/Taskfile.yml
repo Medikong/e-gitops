@@ -11,6 +11,7 @@ vars:
   LOKI_CHART_REPO_NAME: '{{default "grafana" .LOKI_CHART_REPO_NAME}}'
   LOKI_CHART_VERSION: '{{default "6.55.0" .LOKI_CHART_VERSION}}'
   LOKI_VALUES: '{{default "platform/observability/loki/values/aws-dev.yaml" .LOKI_VALUES}}'
+  LOKI_PRIVATE_DEV_VALUES: '{{default "platform/observability/loki/values/private-dev.yaml" .LOKI_PRIVATE_DEV_VALUES}}'
   LOKI_LOCAL_VALUES: '{{default "platform/observability/loki/values/local.yaml" .LOKI_LOCAL_VALUES}}'
 
 tasks:
@@ -20,10 +21,11 @@ tasks:
       - '{{.HELM}} repo update {{.LOKI_CHART_REPO_NAME}} >/dev/null'
 
   render:
-    desc: Loki aws-dev/local Helm values를 렌더링합니다.
+    desc: Loki aws-dev/private-dev/local Helm values를 렌더링합니다.
     cmds:
       - task repo
       - '{{.HELM}} template {{.LOKI_RELEASE}} {{.LOKI_CHART}} --version {{.LOKI_CHART_VERSION}} --namespace {{.OBSERVABILITY_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.LOKI_VALUES}} >/dev/null'
+      - '{{.HELM}} template {{.LOKI_RELEASE}} {{.LOKI_CHART}} --version {{.LOKI_CHART_VERSION}} --namespace {{.OBSERVABILITY_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.LOKI_PRIVATE_DEV_VALUES}} >/dev/null'
       - '{{.HELM}} template {{.LOKI_RELEASE}} {{.LOKI_CHART}} --version {{.LOKI_CHART_VERSION}} --namespace {{.OBSERVABILITY_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.LOKI_LOCAL_VALUES}} >/dev/null'
 
   up:

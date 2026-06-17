@@ -71,7 +71,7 @@ singleBinary:
   replicas: 1
   persistence:
     enabled: true
-    storageClass: medikong-longhorn
+    storageClass: medikong-local-path
     size: 2Gi
   resources:
     requests:
@@ -80,7 +80,8 @@ singleBinary:
     limits:
       cpu: 500m
       memory: 768Mi
-  nodeSelector: {}
+  nodeSelector:
+    medikong.io/workload: observability
 
 sidecar:
   image:

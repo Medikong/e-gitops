@@ -45,3 +45,6 @@ serviceMonitor:
   networkPolicy:
     extraPorts:
       - 15090
+
+nodeSelector:
+  medikong.io/workload: app

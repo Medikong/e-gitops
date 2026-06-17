@@ -1203,7 +1203,7 @@ tasks:
     cmds:
       - '{{.KUBECTL}} kustomize platform/namespaces >/dev/null'
       - 'ruby -e ''require "yaml"; YAML.load_stream(File.read("platform/storage/storageclass-aws-gp3.yaml"))'' >/dev/null'
-      - 'ruby -e ''require "yaml"; YAML.load_stream(File.read("platform/storage/storageclass-longhorn.yaml"))'' >/dev/null'
+      - 'ruby -e ''require "yaml"; YAML.load_stream(File.read("platform/storage/local-path-private-dev.yaml"))'' >/dev/null'
       - '{{.KUBECTL}} kustomize platform/data >/dev/null'
       - '{{.KUBECTL}} kustomize platform/data-private-dev >/dev/null'
       - '{{.KUBECTL}} kustomize platform/kong >/dev/null'

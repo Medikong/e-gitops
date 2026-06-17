@@ -35,6 +35,7 @@ log path
 - implementation: OpenTelemetry Collector contrib
 - image: `otel/opentelemetry-collector-contrib:0.153.0`
 - mode: DaemonSet
+- private-dev scheduling: no `nodeSelector`; filelog needs one Collector agent on each worker that can run workloads
 - aws-dev image registry: ECR
 - receiver: OTLP gRPC `4317`, OTLP HTTP `4318`
 - log receiver: `filelog` on `/var/log/pods/*/*/*.log`

@@ -12,13 +12,19 @@ spec:
     targetRevision: HEAD
     path: platform/storage
     directory:
-      include: storageclass-longhorn.yaml
+      include: local-path-private-dev.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: kube-system
+    namespace: local-path-storage
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/name: local-path-storage
+        app.kubernetes.io/part-of: medikong
+        medikong.io/platform: storage
     syncOptions:
+      - CreateNamespace=true
       - ServerSideApply=true

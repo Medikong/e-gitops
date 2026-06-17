@@ -30,7 +30,9 @@ Use SSH to node1 or an admin workstation with the private-dev kubeconfig when th
 kubectl -n ticketing-payment get secret pgadmin-private-dev-credentials -o jsonpath='{.data.password}' | base64 -d
 ```
 
-All StatefulSet and PVC resources in this path use `storageClassName: medikong-longhorn`.
+All StatefulSet and PVC resources in this path use `storageClassName: medikong-local-path`.
+Data pods are pinned to nodes labeled `medikong.io/workload=data`.
+Existing `medikong-longhorn` PVCs must be deleted and recreated during an approved private-dev reset; Kubernetes does not mutate a Bound PVC to a different StorageClass.
 
 ## NetworkPolicy
 

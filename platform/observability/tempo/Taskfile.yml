@@ -11,6 +11,7 @@ vars:
   TEMPO_CHART_REPO_NAME: '{{default "grafana" .TEMPO_CHART_REPO_NAME}}'
   TEMPO_CHART_VERSION: '{{default "1.24.4" .TEMPO_CHART_VERSION}}'
   TEMPO_VALUES: '{{default "platform/observability/tempo/values/aws-dev.yaml" .TEMPO_VALUES}}'
+  TEMPO_PRIVATE_DEV_VALUES: '{{default "platform/observability/tempo/values/private-dev.yaml" .TEMPO_PRIVATE_DEV_VALUES}}'
   TEMPO_LOCAL_VALUES: '{{default "platform/observability/tempo/values/local.yaml" .TEMPO_LOCAL_VALUES}}'
 
 tasks:
@@ -20,10 +21,11 @@ tasks:
       - '{{.HELM}} repo update {{.TEMPO_CHART_REPO_NAME}} >/dev/null'
 
   render:
-    desc: Tempo aws-dev/local Helm values를 렌더링합니다.
+    desc: Tempo aws-dev/private-dev/local Helm values를 렌더링합니다.
     cmds:
       - task repo
       - '{{.HELM}} template {{.TEMPO_RELEASE}} {{.TEMPO_CHART}} --version {{.TEMPO_CHART_VERSION}} --namespace {{.OBSERVABILITY_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.TEMPO_VALUES}} >/dev/null'
+      - '{{.HELM}} template {{.TEMPO_RELEASE}} {{.TEMPO_CHART}} --version {{.TEMPO_CHART_VERSION}} --namespace {{.OBSERVABILITY_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.TEMPO_PRIVATE_DEV_VALUES}} >/dev/null'
       - '{{.HELM}} template {{.TEMPO_RELEASE}} {{.TEMPO_CHART}} --version {{.TEMPO_CHART_VERSION}} --namespace {{.OBSERVABILITY_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.TEMPO_LOCAL_VALUES}} >/dev/null'
 
   up:

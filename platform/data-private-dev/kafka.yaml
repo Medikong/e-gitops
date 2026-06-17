@@ -55,11 +55,13 @@ spec:
         app.kubernetes.io/part-of: medikong
         app.kubernetes.io/name: kafka
     spec:
+      nodeSelector:
+        medikong.io/workload: data
       securityContext:
         fsGroup: 1000
       initContainers:
         - name: prepare-kafka-storage
-          image: busybox:1.36
+          image: public.ecr.aws/docker/library/busybox:1.36
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -137,7 +139,7 @@ spec:
     - metadata:
         name: data
       spec:
-        storageClassName: medikong-longhorn
+        storageClassName: medikong-local-path
         accessModes:
           - ReadWriteOnce
         resources:
@@ -159,6 +161,8 @@ spec:
         app.kubernetes.io/part-of: medikong
         app.kubernetes.io/name: kafka-create-topics
     spec:
+      nodeSelector:
+        medikong.io/workload: data
       restartPolicy: OnFailure
       containers:
         - name: kafka-create-topics

@@ -35,10 +35,11 @@ tempo:
 
 persistence:
   enabled: true
-  storageClassName: medikong-longhorn
+  storageClassName: medikong-local-path
   size: 1Gi
 
-nodeSelector: {}
+nodeSelector:
+  medikong.io/workload: observability
 
 serviceMonitor:
   enabled: false

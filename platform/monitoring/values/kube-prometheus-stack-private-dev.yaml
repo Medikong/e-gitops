@@ -5,9 +5,8 @@ alertmanager:
   enabled: true
   alertmanagerSpec:
     replicas: 1
-    # private-dev starts without a dedicated monitoring worker.
-    # Keep this empty so the scheduler can place Alertmanager on available workers.
-    nodeSelector: {}
+    nodeSelector:
+      medikong.io/workload: observability
     resources:
       requests:
         cpu: 50m
@@ -35,7 +34,7 @@ grafana:
     tag: "13.0.1"
   initChownData:
     image:
-      registry: docker.io
+      registry: public.ecr.aws/docker
       repository: library/busybox
       tag: "1.37.0"
   deploymentStrategy:
@@ -99,7 +98,7 @@ grafana:
   persistence:
     enabled: true
     type: pvc
-    storageClassName: medikong-longhorn
+    storageClassName: medikong-local-path
     size: 512Mi
   resources:
     requests:
@@ -108,9 +107,8 @@ grafana:
     limits:
       cpu: 300m
       memory: 1Gi
-  # private-dev starts without a dedicated monitoring worker.
-  # Keep this empty so the scheduler can place Grafana on available workers.
-  nodeSelector: {}
+  nodeSelector:
+    medikong.io/workload: observability
 
 prometheus:
   prometheusSpec:
@@ -178,15 +176,14 @@ prometheus:
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: medikong-longhorn
+          storageClassName: medikong-local-path
           accessModes:
             - ReadWriteOnce
           resources:
             requests:
               storage: 2Gi
-    # private-dev starts without a dedicated monitoring worker.
-    # Keep this empty so the scheduler can place Prometheus on available workers.
-    nodeSelector: {}
+    nodeSelector:
+      medikong.io/workload: observability
 
 prometheusOperator:
   image:
@@ -211,9 +208,8 @@ prometheusOperator:
     limits:
       cpu: 200m
       memory: 256Mi
-  # private-dev starts without a dedicated monitoring worker.
-  # Keep this empty so the scheduler can place the operator on available workers.
-  nodeSelector: {}
+  nodeSelector:
+    medikong.io/workload: observability
 
 kube-state-metrics:
   image:
@@ -227,9 +223,8 @@ kube-state-metrics:
     limits:
       cpu: 100m
       memory: 128Mi
-  # private-dev starts without a dedicated monitoring worker.
-  # Keep this empty so the scheduler can place kube-state-metrics on available workers.
-  nodeSelector: {}
+  nodeSelector:
+    medikong.io/workload: observability
 
 prometheus-node-exporter:
   image:

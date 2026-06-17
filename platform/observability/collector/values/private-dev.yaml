@@ -267,6 +267,9 @@ resources:
     cpu: 300m
     memory: 512Mi
 
+# Keep this empty in private-dev. The Collector runs as a DaemonSet and reads
+# node-local container logs through hostPath, so pinning it to the observability
+# node would drop logs from app, data, and ingress nodes.
 nodeSelector: {}
 
 podLabels:
