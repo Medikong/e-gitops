@@ -31,17 +31,6 @@ function datasetConcerts(config, concerts) {
   return candidates;
 }
 
-export function loginCustomer(config, account) {
-  const body = requestJson(config, 'reservation_journey.auth.login', 'POST', '/auth/login', {
-    email: account.email,
-    password: account.password,
-  });
-  return {
-    accessToken: requireField(body, 'accessToken', 'reservation_journey.auth.login'),
-    user: requireField(body, 'user', 'reservation_journey.auth.login'),
-  };
-}
-
 export function selectReservationTarget(config, attempt = 0) {
   const selectionId = config.iterationId || config.runId;
   const concertsBody = getJson(config, 'reservation_journey.concerts', '/concerts', { limit: config.concertLimit });

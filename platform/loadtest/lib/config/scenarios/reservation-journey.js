@@ -19,6 +19,7 @@ export function getReservationJourneyConfig() {
     requestPrefix: optional('LOADTEST_RESERVATION_JOURNEY_REQUEST_PREFIX', 'loadtest-reservation'),
     requestIdBase: '',
     timeoutSeconds: positiveNumber('LOADTEST_RESERVATION_JOURNEY_TIMEOUT_SECONDS', 10),
+    setupTimeout: optional('LOADTEST_RESERVATION_JOURNEY_SETUP_TIMEOUT', '10m'),
     vus,
     rate: ratePerTimeUnit,
     timeUnit: optional('LOADTEST_RESERVATION_JOURNEY_TIME_UNIT', '1s'),

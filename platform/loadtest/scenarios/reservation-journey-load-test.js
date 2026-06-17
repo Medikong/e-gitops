@@ -1,4 +1,5 @@
-import { group, sleep } from 'k6';
+import http from 'k6/http';
+import { check, fail, group, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
 
 import { getConfig, requireCustomerPool } from '../lib/config.js';
@@ -16,7 +17,6 @@ import { summaryOutput } from '../lib/report.js';
 import {
   approvePayment,
   createReservationWithSeatRetry,
-  loginCustomer,
   selectReservationTarget,
   waitForTicket,
 } from '../flows/reservation-journey.js';
@@ -25,6 +25,7 @@ const config = getConfig();
 const journeySuccess = new Rate('loadtest_reservation_journey_success');
 const reservationConflictRate = new Rate('loadtest_reservation_conflict_rate');
 const ticketIssuedRate = new Rate('loadtest_ticket_issued_rate');
+const PRE_LOGIN_STEP = 'reservation_journey.setup.pre_login';
 
 function iterationConfig() {
   const iterationId = `${Date.now()}-${__VU}-${__ITER}`;
@@ -89,6 +90,83 @@ function pauseBetweenIterations(runConfig) {
   }
 }
 
+function preLoginTags(runConfig) {
+  return {
+    environment: runConfig.environment,
+    profile: runConfig.dataset.profile,
+    test_type: runConfig.testType,
+    target: runConfig.target,
+    phase: 'setup',
+  };
+}
+
+function preLoginCustomer(runConfig, account) {
+  const payload = JSON.stringify({
+    email: account.email,
+    password: account.password,
+  });
+  const response = http.request('POST', `${runConfig.baseUrl}/auth/login`, payload, {
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-Loadtest-Traffic': 'true',
+    },
+    responseCallback: http.expectedStatuses(200),
+    timeout: `${runConfig.timeoutSeconds}s`,
+    tags: {
+      ...preLoginTags(runConfig),
+      name: 'POST /auth/login',
+      route: 'POST /auth/login',
+      service: 'auth-service',
+    },
+  });
+
+  const ok = check(response, {
+    'reservation journey pre-login returned 200': (res) => res.status === 200,
+    'reservation journey pre-login returned json': (res) => String(res.headers['Content-Type'] || res.headers['content-type'] || '').includes('application/json'),
+  }, preLoginTags(runConfig));
+  if (!ok) {
+    fail(`${PRE_LOGIN_STEP} failed with status ${response.status}`);
+  }
+
+  try {
+    return response.json();
+  } catch (error) {
+    fail(`${PRE_LOGIN_STEP} returned invalid json: ${error.message}`);
+  }
+  return null;
+}
+
+function customerTokenFromAuth(index, auth) {
+  const user = requireField(auth, 'user', PRE_LOGIN_STEP);
+  if (requireField(user, 'role', PRE_LOGIN_STEP) !== 'CUSTOMER') {
+    fail(`${PRE_LOGIN_STEP} returned non-CUSTOMER user`);
+  }
+  return {
+    customerIndex: index,
+    customerId: requireField(user, 'id', PRE_LOGIN_STEP),
+    accessToken: requireField(auth, 'accessToken', PRE_LOGIN_STEP),
+  };
+}
+
+function prepareCustomerTokens(runConfig) {
+  const customerTokens = [];
+  for (let index = 0; index < runConfig.customerPool.size; index += 1) {
+    const account = customerPoolAccount(runConfig, index);
+    customerTokens.push(customerTokenFromAuth(index, preLoginCustomer(runConfig, account)));
+  }
+  return customerTokens;
+}
+
+function customerTokenForIteration(setupData, customerIndex) {
+  const tokens = setupData && Array.isArray(setupData.customerTokens) ? setupData.customerTokens : [];
+  const token = tokens[customerIndex];
+  if (!token || token.customerIndex !== customerIndex || !token.customerId || !token.accessToken) {
+    fail(`reservation_journey.setup.pre_login did not prepare a token for customer index ${customerIndex}`);
+  }
+  return token;
+}
+
 function stateFromTarget(target) {
   return {
     concertId: target.concertId,
@@ -100,6 +178,7 @@ function stateFromTarget(target) {
 }
 
 export const options = {
+  setupTimeout: config.setupTimeout,
   scenarios: {
     [config.scenario]: {
       ...executorConfig(),
@@ -134,27 +213,25 @@ export const options = {
 
 export function setup() {
   requireCustomerPool(config);
-  logExperimentConditions(config, 'reservation_journey');
-  return {};
+  logExperimentConditions(config, 'reservation_journey_setup');
+  const customerTokens = prepareCustomerTokens(config);
+  logExperimentConditions(config, 'reservation_journey_measurement');
+  return { customerTokens };
 }
 
-export default function reservationJourneyLoadTest() {
+export default function reservationJourneyLoadTest(setupData) {
   const runConfig = iterationConfig();
-  const state = {};
+  const customerToken = customerTokenForIteration(setupData, runConfig.customer.index);
+  const state = {
+    customerId: customerToken.customerId,
+    customerToken: customerToken.accessToken,
+  };
   let step = 'init';
   let conflictMetricRecorded = false;
   let ticketMetricRecorded = false;
 
   logRunStarted(runConfig);
   try {
-    group('auth.login', () => {
-      step = 'reservation_journey.auth.login';
-      const auth = loginCustomer(runConfig, runConfig.customer);
-      state.customerId = requireField(auth.user, 'id', step);
-      state.customerToken = auth.accessToken;
-      logJourneyStep(runConfig, step, 'success', state);
-    });
-
     group('catalog.select_seat', () => {
       step = 'reservation_journey.catalog.select_seat';
       const target = selectReservationTarget(runConfig, 0);

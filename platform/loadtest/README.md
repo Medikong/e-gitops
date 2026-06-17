@@ -18,21 +18,25 @@ GET /performances/{id}/seats
 
 `reservation-journey-load-test`는 write path를 포함하는 별도 시나리오다.
 synthetic E2E처럼 해피패스를 확인하지만 목적은 낮은 트래픽 생존성 확인이 아니라 VU를 단계적으로 올려 예매 과정의 첫 병목을 찾는 것이다.
+실행 전 `setup()`에서 customer pool 계정을 미리 로그인해 customer별 access token을 준비하고, 측정 구간은 앱 안에서 이미 로그인된 사용자가 예매를 진행하는 모델로 본다.
+auth-service access token 기본 TTL은 900초이므로, 현재 구현은 15분 이내 실행을 전제로 한다.
+더 긴 실험은 setup 토큰 재사용이 아니라 별도 refresh 설계가 필요하다.
 
 ```text
-POST /auth/login
-GET /concerts
-GET /concerts/{id}/performances
-GET /performances/{id}/seats
-POST /reservations
-POST /payments
-GET /tickets/me
+setup/pre-login: POST /auth/login
+measure: GET /concerts
+measure: GET /concerts/{id}/performances
+measure: GET /performances/{id}/seats
+measure: POST /reservations
+measure: POST /payments
+measure: GET /tickets/me
 ```
 
 기본 좌석 선택은 dataset concert 안에서 run id 기반으로 분산한다.
 좌석 경쟁 자체를 확인하는 실험은 별도 시나리오로 둔다.
 `reservation_id`, `payment_id`, `ticket_id` 같은 동적 ID는 metric label/tag가 아니라 JSON 로그 필드에만 남긴다.
-단계별 latency는 `step` tag가 붙은 `http_req_duration`으로 보고, 예매 성공률, 409 비율, 티켓 발급률은 custom metric threshold로 본다.
+단계별 latency는 본 실행 step tag가 붙은 `http_req_duration`으로 보고, setup/pre-login은 step-level threshold와 `loadtest_api_summary` 대상에서 제외한다.
+예매 성공률, 409 비율, 티켓 발급률은 custom metric threshold로 본다.
 
 `setup-read-dataset`은 부하테스트용 fake read dataset을 준비한다.
 이 시나리오는 provider/admin write API를 사용하므로 read baseline 결과와 섞지 않는다.
@@ -112,7 +116,7 @@ S3 업로드와 AWS 장기 보관은 이번 단계에 포함하지 않는다.
 공개 concert ingress는 Kong rate limit이 `minute: 120`으로 설정되어 있으므로, 기본 local/aws-dev values는 `thinkTimeSeconds`를 둬 한도 안에서 기준선을 확인한다.
 예매 여정 부하테스트는 한계 지점을 보기 위해 `thinkTimeSeconds: 0`과 k6 `ramping-arrival-rate`를 사용한다.
 이때 `stages[].target`은 HTTP RPS가 아니라 초당 예매 여정 시작 수다.
-한 예매 여정은 login, 공연/회차/좌석 조회, 예약 생성, 결제 승인, 티켓 조회를 포함하므로 실제 HTTP RPS는 target보다 크다.
+한 예매 여정은 이미 로그인된 사용자 기준 공연/회차/좌석 조회, 예약 생성, 결제 승인, 티켓 조회를 포함하므로 실제 HTTP RPS는 target보다 크다.
 로컬에서 `reservation-journey-load-test`를 실행하면 기본적으로 `ticketing-rate-limit-*` Kong plugin의 `minute` 값을 크게 올리고, 명령 종료 시 기본값 `120`으로 되돌린다.
 Kong rate limit을 포함한 제품 경로 기준선을 보려면 `LOADTEST_DISABLE_KONG_RATE_LIMIT=false`를 명시한다.
 
@@ -202,4 +206,7 @@ dataset setup에는 `LOADTEST_PROVIDER_EMAIL`, `LOADTEST_PROVIDER_PASSWORD`, `LO
 reservation journey 본 실행은 signup을 측정 구간에 포함하지 않는다.
 실행 전에 `dataset.profile=reservation-journey`로 dataset setup을 돌려 customer pool과 예매용 공연/회차/좌석을 준비한다.
 fresh pool을 만들려면 `dataset.revision` 또는 `dataset.customerPool.revision`을 새 값으로 바꾼다.
-본 실행은 `LOADTEST_CUSTOMER_POOL_*` 값으로 계정을 계산해 VU/iteration별로 분산 선택하고, metric tag에는 customer email, user id, reservation id, payment id, ticket id를 넣지 않는다.
+본 실행의 `setup()`은 `LOADTEST_CUSTOMER_POOL_*` 값으로 계정을 계산해 customer pool을 미리 로그인하고, `{ customerIndex, customerId, accessToken }` 토큰 목록만 VU에 넘긴다.
+default 함수는 `customerPoolIndexForIteration(config, __VU, __ITER)`로 같은 index의 토큰을 골라 예매 API 인증 헤더에만 사용한다.
+측정 루프는 `catalog.select_seat -> reservation.create -> payment.approve -> ticket.wait` 순서이며 매 iteration마다 새 `POST /auth/login`을 호출하지 않는다.
+metric tag에는 customer email, user id, reservation id, payment id, ticket id를 넣지 않고, email, password, raw token은 JSON 로그에도 남기지 않는다.
