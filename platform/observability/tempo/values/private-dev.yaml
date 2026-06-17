@@ -15,8 +15,8 @@ tempo:
   tag: 2.9.0-amd64
   pullSecrets:
     - ecr-registry
-  retention: 72h
-  memBallastSizeMbs: 64
+  retention: 6h
+  memBallastSizeMbs: 32
   reportingEnabled: false
   storage:
     trace:
@@ -28,10 +28,10 @@ tempo:
   resources:
     requests:
       cpu: 50m
-      memory: 256Mi
+      memory: 384Mi
     limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 1Gi
 
 persistence:
   enabled: true
