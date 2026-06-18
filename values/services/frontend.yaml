@@ -7,7 +7,7 @@ app:
 
 image:
   repository: frontend
-  tag: dev
+  tag: v0.2.0
 
 deployment:
   replicas: 1
