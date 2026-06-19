@@ -109,6 +109,13 @@ trafficModel:
   calculatedJourneyRate: ""
   expectedJourneys: ""
 
+scaleOutReport:
+  enabled: false
+  pollEveryIterations: 10
+  targets: []
+  rbac:
+    create: false
+
 scenarios:
   readApiBaseline:
     requestPrefix: loadtest-read

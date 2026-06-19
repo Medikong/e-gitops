@@ -150,6 +150,13 @@ k6 실행 로그와 `handleSummary` 결과를 stdout JSON line으로 남기고, 
 API별 처리량 비교에서는 `loadtest_run_report.api_step_results[].rps`를 보고, 전체 실행 처리량은 `loadtest_run_report.rps`를 본다.
 레이턴시는 일반적인 사용자 체감에 가까운 p50과 tail latency를 보는 p95/p99를 함께 기록한다.
 전체 실행은 `loadtest_run_report.http_req_duration_p50_ms`와 `loadtest_summary.http_req_duration_p50_ms`, API step별 결과는 `loadtest_run_report.api_step_results[].http_req_duration_p50_ms`를 본다.
+시나리오별 판단은 `loadtest_run_report.scenario_report`에 둔다.
+기존 top-level 필드와 `api_step_results`는 대시보드 호환을 위해 유지하고, stress 한계 탐색처럼 추가 판단이 필요한 값만 `scenario_report`에 확장한다.
+
+`mau10k-normal-peak`와 `mau10k-ticket-open`은 기준선 비교용이고, `stress-find-limit`는 한계 후보를 찾기 위한 실행이다.
+`stress-find-limit` 결과는 `scenario_report.stage_results`에서 `5 journey/s`, `10 journey/s`, `20 journey/s`별 p95/p99, error rate, reservation 5xx/timeout을 본다.
+`409 reservation.conflict`는 정상 경합으로 보고 한계 후보에서 제외한다.
+`scenario_report.first_limit_candidate`가 있으면 첫 후보 stage의 `limit_reasons`를 우선 확인하고, `scale_out_results`의 `hpa_decision_seconds`, `scale_out_ready_seconds`로 HPA 반응 지연을 함께 본다.
 
 ## Scenario conditions
 

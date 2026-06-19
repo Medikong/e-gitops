@@ -22,6 +22,17 @@ export function authHeaders(token) {
   };
 }
 
+function loadStageTags(config) {
+  if (!config.loadStage) {
+    return {};
+  }
+  return {
+    load_stage: config.loadStage.id,
+    load_stage_label: config.loadStage.label,
+    load_stage_target: String(config.loadStage.target),
+  };
+}
+
 export function requestJson(config, step, method, path, body = null, extraHeaders = {}, query = {}) {
   const url = `${config.baseUrl}${path}${encodeQuery(query)}`;
   const route = routeLabel(step, method, path);
@@ -44,6 +55,7 @@ export function requestJson(config, step, method, path, body = null, extraHeader
       service,
       step,
       target: config.target,
+      ...loadStageTags(config),
     },
   });
 
@@ -59,6 +71,7 @@ export function requestJson(config, step, method, path, body = null, extraHeader
     service,
     step,
     target: config.target,
+    ...loadStageTags(config),
   });
   if (!ok) {
     fail(`${step} failed with status ${response.status}`);
@@ -102,6 +115,7 @@ export function requestObservedStatuses(config, step, method, path, body = null,
       service,
       step,
       target: config.target,
+      ...loadStageTags(config),
     },
   });
 
@@ -116,6 +130,7 @@ export function requestObservedStatuses(config, step, method, path, body = null,
     service,
     step,
     target: config.target,
+    ...loadStageTags(config),
   });
   return response;
 }

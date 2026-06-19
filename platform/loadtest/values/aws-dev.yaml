@@ -35,6 +35,25 @@ loadtest:
   localBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
   awsBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
 
+scaleOutReport:
+  enabled: true
+  pollEveryIterations: 10
+  rbac:
+    create: true
+  targets:
+    - service: auth-service
+      namespace: ticketing-auth
+    - service: concert-service
+      namespace: ticketing-concert
+    - service: notification-service
+      namespace: ticketing-notification
+    - service: payment-service
+      namespace: ticketing-payment
+    - service: reservation-service
+      namespace: ticketing-reservation
+    - service: ticket-service
+      namespace: ticketing-ticket
+
 scenarios:
   readApiBaseline:
     vus: 2

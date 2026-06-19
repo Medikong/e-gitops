@@ -48,6 +48,45 @@ function getTrafficModelConfig() {
   };
 }
 
+function parseScaleOutTargets(raw) {
+  if (!raw) {
+    return [];
+  }
+  let targets;
+  try {
+    targets = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`LOADTEST_SCALE_OUT_REPORT_TARGETS must be JSON: ${error.message}`);
+  }
+  if (!Array.isArray(targets)) {
+    throw new Error('LOADTEST_SCALE_OUT_REPORT_TARGETS must be a JSON array');
+  }
+  return targets.map((target, index) => {
+    if (!target || !target.service || !target.namespace) {
+      throw new Error(`LOADTEST_SCALE_OUT_REPORT_TARGETS[${index}] requires service and namespace`);
+    }
+    return {
+      service: String(target.service),
+      namespace: String(target.namespace),
+      hpa: target.hpa ? String(target.hpa) : String(target.service),
+      deployment: target.deployment ? String(target.deployment) : String(target.service),
+    };
+  });
+}
+
+function getScaleOutReportConfig() {
+  const enabled = optional('LOADTEST_SCALE_OUT_REPORT_ENABLED', 'false') === 'true';
+  const targets = parseScaleOutTargets(optional('LOADTEST_SCALE_OUT_REPORT_TARGETS'));
+  if (enabled && targets.length === 0) {
+    throw new Error('LOADTEST_SCALE_OUT_REPORT_TARGETS is required when scale-out report is enabled');
+  }
+  return {
+    enabled,
+    pollEveryIterations: optionalPositiveInteger('LOADTEST_SCALE_OUT_REPORT_POLL_EVERY_ITERATIONS') || 10,
+    targets,
+  };
+}
+
 export function getCommonConfig() {
   const target = optional('LOADTEST_TARGET', 'local');
   const scenario = optional('LOADTEST_SCENARIO', 'read-api-baseline');
@@ -81,6 +120,7 @@ export function getCommonConfig() {
     release: optional('LOADTEST_RELEASE'),
     namespace: optional('LOADTEST_NAMESPACE'),
     trafficModel: getTrafficModelConfig(),
+    scaleOutReport: getScaleOutReportConfig(),
     k6Output,
     k6ExtraArgs,
     k6ScenarioFile,

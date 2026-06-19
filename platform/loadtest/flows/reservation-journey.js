@@ -138,7 +138,7 @@ function createReservation(config, token, target, onConflict) {
   const step = stepName(config, 'reservation.create');
   const response = createReservationAttempt(config, token, target);
   const isConflict = response.status === 409;
-  onConflict(isConflict);
+  onConflict(isConflict, response.status);
   if (isConflict) {
     return null;
   }

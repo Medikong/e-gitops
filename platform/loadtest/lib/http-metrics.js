@@ -79,6 +79,63 @@ export function serviceLabel(step) {
   return HTTP_STEP_SERVICES[step] || 'unknown';
 }
 
+export function durationSeconds(value) {
+  const text = String(value || '').trim();
+  if (text === '') {
+    return 0;
+  }
+  let total = 0;
+  const pattern = /(\d+(?:\.\d+)?)(ms|s|m|h)/g;
+  let matched = false;
+  for (const match of text.matchAll(pattern)) {
+    matched = true;
+    const amount = Number(match[1]);
+    if (match[2] === 'ms') {
+      total += amount / 1000;
+    } else if (match[2] === 's') {
+      total += amount;
+    } else if (match[2] === 'm') {
+      total += amount * 60;
+    } else if (match[2] === 'h') {
+      total += amount * 3600;
+    }
+  }
+  if (!matched) {
+    const seconds = Number(text);
+    return Number.isFinite(seconds) ? seconds : 0;
+  }
+  return total;
+}
+
+export function loadStageId(stage, index = 0) {
+  const target = Number(stage && stage.target);
+  const targetLabel = Number.isFinite(target) ? String(target).replace(/\./g, '_') : `unknown_${index + 1}`;
+  return `stage_${targetLabel}_journey_s`;
+}
+
+export function loadStageLabel(stage) {
+  return `${stage.target} journey/s`;
+}
+
+export function loadStageForElapsed(stages, elapsedSeconds) {
+  if (!Array.isArray(stages) || stages.length === 0) {
+    return null;
+  }
+  let upperBound = 0;
+  for (let index = 0; index < stages.length; index += 1) {
+    upperBound += durationSeconds(stages[index].duration);
+    if (elapsedSeconds <= upperBound || index === stages.length - 1) {
+      return {
+        ...stages[index],
+        id: loadStageId(stages[index], index),
+        label: loadStageLabel(stages[index]),
+        index,
+      };
+    }
+  }
+  return null;
+}
+
 export function httpStepThresholds(steps, thresholds) {
   const result = {};
   for (const step of steps) {
@@ -89,6 +146,20 @@ export function httpStepThresholds(steps, thresholds) {
     result[`http_req_failed{step:${step}}`] = [`rate<${thresholds.httpReqFailedRate}`];
     result[`http_reqs{step:${step}}`] = ['rate>=0'];
     result[`checks{step:${step}}`] = [`rate>${thresholds.checksRate}`];
+  }
+  return result;
+}
+
+export function httpStageThresholds(stages, thresholds) {
+  const result = {};
+  for (let index = 0; index < (stages || []).length; index += 1) {
+    const stageId = loadStageId(stages[index], index);
+    result[`http_req_duration{load_stage:${stageId}}`] = [
+      `p(95)<${thresholds.httpReqDurationP95Ms}`,
+      `p(99)<${thresholds.httpReqDurationP99Ms}`,
+    ];
+    result[`http_req_failed{load_stage:${stageId}}`] = [`rate<${thresholds.httpReqFailedRate}`];
+    result[`http_reqs{load_stage:${stageId}}`] = ['rate>=0'];
   }
   return result;
 }

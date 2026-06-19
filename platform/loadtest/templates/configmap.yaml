@@ -28,6 +28,9 @@ data:
   LOADTEST_TRAFFIC_MODEL_TARGET_TICKETS_PER_CUSTOMER: {{ .Values.trafficModel.targetTicketsPerCustomer | quote }}
   LOADTEST_TRAFFIC_MODEL_CALCULATED_JOURNEY_RATE: {{ .Values.trafficModel.calculatedJourneyRate | quote }}
   LOADTEST_TRAFFIC_MODEL_EXPECTED_JOURNEYS: {{ .Values.trafficModel.expectedJourneys | quote }}
+  LOADTEST_SCALE_OUT_REPORT_ENABLED: {{ .Values.scaleOutReport.enabled | quote }}
+  LOADTEST_SCALE_OUT_REPORT_POLL_EVERY_ITERATIONS: {{ .Values.scaleOutReport.pollEveryIterations | quote }}
+  LOADTEST_SCALE_OUT_REPORT_TARGETS: {{ toJson .Values.scaleOutReport.targets | quote }}
   LOADTEST_DATASET_REQUEST_PREFIX: {{ .Values.dataset.requestPrefix | quote }}
   LOADTEST_DATASET_TIMEOUT_SECONDS: {{ .Values.dataset.timeoutSeconds | quote }}
   LOADTEST_DATASET_THRESHOLD_HTTP_REQ_FAILED_RATE: {{ .Values.dataset.thresholds.httpReqFailedRate | quote }}
