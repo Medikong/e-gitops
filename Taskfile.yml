@@ -24,7 +24,6 @@ vars:
   KONG_PROXY_SERVICE: '{{default "kong-kong-proxy" .KONG_PROXY_SERVICE}}'
   AWS_ARGO_ROOT: '{{default "argo/applications/aws-dev/root.yaml" .AWS_ARGO_ROOT}}'
   ISTIO_PLATFORM: '{{default "platform/istio" .ISTIO_PLATFORM}}'
-  AWS_LOADTEST_WORKFLOW: '{{default "aws-loadtest-run.yml" .AWS_LOADTEST_WORKFLOW}}'
 
 includes:
   observability:
@@ -122,31 +121,83 @@ tasks:
       - task: loadtest:run
 
   aws:loadtest:
-    desc: GitHub Actions로 aws-dev loadtest Job을 1회 실행합니다. 기본 PRESET=aws-dev-smoke-1m
+    desc: aws-dev loadtest run values를 갱신해 ArgoCD로 1회 실행합니다. 기본 PRESET=aws-dev-smoke-1m
     cmds:
       - |
         set -eu
-        if ! command -v gh >/dev/null 2>&1; then
-          printf '%s\n' 'gh CLI가 필요합니다. GitHub Actions 화면에서 AWS Loadtest Run workflow를 직접 실행해도 됩니다.' >&2
-          exit 2
-        fi
         preset="${PRESET:-${LOADTEST_PRESET:-aws-dev-smoke-1m}}"
         scenario="${SCENARIO:-${LOADTEST_SCENARIO:-reservation-journey-load-test}}"
-        run_id="${LOADTEST_RUN_ID:-}"
-        wait="${LOADTEST_WAIT:-true}"
-        timeout_seconds="${LOADTEST_WAIT_TIMEOUT_SECONDS:-1200}"
-        dry_run="${LOADTEST_DRY_RUN:-false}"
-        printf 'Dispatching aws-dev loadtest workflow preset=%s scenario=%s wait=%s timeout=%s dry_run=%s\n' \
-          "${preset}" "${scenario}" "${wait}" "${timeout_seconds}" "${dry_run}"
-        gh workflow run '{{.AWS_LOADTEST_WORKFLOW}}' \
-          --ref main \
-          -f preset="${preset}" \
-          -f scenario="${scenario}" \
-          -f run_id="${run_id}" \
-          -f wait="${wait}" \
-          -f timeout_seconds="${timeout_seconds}" \
-          -f dry_run="${dry_run}"
-        printf '%s\n' 'Workflow dispatched. 최근 실행 확인: gh run list --workflow "{{.AWS_LOADTEST_WORKFLOW}}" --limit 3'
+        scenario_base="${scenario%-load-test}"
+
+        preset_file=""
+        for candidate in \
+          "platform/loadtest/values/presets/${scenario}/${preset}.yaml" \
+          "platform/loadtest/values/presets/${scenario_base}/${preset}.yaml" \
+          "platform/loadtest/values/presets/${preset}.yaml"; do
+          if [ -f "${candidate}" ]; then
+            preset_file="${candidate}"
+            break
+          fi
+        done
+        if [ -z "${preset_file}" ]; then
+          printf 'Unknown PRESET=%s for SCENARIO=%s.\n' "${preset}" "${scenario}" >&2
+          exit 2
+        fi
+
+        run_id="${LOADTEST_RUN_ID:-${preset}-$(date -u +%Y%m%d%H%M%S)}"
+        run_id="$(printf '%s' "${run_id}" \
+          | tr '[:upper:]' '[:lower:]' \
+          | sed 's/[^a-z0-9-]/-/g; s/^-*//; s/-*$//; s/--*/-/g' \
+          | cut -c1-40)"
+        if [ -z "${run_id}" ]; then
+          printf '%s\n' 'LOADTEST_RUN_ID did not contain any Kubernetes-safe characters.' >&2
+          exit 2
+        fi
+
+        run_file="platform/loadtest/values/runs/aws-dev/${scenario_base}-${preset}.yaml"
+        argo_file="argo/applications/aws-dev/platform/loadtest.yaml"
+        chart_preset_file="${preset_file#platform/loadtest/}"
+        chart_run_file="${run_file#platform/loadtest/}"
+
+        mkdir -p "$(dirname "${run_file}")"
+        RUN_FILE="${run_file}" RUN_ID="${run_id}" ruby -e '
+          path = ENV.fetch("RUN_FILE")
+          run_id = ENV.fetch("RUN_ID")
+          File.write(path, %(manualRuns:\n  read:\n    runId: "#{run_id}"\n))
+        '
+
+        ARGO_FILE="${argo_file}" CHART_PRESET_FILE="${chart_preset_file}" CHART_RUN_FILE="${chart_run_file}" ruby -e '
+          path = ENV.fetch("ARGO_FILE")
+          files = [
+            "values/aws-dev.yaml",
+            ENV.fetch("CHART_PRESET_FILE"),
+            ENV.fetch("CHART_RUN_FILE"),
+          ]
+          lines = File.readlines(path)
+          out = []
+          i = 0
+          while i < lines.length
+            out << lines[i]
+            if lines[i].match?(/^\s+valueFiles:\s*$/)
+              i += 1
+              i += 1 while i < lines.length && lines[i].match?(/^\s+-\s+/)
+              files.each { |file| out << "        - #{file}\n" }
+              next
+            end
+            i += 1
+          end
+          File.write(path, out.join)
+        '
+
+        LOADTEST_VALUES_FILE=values/aws-dev.yaml LOADTEST_SCENARIO_VALUES_FILE="${chart_preset_file}" task loadtest:render >/dev/null
+        git add "${argo_file}" "${run_file}"
+        if git diff --cached --quiet; then
+          printf '%s\n' 'No loadtest trigger changes to commit.'
+          exit 0
+        fi
+        git commit -m "chore(loadtest): trigger aws-dev ${preset} run"
+        git push
+        printf 'Triggered aws-dev loadtest preset=%s scenario=%s run_id=%s\n' "${preset}" "${scenario}" "${run_id}"
 
   dev:platform:
     internal: true
