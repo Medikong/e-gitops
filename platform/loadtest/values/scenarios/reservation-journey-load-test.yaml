@@ -1,0 +1,25 @@
+loadtest:
+  scenario: reservation-journey-load-test
+  credentialsSecretName: read-api-loadtest-credentials
+
+dataset:
+  profile: reservation-journey
+  revision: reservation-v1
+  customerPool:
+    size: 100
+    revision: reservation-v1
+
+scenarios:
+  reservationJourney:
+    requestPrefix: loadtest-reservation
+    ticketListLimit: 20
+    ticketListMaxPages: 5
+    activeCustomerCount: 100
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "1000"
+      httpReqDurationP99Ms: "2000"
+      checksRate: "0.99"
+      successRate: "0.99"
+      conflictRate: "0.05"
+      ticketIssuedRate: "0.99"

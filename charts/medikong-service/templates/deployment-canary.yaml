@@ -75,6 +75,41 @@ spec:
   (dict "name" "SERVICE_VERSION" "value" $serviceVersion)
   (dict "name" "SERVICE_ENVIRONMENT" "value" .Values.environment)
 }}
+{{- $sqlalchemy := .Values.database.sqlalchemy }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_POOL_SIZE" "value" (printf "%v" $sqlalchemy.poolSize)) }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_MAX_OVERFLOW" "value" (printf "%v" $sqlalchemy.maxOverflow)) }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_POOL_TIMEOUT_SECONDS" "value" (printf "%v" $sqlalchemy.poolTimeoutSeconds)) }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "SQLALCHEMY_POOL_RECYCLE_SECONDS" "value" (printf "%v" $sqlalchemy.poolRecycleSeconds)) }}
+{{- if .Values.observability.profiling.enabled }}
+{{- $profiling := .Values.observability.profiling }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_ENABLED" "value" "true") }}
+{{- with $profiling.serverAddress }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_SERVER_ADDRESS" "value" .) }}
+{{- end }}
+{{- with $profiling.applicationName }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_APPLICATION_NAME" "value" .) }}
+{{- end }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_SAMPLE_RATE" "value" (printf "%v" $profiling.sampleRate)) }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_SPAN_PROFILES_ENABLED" "value" (printf "%v" $profiling.spanProfilesEnabled)) }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_ONCPU" "value" (printf "%v" $profiling.oncpu)) }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_GIL_ONLY" "value" (printf "%v" $profiling.gilOnly)) }}
+{{- $pyroscopeTags := list }}
+{{- range $key := keys $profiling.tags | sortAlpha }}
+{{- $pyroscopeTags = append $pyroscopeTags (printf "%s=%v" $key (index $profiling.tags $key)) }}
+{{- end }}
+{{- if $pyroscopeTags }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_TAGS" "value" (join "," $pyroscopeTags)) }}
+{{- end }}
+{{- with $profiling.basicAuthUsername }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_BASIC_AUTH_USERNAME" "value" .) }}
+{{- end }}
+{{- with $profiling.basicAuthPassword }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_BASIC_AUTH_PASSWORD" "value" .) }}
+{{- end }}
+{{- with $profiling.tenantId }}
+{{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_TENANT_ID" "value" .) }}
+{{- end }}
+{{- end }}
 {{- $containerEnv := concat $observabilityEnv .Values.container.env }}
 {{- with $containerEnv }}
           env:

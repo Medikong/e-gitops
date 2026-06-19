@@ -1,0 +1,259 @@
+name: Loadtest Image Publish
+
+# aws-dev loadtest manualRuns가 참조하는 k6 runner image를 ECR에 publish한다.
+# main push는 실제 runner 내용이 바뀔 때만 실행하고, values tag 갱신 commit은 이 workflow를 다시 실행하지 않는다.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'platform/loadtest/runner/**'
+      - 'platform/loadtest/scenarios/**'
+      - 'platform/loadtest/flows/**'
+      - 'platform/loadtest/lib/**'
+      - '.github/workflows/loadtest-image-publish.yml'
+  workflow_dispatch:
+    inputs:
+      enabled:
+        description: 실제 publish 실행 여부. 점검 때만 false로 바꿈
+        required: true
+        type: boolean
+        default: true
+      image_tag:
+        description: ECR에 push할 tag. 비워두면 실행 commit SHA를 사용
+        required: false
+        type: string
+        default: ""
+      platforms:
+        description: 빌드할 플랫폼 목록
+        required: true
+        type: string
+        default: linux/arm64,linux/amd64
+      create_repository:
+        description: ECR repository가 없으면 생성
+        required: true
+        type: boolean
+        default: true
+      update_values:
+        description: aws-dev values의 image.tag를 publish tag로 갱신
+        required: true
+        type: boolean
+        default: true
+      aws_role_arn:
+        description: Assume할 AWS IAM Role ARN. 비워두면 기본 ECR publish role을 사용
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: loadtest-image-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-2
+  IMAGE_REGISTRY: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+  IMAGE_REPOSITORY: read-api-loadtest
+  VALUES_FILE: platform/loadtest/values/aws-dev.yaml
+  DEFAULT_AWS_ROLE_ARN: arn:aws:iam::941141115079:role/github-actions-ecr-role
+
+jobs:
+  disabled:
+    name: publish 비활성화 안내
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.enabled }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 비활성화 상태 안내
+        run: |
+          {
+            printf '### Loadtest image publish\n\n'
+            printf '%s\n' 'workflow_dispatch의 enabled 입력값이 false라서 publish를 실행하지 않았습니다.'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+  publish:
+    name: loadtest image publish
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.enabled }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: GitOps repo 내려받기
+        uses: actions/checkout@v4
+
+      - name: publish 설정 확인
+        id: config
+        shell: bash
+        env:
+          INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
+          INPUT_PLATFORMS: ${{ inputs.platforms }}
+          INPUT_AWS_ROLE_ARN: ${{ inputs.aws_role_arn }}
+          VAR_AWS_ROLE_ARN: ${{ vars.LOADTEST_IMAGE_PUBLISH_ROLE_ARN }}
+        run: |
+          set -euo pipefail
+
+          image_tag="${INPUT_IMAGE_TAG:-${GITHUB_SHA}}"
+          if ! printf '%s' "${image_tag}" | grep -Eq '^[A-Za-z0-9_.-]{1,128}$'; then
+            printf 'Docker tag 형식이 아닙니다: %s\n' "${image_tag}" >&2
+            exit 2
+          fi
+
+          platforms="${INPUT_PLATFORMS:-linux/arm64,linux/amd64}"
+          if [ -z "${platforms}" ]; then
+            printf '%s\n' 'platforms 입력값이 비어 있습니다.' >&2
+            exit 2
+          fi
+
+          role_arn="${INPUT_AWS_ROLE_ARN:-${VAR_AWS_ROLE_ARN:-${DEFAULT_AWS_ROLE_ARN}}}"
+          if [ -z "${role_arn}" ]; then
+            printf '%s\n' 'AWS OIDC로 assume할 IAM Role ARN이 필요합니다.' >&2
+            exit 2
+          fi
+
+          ruby -ryaml -e '
+            values_path = ENV.fetch("VALUES_FILE")
+            values = YAML.load_file(values_path)
+            image = values.fetch("image")
+            expected = {
+              "registry" => ENV.fetch("IMAGE_REGISTRY"),
+              "repository" => ENV.fetch("IMAGE_REPOSITORY"),
+            }
+            expected.each do |key, value|
+              next if image.fetch(key) == value
+              warn "#{values_path} image.#{key} mismatch: #{image.fetch(key).inspect} != #{value.inspect}"
+              exit 2
+            end
+          '
+
+          image_ref="${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:${image_tag}"
+          latest_ref="${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}:latest"
+
+          printf 'image_tag=%s\n' "${image_tag}" >> "${GITHUB_OUTPUT}"
+          printf 'image_ref=%s\n' "${image_ref}" >> "${GITHUB_OUTPUT}"
+          printf 'latest_ref=%s\n' "${latest_ref}" >> "${GITHUB_OUTPUT}"
+          printf 'platforms=%s\n' "${platforms}" >> "${GITHUB_OUTPUT}"
+          printf 'role_arn=%s\n' "${role_arn}" >> "${GITHUB_OUTPUT}"
+
+      - name: AWS 인증 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ steps.config.outputs.role_arn }}
+          role-session-name: medikong-loadtest-image-${{ github.run_id }}
+
+      - name: QEMU 설정
+        uses: docker/setup-qemu-action@v3
+
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: ECR 로그인
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: ECR repository 확인
+        shell: bash
+        env:
+          CREATE_REPOSITORY: ${{ github.event_name != 'workflow_dispatch' || inputs.create_repository }}
+        run: |
+          set -euo pipefail
+
+          if aws ecr describe-repositories \
+            --region "${AWS_REGION}" \
+            --repository-names "${IMAGE_REPOSITORY}" >/dev/null 2>&1; then
+            printf 'ECR repository exists: %s\n' "${IMAGE_REPOSITORY}"
+            exit 0
+          fi
+
+          if [ "${CREATE_REPOSITORY}" != "true" ]; then
+            printf 'ECR repository가 없습니다: %s\n' "${IMAGE_REPOSITORY}" >&2
+            exit 2
+          fi
+
+          aws ecr create-repository \
+            --region "${AWS_REGION}" \
+            --repository-name "${IMAGE_REPOSITORY}" \
+            --image-tag-mutability MUTABLE >/dev/null
+          printf 'ECR repository created: %s\n' "${IMAGE_REPOSITORY}"
+
+      - name: loadtest runner image build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: platform/loadtest
+          file: platform/loadtest/runner/Dockerfile
+          platforms: ${{ steps.config.outputs.platforms }}
+          push: true
+          tags: |
+            ${{ steps.config.outputs.image_ref }}
+            ${{ steps.config.outputs.latest_ref }}
+          cache-from: type=gha,scope=read-api-loadtest
+          cache-to: type=gha,scope=read-api-loadtest,mode=max
+
+      - name: aws-dev values image tag 갱신
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.update_values }}
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.config.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+
+          ruby -e '
+            path = ENV.fetch("VALUES_FILE")
+            tag = ENV.fetch("IMAGE_TAG")
+            lines = File.readlines(path)
+            in_image = false
+            updated = false
+
+            File.open(path, "w") do |file|
+              lines.each do |line|
+                if line.match?(/^\S/)
+                  in_image = line.match?(/^image:\s*$/)
+                end
+
+                if in_image && line.match?(/^  tag:\s*/)
+                  file.puts "  tag: #{tag}"
+                  updated = true
+                  next
+                end
+
+                file.write(line)
+              end
+            end
+
+            unless updated
+              warn "image.tag not found in #{path}"
+              exit 2
+            end
+          '
+
+          if git diff --quiet -- "${VALUES_FILE}"; then
+            printf 'values tag already up to date: %s\n' "${IMAGE_TAG}"
+            exit 0
+          fi
+
+          git config user.email "github-actions@github.com"
+          git config user.name "github-actions"
+          git add "${VALUES_FILE}"
+          git commit -m "chore: update loadtest image tag to ${IMAGE_TAG}"
+          git push
+
+      - name: publish 결과 요약
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.config.outputs.image_tag }}
+          IMAGE_REF: ${{ steps.config.outputs.image_ref }}
+          LATEST_REF: ${{ steps.config.outputs.latest_ref }}
+          PLATFORMS: ${{ steps.config.outputs.platforms }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            printf '### Loadtest image publish\n\n'
+            printf -- '- 이미지: `%s`\n' "${IMAGE_REF}"
+            printf -- '- latest 참조: `%s`\n' "${LATEST_REF}"
+            printf -- '- tag: `%s`\n' "${IMAGE_TAG}"
+            printf -- '- digest: `%s`\n' "${DIGEST}"
+            printf -- '- platforms: `%s`\n' "${PLATFORMS}"
+            printf -- '- values: `%s`\n' "${VALUES_FILE}"
+          } >> "${GITHUB_STEP_SUMMARY}"

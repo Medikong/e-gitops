@@ -1,0 +1,10 @@
+dataset:
+  scenario: setup-read-dataset
+  profile: read-api-basic
+  requestPrefix: loadtest-dataset
+  timeoutSeconds: 15
+  thresholds:
+    httpReqFailedRate: "0.01"
+    httpReqDurationP95Ms: "3000"
+    httpReqDurationP99Ms: "5000"
+    checksRate: "0.99"

@@ -1,0 +1,426 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Slow Request Trace Candidates",
+      "type": "table",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "trace_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Open trace in Tempo",
+                    "url": "/explore?left={\"datasource\":\"tempo\",\"queries\":[{\"query\":\"${__value.raw}\",\"queryType\":\"traceId\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "request_id"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Filter this request in Logs 80",
+                    "url": "/d/medikong-logs-80-service-trace-detail/logs-80-service-trace-detail?orgId=1&var-namespace=$namespace&var-service=$service&var-route=$route&var-request_id=${__value.raw}&var-trace_id=$trace_id&from=${__from}&to=${__to}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "duration_ms"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | event=\"http.request.completed\" | http_route=~\"($route).*\" | http_route!~\"/health|/healthz|/metrics|/readyz\" | http_status_code=~\"$status_code\" | duration_ms >= $min_duration_ms | trace_id=~\"[a-fA-F0-9]{16,32}\"",
+          "range": true,
+          "refId": "A",
+          "instant": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "Line",
+            "format": "json",
+            "replace": false,
+            "keepTime": true
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Line": true,
+              "labels": true,
+              "tsNs": true,
+              "id": true,
+              "span_id": true,
+              "trace_flags": true,
+              "logger": true,
+              "level": true,
+              "service_version": true,
+              "service_environment": true,
+              "http_request_is_probe": true,
+              "log_kind": true,
+              "log_policy": true,
+              "client_action_id": true
+            },
+            "indexByName": {
+              "Time": 0,
+              "service_name": 1,
+              "http_method": 2,
+              "http_route": 3,
+              "http_status_code": 4,
+              "duration_ms": 5,
+              "severity": 6,
+              "request_id": 7,
+              "trace_id": 8
+            },
+            "renameByName": {
+              "Time": "time"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Slow Request Count by Route",
+      "type": "table",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "topk(20, sum by (http_route, http_status_code) (count_over_time({k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | event=\"http.request.completed\" | http_route=~\"($route).*\" | http_route!~\"/health|/healthz|/metrics|/readyz\" | http_status_code=~\"$status_code\" | duration_ms >= $min_duration_ms [$__range])))",
+          "range": false,
+          "refId": "A",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Tempo Traces over Threshold",
+      "type": "table",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 14,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "editorMode": "builder",
+          "query": "{ resource.service.name =~ \"$service\" && duration > $tempo_min_duration }",
+          "queryType": "traceql",
+          "limit": 100,
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Slow Request Logs",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 10
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | event=\"http.request.completed\" | http_route=~\"($route).*\" | http_route!~\"/health|/healthz|/metrics|/readyz\" | http_status_code=~\"$status_code\" | duration_ms >= $min_duration_ms | trace_id=~\"[a-fA-F0-9]{16,32}\" | line_format \"service={{.service_name}} method={{.http_method}} route={{.http_route}} status={{.http_status_code}} duration_ms={{.duration_ms}} trace_id={{.trace_id}} request_id={{.request_id}}\"",
+          "range": true,
+          "refId": "A",
+          "instant": false
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Trace ID Focus Logs",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 10
+      },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\", service_name=~\"$service\", k8s_container_name=~\".*-service\"} |= \"$trace_id\" !~ \"(GET|HEAD) /(health|healthz|readyz|metrics)([ ?]| HTTP)\" | json | trace_id=\"$trace_id\" | line_format \"service={{.service_name}} event={{.event}} route={{.http_route}} status={{.http_status_code}} duration_ms={{.duration_ms}} trace_id={{.trace_id}} request_id={{.request_id}}\"",
+          "range": true,
+          "refId": "A",
+          "instant": false
+        }
+      ]
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 41,
+  "tags": [
+    "medikong",
+    "loadtest",
+    "loki",
+    "tempo",
+    "trace",
+    "slow-request"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Service Namespace",
+        "type": "query",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "query": "label_values({k8s_container_name=~\".*-service\"}, k8s_namespace_name)",
+        "definition": "label_values({k8s_container_name=~\".*-service\"}, k8s_namespace_name)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "query": "label_values({k8s_namespace_name=~\"$namespace\", k8s_container_name=~\".*-service\"}, service_name)",
+        "definition": "label_values({k8s_namespace_name=~\"$namespace\", k8s_container_name=~\".*-service\"}, service_name)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "route",
+        "label": "Route Regex",
+        "type": "textbox",
+        "query": "",
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        }
+      },
+      {
+        "name": "status_code",
+        "label": "HTTP Status Regex",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "selected": false,
+          "text": ".*",
+          "value": ".*"
+        }
+      },
+      {
+        "name": "min_duration_ms",
+        "label": "Min Duration ms",
+        "type": "textbox",
+        "query": "100",
+        "current": {
+          "selected": false,
+          "text": "100",
+          "value": "100"
+        }
+      },
+      {
+        "name": "tempo_min_duration",
+        "label": "Tempo Min Duration",
+        "type": "textbox",
+        "query": "100ms",
+        "current": {
+          "selected": false,
+          "text": "100ms",
+          "value": "100ms"
+        }
+      },
+      {
+        "name": "trace_id",
+        "label": "Trace ID",
+        "type": "textbox",
+        "query": "__set_me__",
+        "current": {
+          "selected": false,
+          "text": "__set_me__",
+          "value": "__set_me__"
+        }
+      }
+    ]
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Load 70 - Slow Trace Discovery",
+  "uid": "medikong-load-70-slow-trace-discovery",
+  "version": 1,
+  "weekStart": ""
+}

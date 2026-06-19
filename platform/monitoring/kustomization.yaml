@@ -53,3 +53,15 @@ configMapGenerator:
       - dashboards/db/db-20-instance-resources.json
       - dashboards/db/db-30-workload-and-slow-queries.json
       - dashboards/db/db-40-trace-and-log-correlation.json
+  - name: medikong-load-dashboards
+    options:
+      annotations:
+        k8s-sidecar-target-directory: Load
+    files:
+      - dashboards/load/load-10-read-api-load-overview.json
+      - dashboards/load/load-20-latency-and-errors.json
+      - dashboards/load/load-30-service-saturation.json
+      - dashboards/load/load-40-cause-candidates.json
+      - dashboards/load/load-50-service-resource-and-traffic.json
+      - dashboards/load/load-60-k6-runner-execution.json
+      - dashboards/load/load-70-slow-trace-discovery.json

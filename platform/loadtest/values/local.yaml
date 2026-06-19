@@ -1,0 +1,81 @@
+environment: local
+
+image:
+  registry: localhost:5001
+  repository: read-api-loadtest
+  tag: dev
+  pullPolicy: Always
+  pullSecrets: []
+
+dataset:
+  concerts: 5
+  performancesPerConcert: 2
+  seatSections: 1
+  seatRows: 10
+  seatsPerRow: 30
+  createPauseSeconds: 0.5
+  customerPool:
+    size: 100
+syncJobs:
+  dataset:
+    enabled: false
+  read:
+    enabled: false
+
+loadtest:
+  target: local
+  baseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+  localBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+  awsBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+
+scenarios:
+  readApiBaseline:
+    vus: 1
+    duration: 30s
+    stages:
+      - duration: 30s
+        target: 1
+    thinkTimeSeconds: 2
+    ticketListLimit: 20
+    ticketListMaxPages: 5
+    activeCustomerCount: 100
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
+  authLogin:
+    executor: ramping-vus
+    vus: 1
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 5
+    maxVUs: 10
+    duration: 30s
+    stages:
+      - duration: 30s
+        target: 1
+    thinkTimeSeconds: 0
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
+      successRate: "0.99"
+  reservationJourney:
+    executor: ramping-vus
+    vus: 1
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 5
+    maxVUs: 10
+    duration: 30s
+    stages:
+      - duration: 30s
+        target: 1
+    thinkTimeSeconds: 2
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "750"
+      httpReqDurationP99Ms: "1500"
+      checksRate: "0.99"

@@ -1,0 +1,11 @@
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "read-api-loadtest.namespace" . | quote }}
+  labels:
+    app.kubernetes.io/part-of: medikong
+    medikong.io/platform: loadtest
+    medikong.io/environment: {{ .Values.environment | quote }}
+    medikong.io/test-type: {{ .Values.loadtest.testType | quote }}
+{{- end }}

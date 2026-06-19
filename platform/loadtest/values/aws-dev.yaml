@@ -1,0 +1,81 @@
+environment: aws-dev
+
+image:
+  registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+  repository: read-api-loadtest
+  tag: 04f1a650455f419ca837d5923451583f7b08c8e6
+  pullPolicy: Always
+  pullSecrets:
+    - ecr-registry
+
+dataset:
+  credentialsSecretName: read-api-loadtest-credentials
+  profile: read-api-basic
+  revision: v1
+  titlePrefix: Medikong Loadtest
+  venuePrefix: Loadtest Hall
+  concerts: 50
+  performancesPerConcert: 3
+  seatSections: 1
+  seatRows: 10
+  seatsPerRow: 30
+  discoveryLimit: 300
+  createPauseSeconds: 0.2
+  customerPool:
+    size: 100
+syncJobs:
+  dataset:
+    enabled: false
+  read:
+    enabled: false
+
+loadtest:
+  target: aws
+  baseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+  localBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+  awsBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+
+scenarios:
+  readApiBaseline:
+    vus: 2
+    duration: 5m
+    stages:
+      - duration: 2m
+        target: 2
+      - duration: 2m
+        target: 5
+      - duration: 2m
+        target: 10
+    thinkTimeSeconds: 4
+    ticketListLimit: 20
+    ticketListMaxPages: 5
+    activeCustomerCount: 100
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "750"
+      httpReqDurationP99Ms: "1500"
+      checksRate: "0.99"
+  reservationJourney:
+    executor: ramping-vus
+    vus: 2
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 20
+    duration: 6m
+    stages:
+      - duration: 2m
+        target: 2
+      - duration: 2m
+        target: 5
+      - duration: 2m
+        target: 10
+    thinkTimeSeconds: 4
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "1000"
+      httpReqDurationP99Ms: "2000"
+      checksRate: "0.99"
+      successRate: "0.99"
+      conflictRate: "0.05"
+      ticketIssuedRate: "0.99"

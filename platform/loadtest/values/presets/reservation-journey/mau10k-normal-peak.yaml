@@ -1,0 +1,47 @@
+loadtest:
+  scenario: reservation-journey-load-test
+  credentialsSecretName: read-api-loadtest-credentials
+
+trafficModel:
+  preset: mau10k-normal-peak
+  mau: 10000
+  stickiness: "0.20"
+  peakParticipationRate: "0.30"
+  peakWindowMinutes: 60
+  journeysPerUser: 1
+  safetyFactor: 3
+  targetTicketsPerCustomer: 100
+  calculatedJourneyRate: "0.5"
+  expectedJourneys: 300
+
+dataset:
+  profile: reservation-journey
+  revision: reservation-v1
+  concerts: 5
+  performancesPerConcert: 2
+  customerPool:
+    size: 20
+    revision: reservation-v1
+
+scenarios:
+  reservationJourney:
+    requestPrefix: loadtest-reservation
+    executor: constant-arrival-rate
+    rate: 1
+    timeUnit: 2s
+    preAllocatedVUs: 20
+    maxVUs: 50
+    duration: 10m
+    stages: []
+    thinkTimeSeconds: 1
+    ticketListLimit: 20
+    ticketListMaxPages: 5
+    activeCustomerCount: 20
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "1000"
+      httpReqDurationP99Ms: "2000"
+      checksRate: "0.99"
+      successRate: "0.99"
+      conflictRate: "0.05"
+      ticketIssuedRate: "0.99"

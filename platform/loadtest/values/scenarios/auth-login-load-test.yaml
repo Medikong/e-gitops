@@ -1,0 +1,34 @@
+loadtest:
+  scenario: auth-login-load-test
+
+dataset:
+  profile: auth-login
+  revision: auth-login-fast-v2
+  customerPool:
+    size: 160
+    revision: auth-login-fast-v2
+
+scenarios:
+  authLogin:
+    requestPrefix: loadtest-auth-login
+    executor: ramping-arrival-rate
+    vus: 40
+    rate: 60
+    timeUnit: 1s
+    preAllocatedVUs: 40
+    maxVUs: 160
+    duration: 90s
+    stages:
+      - duration: 30s
+        target: 60
+      - duration: 30s
+        target: 90
+      - duration: 30s
+        target: 120
+    thinkTimeSeconds: 0
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
+      successRate: "0.99"

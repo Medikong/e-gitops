@@ -48,7 +48,7 @@ spec:
             - -c
             - maintenance_work_mem=16MB
             - -c
-            - max_connections=20
+            - max_connections=80
           ports:
             - name: postgres
               containerPort: 5432
@@ -138,7 +138,7 @@ spec:
             - -c
             - maintenance_work_mem=16MB
             - -c
-            - max_connections=20
+            - max_connections=80
           ports:
             - name: postgres
               containerPort: 5432
@@ -228,7 +228,7 @@ spec:
             - -c
             - maintenance_work_mem=16MB
             - -c
-            - max_connections=20
+            - max_connections=80
           ports:
             - name: postgres
               containerPort: 5432
@@ -318,7 +318,7 @@ spec:
             - -c
             - maintenance_work_mem=16MB
             - -c
-            - max_connections=20
+            - max_connections=80
           ports:
             - name: postgres
               containerPort: 5432
@@ -408,7 +408,7 @@ spec:
             - -c
             - maintenance_work_mem=16MB
             - -c
-            - max_connections=20
+            - max_connections=80
           ports:
             - name: postgres
               containerPort: 5432

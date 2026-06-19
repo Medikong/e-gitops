@@ -1,0 +1,297 @@
+environment: local
+
+nameOverride: ""
+fullnameOverride: ""
+
+namespace:
+  create: true
+  name: loadtest
+
+image:
+  registry: localhost:5001
+  repository: read-api-loadtest
+  tag: dev
+  pullPolicy: Always
+  pullSecrets: []
+
+serviceAccount:
+  create: true
+  name: read-api-loadtest-runner
+
+dataset:
+  scenario: setup-read-dataset
+  credentialsSecretName: read-api-loadtest-credentials
+  profile: read-api-basic
+  revision: v1
+  titlePrefix: Medikong Loadtest
+  venuePrefix: Loadtest Hall
+  concerts: 20
+  performancesPerConcert: 2
+  seatSections: 1
+  seatRows: 10
+  seatsPerRow: 30
+  lookaheadDays: 14
+  startsAtSpacingMinutes: 180
+  discoveryLimit: 200
+  createPauseSeconds: 0
+  customerPool:
+    size: 100
+    emailPrefix: loadtest
+    emailDomain: loadtest.medikong.local
+    password: loadtest1234
+    revision: ""
+    displayNamePrefix: Loadtest Customer
+    padWidth: 6
+  timeoutSeconds: 15
+  requestPrefix: loadtest-dataset
+  thresholds:
+    httpReqFailedRate: "0.01"
+    httpReqDurationP95Ms: "3000"
+    httpReqDurationP99Ms: "5000"
+    checksRate: "0.99"
+syncJobs:
+  dataset:
+    enabled: false
+    hook: PostSync
+    hookWeight: "0"
+    activeDeadlineSeconds: 1800
+    backoffLimit: 0
+    ttlSecondsAfterFinished: 86400
+  read:
+    enabled: false
+    hook: PostSync
+    hookWeight: "10"
+    activeDeadlineSeconds: 900
+    backoffLimit: 0
+    ttlSecondsAfterFinished: 86400
+
+manualRuns:
+  dataset:
+    enabled: false
+    runId: ""
+    activeDeadlineSeconds: 1800
+    backoffLimit: 0
+    ttlSecondsAfterFinished: 86400
+  read:
+    enabled: false
+    runId: ""
+    activeDeadlineSeconds: 900
+    backoffLimit: 0
+    ttlSecondsAfterFinished: 86400
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+loadtest:
+  testType: loadtest
+  scenario: read-api-baseline
+  credentialsSecretName: ""
+  target: local
+  revision: ""
+  baseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+  localBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+  awsBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+
+trafficModel:
+  preset: ""
+  mau: ""
+  stickiness: ""
+  peakParticipationRate: ""
+  peakWindowMinutes: ""
+  journeysPerUser: ""
+  safetyFactor: ""
+  targetTicketsPerCustomer: ""
+  calculatedJourneyRate: ""
+  expectedJourneys: ""
+
+scenarios:
+  readApiBaseline:
+    requestPrefix: loadtest-read
+    timeoutSeconds: 10
+    vus: 5
+    duration: 2m
+    stages:
+      - duration: 1m
+        target: 1
+      - duration: 1m
+        target: 3
+      - duration: 1m
+        target: 5
+    gracefulStop: 30s
+    thinkTimeSeconds: 0
+    concertLimit: 50
+    performanceLimit: 50
+    seatLimit: 200
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
+  authLogin:
+    requestPrefix: loadtest-auth-login
+    timeoutSeconds: 10
+    setupTimeout: 10m
+    executor: ramping-vus
+    vus: 5
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 20
+    duration: 2m
+    stages:
+      - duration: 1m
+        target: 1
+      - duration: 1m
+        target: 3
+      - duration: 1m
+        target: 5
+    gracefulStop: 30s
+    thinkTimeSeconds: 0
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
+      successRate: "0.99"
+  ticketServiceRead:
+    requestPrefix: loadtest-ticket-read
+    timeoutSeconds: 10
+    setupTimeout: 10m
+    executor: constant-arrival-rate
+    vus: 5
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 20
+    duration: 2m
+    stages: []
+    gracefulStop: 30s
+    thinkTimeSeconds: 0
+    ticketListLimit: 20
+    ticketListPaginationPages: 3
+    ticketListMaxPages: 5
+    ticketsPerCustomer: 60
+    waitTargetTicketPosition: 41
+    activeCustomerCount: 20
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
+      successRate: "0.99"
+  reservationJourney:
+    requestPrefix: loadtest-reservation
+    timeoutSeconds: 10
+    executor: ramping-vus
+    vus: 5
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 20
+    duration: 2m
+    stages:
+      - duration: 1m
+        target: 1
+      - duration: 1m
+        target: 3
+      - duration: 1m
+        target: 5
+    gracefulStop: 30s
+    thinkTimeSeconds: 0
+    pollSeconds: 45
+    pollIntervalSeconds: 2
+    ticketListLimit: 20
+    ticketListMaxPages: 5
+    activeCustomerCount: 100
+    paymentAmount: 50000
+    maxSeatAttempts: 3
+    concertLimit: 50
+    performanceLimit: 50
+    seatLimit: 200
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
+      successRate: "0.99"
+      conflictRate: "0.05"
+      ticketIssuedRate: "0.99"
+  reservationCreate:
+    requestPrefix: loadtest-reservation-create
+    timeoutSeconds: 10
+    setupTimeout: 10m
+    executor: ramping-vus
+    vus: 5
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 20
+    duration: 2m
+    stages:
+      - duration: 1m
+        target: 1
+      - duration: 1m
+        target: 3
+      - duration: 1m
+        target: 5
+    gracefulStop: 30s
+    thinkTimeSeconds: 0
+    activeCustomerCount: 100
+    maxSeatAttempts: 3
+    concertLimit: 50
+    performanceLimit: 50
+    seatLimit: 200
+    seatCandidateCount: 200
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
+      handledRate: "0.99"
+      createdRate: "0.99"
+      infraFailureRate: "0.01"
+  reservationSeatContention:
+    requestPrefix: loadtest-reservation-contention
+    timeoutSeconds: 10
+    setupTimeout: 10m
+    executor: ramping-arrival-rate
+    vus: 5
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 20
+    duration: 2m
+    stages:
+      - duration: 30s
+        target: 1
+      - duration: 30s
+        target: 3
+      - duration: 1m
+        target: 5
+    gracefulStop: 30s
+    thinkTimeSeconds: 0
+    activeCustomerCount: 100
+    maxSeatAttempts: 1
+    concertLimit: 10
+    performanceLimit: 10
+    seatLimit: 50
+    seatCandidateCount: 5
+    thresholds:
+      httpReqFailedRate: "0.05"
+      httpReqDurationP95Ms: "750"
+      httpReqDurationP99Ms: "1500"
+      checksRate: "0.95"
+      handledRate: "0.95"
+      createdRate: "0.0001"
+      infraFailureRate: "0.01"
+
+k6:
+  output: ""
+  extraArgs: []
+
+extraEnv: []

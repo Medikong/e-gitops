@@ -10,10 +10,17 @@ image:
   tag: v0.1.2
 
 deployment:
-  replicas: 1
+  replicas: 3
 
 container:
   port: 8080
+  resources:
+    requests:
+      cpu: 500m
+      memory: 128Mi
+    limits:
+      cpu: "2"
+      memory: 512Mi
   env:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@auth-db:5432/auth_db
@@ -98,6 +105,10 @@ networkPolicy:
           port: 4318
 hpa:
   enabled: true
-  minReplicas: 1
+  minReplicas: 3
   maxReplicas: 3
   targetCPUUtilizationPercentage: 70
+
+observability:
+  profiling:
+    serverAddress: http://pyroscope.observability.svc.cluster.local:4040

@@ -140,6 +140,24 @@ alternateConfig:
       logs:
         log_record:
           - attributes["event"] == "http.request.completed" and attributes["log.policy"] == "drop"
+    tail_sampling/read_api:
+      decision_wait: 10s
+      num_traces: 50000
+      expected_new_traces_per_sec: 1000
+      policies:
+        - name: error-traces
+          type: status_code
+          status_code:
+            status_codes:
+              - ERROR
+        - name: slow-traces
+          type: latency
+          latency:
+            threshold_ms: 1000
+        - name: baseline-traces
+          type: probabilistic
+          probabilistic:
+            sampling_percentage: 100
     batch:
       timeout: 5s
       send_batch_size: 8192
@@ -182,6 +200,7 @@ alternateConfig:
         processors:
           - k8sattributes
           - memory_limiter
+          - tail_sampling/read_api
           - batch
         exporters:
           - otlp/tempo

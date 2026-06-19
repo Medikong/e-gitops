@@ -1,0 +1,386 @@
+version: "3"
+
+vars:
+  HELM: '{{default "helm" .HELM}}'
+  KUBECTL: '{{default "kubectl" .KUBECTL}}'
+  DOCKER: '{{default "docker" .DOCKER}}'
+  RELEASE: '{{default "read-api-loadtest" .LOADTEST_RELEASE}}'
+  NAMESPACE: '{{default "loadtest" .LOADTEST_NAMESPACE}}'
+  IMAGE_REGISTRY: '{{default "localhost:5001" .DEV_REGISTRY}}'
+  IMAGE_NAMESPACE: '{{default "" .DEV_IMAGE_NAMESPACE}}'
+  IMAGE_REPOSITORY: '{{default "read-api-loadtest" .LOADTEST_IMAGE_REPOSITORY}}'
+  IMAGE_TAG: '{{default "dev" .DEV_IMAGE_TAG}}'
+  VALUES_FILE: '{{default "values/local.yaml" .LOADTEST_VALUES_FILE}}'
+  CREDENTIALS_SECRET: '{{default "read-api-loadtest-credentials" .LOADTEST_CREDENTIALS_SECRET}}'
+  KONG_RATE_LIMIT_PLUGINS: '{{default "ticketing-rate-limit-concerts ticketing-rate-limit-reservations ticketing-rate-limit-payments ticketing-rate-limit-tickets ticketing-rate-limit-notifications" .LOADTEST_KONG_RATE_LIMIT_PLUGINS}}'
+  KONG_RATE_LIMIT_DEFAULT_MINUTE: '{{default "120" .LOADTEST_KONG_RATE_LIMIT_DEFAULT_MINUTE}}'
+  KONG_RATE_LIMIT_DISABLED_MINUTE: '{{default "1000000" .LOADTEST_KONG_RATE_LIMIT_DISABLED_MINUTE}}'
+
+tasks:
+  default:
+    desc: Read API loadtest task 목록을 표시합니다.
+    cmds:
+      - task --list
+
+  lint:
+    desc: Read API loadtest Helm chart를 검사합니다.
+    cmds:
+      - '{{.HELM}} lint .'
+
+  render:
+    desc: Read API loadtest Helm chart를 렌더링합니다.
+    cmds:
+      - |
+        set -eu
+        values_file="${LOADTEST_VALUES_FILE:-{{.VALUES_FILE}}}"
+        scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
+        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
+        scenario="${LOADTEST_SCENARIO:-${SCENARIO:-}}"
+        if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
+          scenario="reservation-journey-load-test"
+        fi
+        if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
+          scenario_base="${scenario%-load-test}"
+          for candidate in \
+            "values/presets/${scenario}/${preset}.yaml" \
+            "values/presets/${scenario_base}/${preset}.yaml" \
+            "values/presets/${preset}.yaml"; do
+            if [ -f "${candidate}" ]; then
+              scenario_values_file="${candidate}"
+              break
+            fi
+          done
+          if [ -z "${scenario_values_file}" ]; then
+            printf 'Unknown preset=%s for scenario=%s.\n' "${preset}" "${scenario}" >&2
+            exit 2
+          fi
+        fi
+        if [ -z "${scenario_values_file}" ] && [ -n "${scenario}" ] && [ -f "values/scenarios/${scenario}.yaml" ]; then
+          scenario_values_file="values/scenarios/${scenario}.yaml"
+        fi
+        values_args="-f ${values_file}"
+        if [ -n "${scenario_values_file}" ]; then
+          values_args="${values_args} -f ${scenario_values_file}"
+        fi
+        image_args=""
+        if [ "${LOADTEST_IMAGE_OVERRIDE:-}" = "true" ] || [ "${values_file}" = "values/local.yaml" ]; then
+          image_ref="$(task image-ref --silent)"
+          image_registry="${image_ref%/*}"
+          image_name_tag="${image_ref##*/}"
+          image_repository="${image_name_tag%:*}"
+          image_tag="${image_name_tag##*:}"
+          image_args="--set-string image.registry=${image_registry} --set-string image.repository=${image_repository} --set-string image.tag=${image_tag}"
+        fi
+        {{.HELM}} template {{.RELEASE}} . \
+          ${values_args} \
+          --namespace {{.NAMESPACE}} \
+          ${image_args}
+
+  image-ref:
+    desc: Read API loadtest runner image reference를 출력합니다.
+    cmds:
+      - |
+        set -eu
+        image_registry='{{.IMAGE_REGISTRY}}'
+        image_namespace='{{.IMAGE_NAMESPACE}}'
+        image_repository='{{.IMAGE_REPOSITORY}}'
+        image_tag='{{.IMAGE_TAG}}'
+        if [ -n "${image_namespace}" ]; then
+          image_registry="${image_registry%/}/${image_namespace#/}"
+        fi
+        printf '%s/%s:%s\n' "${image_registry%/}" "${image_repository}" "${image_tag}"
+
+  image-build:
+    desc: Read API loadtest runner image를 빌드합니다.
+    cmds:
+      - |
+        set -eu
+        image_ref="$(task image-ref --silent)"
+        {{.DOCKER}} build -f runner/Dockerfile -t "${image_ref}" .
+
+  image-push:
+    desc: Read API loadtest runner image를 registry에 push합니다.
+    cmds:
+      - task: image-build
+      - |
+        set -eu
+        image_ref="$(task image-ref --silent)"
+        {{.DOCKER}} push "${image_ref}"
+
+  secret-local:
+    desc: 로컬 read API loadtest dataset credential Secret을 준비합니다.
+    cmds:
+      - |
+        set -eu
+        {{.KUBECTL}} create namespace {{.NAMESPACE}} --dry-run=client -o yaml | {{.KUBECTL}} apply -f -
+        {{.KUBECTL}} label namespace {{.NAMESPACE}} app.kubernetes.io/managed-by=Helm --overwrite
+        {{.KUBECTL}} annotate namespace {{.NAMESPACE}} \
+          meta.helm.sh/release-name={{.RELEASE}} \
+          meta.helm.sh/release-namespace={{.NAMESPACE}} \
+          --overwrite
+        {{.KUBECTL}} -n {{.NAMESPACE}} create secret generic {{.CREDENTIALS_SECRET}} \
+          --from-literal=LOADTEST_PROVIDER_EMAIL="${LOADTEST_PROVIDER_EMAIL:-provider@example.com}" \
+          --from-literal=LOADTEST_PROVIDER_PASSWORD="${LOADTEST_PROVIDER_PASSWORD:-provider1234}" \
+          --from-literal=LOADTEST_ADMIN_EMAIL="${LOADTEST_ADMIN_EMAIL:-admin@example.com}" \
+          --from-literal=LOADTEST_ADMIN_PASSWORD="${LOADTEST_ADMIN_PASSWORD:-admin1234}" \
+          --dry-run=client -o yaml | {{.KUBECTL}} apply -f -
+
+  deploy:
+    desc: Read API loadtest runner image를 push하고 Helm release를 배포합니다.
+    cmds:
+      - task: image-push
+      - task: render
+      - |
+        set -eu
+        values_file="${LOADTEST_VALUES_FILE:-{{.VALUES_FILE}}}"
+        scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
+        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
+        scenario="${LOADTEST_SCENARIO:-${SCENARIO:-}}"
+        if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
+          scenario="reservation-journey-load-test"
+        fi
+        if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
+          scenario_base="${scenario%-load-test}"
+          for candidate in \
+            "values/presets/${scenario}/${preset}.yaml" \
+            "values/presets/${scenario_base}/${preset}.yaml" \
+            "values/presets/${preset}.yaml"; do
+            if [ -f "${candidate}" ]; then
+              scenario_values_file="${candidate}"
+              break
+            fi
+          done
+          if [ -z "${scenario_values_file}" ]; then
+            printf 'Unknown preset=%s for scenario=%s.\n' "${preset}" "${scenario}" >&2
+            exit 2
+          fi
+        fi
+        if [ -z "${scenario_values_file}" ] && [ -n "${scenario}" ] && [ -f "values/scenarios/${scenario}.yaml" ]; then
+          scenario_values_file="values/scenarios/${scenario}.yaml"
+        fi
+        values_args="-f ${values_file}"
+        if [ -n "${scenario_values_file}" ]; then
+          values_args="${values_args} -f ${scenario_values_file}"
+        fi
+        image_args=""
+        if [ "${LOADTEST_IMAGE_OVERRIDE:-}" = "true" ] || [ "${values_file}" = "values/local.yaml" ]; then
+          image_ref="$(task image-ref --silent)"
+          image_registry="${image_ref%/*}"
+          image_name_tag="${image_ref##*/}"
+          image_repository="${image_name_tag%:*}"
+          image_tag="${image_name_tag##*:}"
+          image_args="--set-string image.registry=${image_registry} --set-string image.repository=${image_repository} --set-string image.tag=${image_tag}"
+        fi
+        {{.HELM}} upgrade --install {{.RELEASE}} . \
+          --namespace {{.NAMESPACE}} \
+          --create-namespace \
+          ${values_args} \
+          ${image_args}
+
+  run-local:
+    desc: 로컬 dev에 특정 시나리오를 배포하고 dataset setup과 loadtest를 바로 실행합니다. SCENARIO=<scenario-name> PRESET=<preset-name>
+    cmds:
+      - task: ensure-no-active-loadtest
+      - |
+        set -eu
+        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
+        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-}}"
+        if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
+          scenario="reservation-journey-load-test"
+        fi
+        scenario="${scenario:-read-api-baseline}"
+        scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
+        if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
+          scenario_base="${scenario%-load-test}"
+          for candidate in \
+            "values/presets/${scenario}/${preset}.yaml" \
+            "values/presets/${scenario_base}/${preset}.yaml" \
+            "values/presets/${preset}.yaml"; do
+            if [ -f "${candidate}" ]; then
+              scenario_values_file="${candidate}"
+              break
+            fi
+          done
+          if [ -z "${scenario_values_file}" ]; then
+            printf 'Unknown preset=%s for scenario=%s.\n' "${preset}" "${scenario}" >&2
+            exit 2
+          fi
+        fi
+        scenario_values_file="${scenario_values_file:-values/scenarios/${scenario}.yaml}"
+        if [ ! -f "${scenario_values_file}" ]; then
+          printf 'Unknown or missing scenario values file: %s\n' "${scenario_values_file}" >&2
+          printf 'Set SCENARIO=<name>, PRESET=<preset-name>, or LOADTEST_SCENARIO_VALUES_FILE=<path>.\n' >&2
+          exit 2
+        fi
+        export SCENARIO="${scenario}"
+        export LOADTEST_SCENARIO_VALUES_FILE="${scenario_values_file}"
+        disable_kong_rate_limit="${LOADTEST_DISABLE_KONG_RATE_LIMIT:-}"
+        if [ -z "${disable_kong_rate_limit}" ]; then
+          case "${scenario}" in
+            reservation-journey-load-test|reservation-create-load-test|reservation-seat-contention-load-test|ticket-service-read-load-test)
+              disable_kong_rate_limit="true"
+              ;;
+          esac
+        fi
+        disable_kong_rate_limit="${disable_kong_rate_limit:-false}"
+        printf 'Running loadtest scenario=%s values=%s disable_kong_rate_limit=%s\n' \
+          "${scenario}" "${LOADTEST_SCENARIO_VALUES_FILE}" "${disable_kong_rate_limit}"
+        if [ "${disable_kong_rate_limit}" = "true" ]; then
+          task kong-rate-limit:disable
+          trap 'task kong-rate-limit:restore' EXIT
+        fi
+        task secret-local
+        task deploy
+        case "${scenario}" in
+          auth-login-load-test|ticket-service-read-load-test)
+            ;;
+          *)
+          task setup-dataset
+            ;;
+        esac
+        task run
+
+  kong-rate-limit:disable:
+    desc: 로컬 loadtest 동안 Kong rate limit 한도를 크게 올립니다. LOADTEST_KONG_RATE_LIMIT_DISABLED_MINUTE=<minute>
+    cmds:
+      - |
+        set -eu
+        minute="{{.KONG_RATE_LIMIT_DISABLED_MINUTE}}"
+        for plugin in {{.KONG_RATE_LIMIT_PLUGINS}}; do
+          printf 'Raising Kong rate limit plugin=%s minute=%s\n' "${plugin}" "${minute}"
+          {{.KUBECTL}} patch kongclusterplugin "${plugin}" \
+            --type=merge \
+            -p "{\"config\":{\"minute\":${minute},\"policy\":\"local\"}}"
+        done
+
+  kong-rate-limit:restore:
+    desc: Kong rate limit 한도를 기본값으로 되돌립니다. LOADTEST_KONG_RATE_LIMIT_DEFAULT_MINUTE=<minute>
+    cmds:
+      - |
+        set -eu
+        minute="{{.KONG_RATE_LIMIT_DEFAULT_MINUTE}}"
+        for plugin in {{.KONG_RATE_LIMIT_PLUGINS}}; do
+          printf 'Restoring Kong rate limit plugin=%s minute=%s\n' "${plugin}" "${minute}"
+          {{.KUBECTL}} patch kongclusterplugin "${plugin}" \
+            --type=merge \
+            -p "{\"config\":{\"minute\":${minute},\"policy\":\"local\"}}"
+        done
+
+  kong-rate-limit:status:
+    desc: loadtest에 영향을 주는 Kong rate limit plugin 상태를 봅니다.
+    cmds:
+      - |
+        set -eu
+        for plugin in {{.KONG_RATE_LIMIT_PLUGINS}}; do
+          {{.KUBECTL}} get kongclusterplugin "${plugin}" \
+            -o jsonpath='{.metadata.name}{" minute="}{.config.minute}{" policy="}{.config.policy}{"\n"}'
+        done
+
+  setup-dataset:
+    desc: Helm manualRuns 값으로 dataset setup Job을 1회 생성하고 완료를 기다립니다.
+    cmds:
+      - task: ensure-no-active-loadtest
+      - |
+        set -eu
+        run_id="manual-$(date -u +%Y%m%d%H%M%S)"
+        job_name="{{.RELEASE}}-dataset-${run_id}"
+        {{.HELM}} upgrade {{.RELEASE}} . \
+          --namespace {{.NAMESPACE}} \
+          --reuse-values \
+          --set manualRuns.dataset.enabled=true \
+          --set-string manualRuns.dataset.runId="${run_id}" \
+          --set manualRuns.read.enabled=false \
+          --set-string manualRuns.read.runId=""
+        deadline=$(( $(date +%s) + 1800 ))
+        while true; do
+          complete="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)"
+          failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
+          if [ "${failed:-0}" -ge 1 ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
+            exit 1
+          fi
+          if [ "${complete:-0}" -ge 1 ]; then
+            printf 'Dataset setup Job completed job=%s\n' "${job_name}"
+            exit 0
+          fi
+          if [ "$(date +%s)" -ge "${deadline}" ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
+            printf 'Timed out waiting for job/%s.\n' "${job_name}" >&2
+            exit 1
+          fi
+          sleep 3
+        done
+
+  run:
+    desc: Helm manualRuns 값으로 loadtest Job을 1회 생성하고 완료를 기다립니다.
+    cmds:
+      - task: ensure-no-active-loadtest
+      - |
+        set -eu
+        scenario="${SCENARIO:-$({{.KUBECTL}} -n {{.NAMESPACE}} get configmap {{.RELEASE}} -o jsonpath='{.data.LOADTEST_SCENARIO}' 2>/dev/null || true)}"
+        scenario="${scenario:-loadtest}"
+        run_id="manual-$(date -u +%Y%m%d%H%M%S)"
+        job_name="{{.RELEASE}}-read-${run_id}"
+        printf 'Creating loadtest Job scenario=%s job=%s\n' "${scenario}" "${job_name}"
+        {{.HELM}} upgrade {{.RELEASE}} . \
+          --namespace {{.NAMESPACE}} \
+          --reuse-values \
+          --set manualRuns.dataset.enabled=false \
+          --set-string manualRuns.dataset.runId="" \
+          --set manualRuns.read.enabled=true \
+          --set-string manualRuns.read.runId="${run_id}"
+        deadline=$(( $(date +%s) + 1200 ))
+        while true; do
+          complete="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)"
+          failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
+          if [ "${failed:-0}" -ge 1 ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
+            exit 1
+          fi
+          if [ "${complete:-0}" -ge 1 ]; then
+            printf 'Loadtest Job completed job=%s\n' "${job_name}"
+            exit 0
+          fi
+          if [ "$(date +%s)" -ge "${deadline}" ]; then
+            {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
+            printf 'Timed out waiting for job/%s.\n' "${job_name}" >&2
+            exit 1
+          fi
+          sleep 3
+        done
+
+  ensure-no-active-loadtest:
+    internal: true
+    desc: 동시에 실행 중인 read API loadtest Job이 없는지 확인합니다.
+    cmds:
+      - |
+        set -eu
+        active_jobs="$({{.KUBECTL}} -n {{.NAMESPACE}} get jobs \
+          -l 'app.kubernetes.io/name=read-api-loadtest,medikong.io/scenario!=setup-read-dataset' \
+          -o jsonpath='{range .items[?(@.status.active)]}{.metadata.name}{"\n"}{end}')"
+        if [ -n "${active_jobs}" ]; then
+          printf 'Active loadtest Job already exists:\n%s\n' "${active_jobs}" >&2
+          printf 'Wait until it finishes, or delete the Job manually before starting another run.\n' >&2
+          exit 1
+        fi
+
+  logs:
+    desc: 최근 loadtest runner 로그를 봅니다.
+    cmds:
+      - '{{.KUBECTL}} -n {{.NAMESPACE}} logs -l app.kubernetes.io/name=read-api-loadtest --tail=300 --prefix=true'
+
+  status:
+    desc: Read API loadtest Helm release와 Job 상태를 봅니다.
+    cmds:
+      - '{{.HELM}} status {{.RELEASE}} --namespace {{.NAMESPACE}}'
+      - '{{.KUBECTL}} -n {{.NAMESPACE}} get job,pod -l app.kubernetes.io/name=read-api-loadtest'
+
+  clean:
+    desc: Read API loadtest Helm release를 제거합니다.
+    cmds:
+      - '{{.HELM}} uninstall {{.RELEASE}} --namespace {{.NAMESPACE}} --ignore-not-found'
+
+  down:
+    desc: clean의 별칭입니다.
+    cmds:
+      - task: clean

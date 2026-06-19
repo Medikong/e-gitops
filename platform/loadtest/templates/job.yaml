@@ -1,0 +1,51 @@
+{{- if .Values.manualRuns.dataset.enabled }}
+{{- $runId := required "manualRuns.dataset.runId is required when manualRuns.dataset.enabled is true" .Values.manualRuns.dataset.runId -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-dataset-%s" (include "read-api-loadtest.fullname" .) $runId | trunc 63 | trimSuffix "-" | quote }}
+  namespace: {{ include "read-api-loadtest.namespace" . | quote }}
+  labels:
+{{ include "read-api-loadtest.labelsForScenario" (dict "root" . "scenario" .Values.dataset.scenario) | indent 4 }}
+    medikong.io/execution: gitops-manual
+spec:
+  activeDeadlineSeconds: {{ .Values.manualRuns.dataset.activeDeadlineSeconds }}
+  backoffLimit: {{ .Values.manualRuns.dataset.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.manualRuns.dataset.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+{{ include "read-api-loadtest.labelsForScenario" (dict "root" . "scenario" .Values.dataset.scenario) | indent 8 }}
+        app.kubernetes.io/component: k6-runner
+        medikong.io/execution: gitops-manual
+        medikong.io/phase: dataset-setup
+    spec:
+{{ include "read-api-loadtest.podSpec" (dict "root" . "scenario" .Values.dataset.scenario "credentialsSecretName" .Values.dataset.credentialsSecretName) | indent 6 }}
+{{- end }}
+{{- if and .Values.manualRuns.dataset.enabled .Values.manualRuns.read.enabled }}
+---
+{{- end }}
+{{- if .Values.manualRuns.read.enabled }}
+{{- $runId := required "manualRuns.read.runId is required when manualRuns.read.enabled is true" .Values.manualRuns.read.runId -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-read-%s" (include "read-api-loadtest.fullname" .) $runId | trunc 63 | trimSuffix "-" | quote }}
+  namespace: {{ include "read-api-loadtest.namespace" . | quote }}
+  labels:
+{{ include "read-api-loadtest.labelsForScenario" (dict "root" . "scenario" .Values.loadtest.scenario) | indent 4 }}
+    medikong.io/execution: gitops-manual
+spec:
+  activeDeadlineSeconds: {{ .Values.manualRuns.read.activeDeadlineSeconds }}
+  backoffLimit: {{ .Values.manualRuns.read.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.manualRuns.read.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+{{ include "read-api-loadtest.labelsForScenario" (dict "root" . "scenario" .Values.loadtest.scenario) | indent 8 }}
+        app.kubernetes.io/component: k6-runner
+        medikong.io/phase: loadtest
+        medikong.io/execution: gitops-manual
+    spec:
+{{ include "read-api-loadtest.podSpec" (dict "root" . "scenario" .Values.loadtest.scenario "credentialsSecretName" .Values.loadtest.credentialsSecretName) | indent 6 }}
+{{- end }}

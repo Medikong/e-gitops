@@ -1,0 +1,33 @@
+loadtest:
+  scenario: ticket-service-read-load-test
+
+dataset:
+  profile: ticket-service-read
+  revision: ticket-read-v1
+  customerPool:
+    size: 20
+    revision: ticket-read-v1
+
+scenarios:
+  ticketServiceRead:
+    requestPrefix: loadtest-ticket-read
+    executor: constant-arrival-rate
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 20
+    duration: 2m
+    stages: []
+    thinkTimeSeconds: 0
+    ticketListLimit: 20
+    ticketListPaginationPages: 3
+    ticketListMaxPages: 5
+    ticketsPerCustomer: 60
+    waitTargetTicketPosition: 41
+    activeCustomerCount: 20
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
+      successRate: "0.99"

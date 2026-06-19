@@ -23,11 +23,22 @@ container:
       cpu: 500m
       memory: 512Mi
 
+database:
+  sqlalchemy:
+    poolSize: 15
+    maxOverflow: 5
+    poolTimeoutSeconds: 10
+
 observability:
   tracing:
     enabled: true
     otlpEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
     excludedUrls: /health,/healthz,/readyz,/metrics
+  profiling:
+    enabled: true
+    serverAddress: http://pyroscope.observability.svc.cluster.local:4040
+    sampleRate: 100
+    spanProfilesEnabled: true
 
 pdb:
   enabled: false

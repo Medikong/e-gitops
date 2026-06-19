@@ -8,7 +8,7 @@
 - `manifests/istio-mesh-podmonitors.yaml`: Istio control plane과 주요 ticketing 서비스의 Envoy sidecar metric을 수집한다.
 - `manifests/kong-servicemonitor.yaml`: Kong Gateway metric endpoint를 Prometheus scrape 대상으로 등록한다.
 - `manifests/prometheusrules/*.yaml`: Prometheus Operator가 선택하는 시스템/Kubernetes 알림 후보를 관리한다.
-- `dashboards/{ops,logs,db}/*.json`: Grafana sidecar가 읽는 dashboard JSON을 폴더별로 관리한다.
+- `dashboards/{ops,logs,db,load}/*.json`: Grafana sidecar가 읽는 dashboard JSON을 폴더별로 관리한다.
 - `values/kube-prometheus-stack.yaml`: `prometheus-community/kube-prometheus-stack` values를 관리한다.
 - Grafana datasource는 이 values에서 함께 관리한다. Prometheus는 기본 datasource, Tempo/Loki는 `additionalDataSources`로 선언한다.
 - 서비스별 `ServiceMonitor`는 계속 `charts/medikong-service` release가 관리한다.
@@ -157,6 +157,25 @@ Dashboard는 UI에서 수동 생성하지 않고 `dashboards/{ops,logs,db}/*.jso
 DB 관측성은 `DB 10 -> DB 20 -> DB 30 -> DB 40` 순서로 본다. `DB 10 - Operations Overview`는 DB up, connection 사용률, 처리량, slow operation, error, lock/deadlock, p95/p99 latency, 영향 service Top N을 stat과 bar gauge 중심으로 빠르게 감지한다. 이상이 보이면 `DB 20 - Instance Resources`에서 DB Pod CPU/memory/network, restart, OOMKilled, ready, filesystem, Node pressure를 확인하고, `DB 30 - Workload and Slow Queries`에서 PostgreSQL/MongoDB workload와 slow DB operation을 service, db_operation, statement fingerprint 기준으로 좁힌다. 마지막으로 `DB 40 - Trace and Log Correlation`에서 `trace_id`, `request_id`, service, db_system, db_operation으로 slow operation 로그, 같은 trace/request 로그, Tempo trace, DB span duration을 함께 확인한다.
 
 DB dashboard는 SQL 원문, 사용자 ID, `request_id`, `trace_id`를 metric label로 올리지 않는 정책을 전제로 한다. Slow query/operation 화면은 SQL 원문 대신 `statement_fingerprint` 또는 `normalized_statement` JSON field를 우선 표시한다. `db.query.slow` 로그와 DB span 속성 보강은 `Medikong/service#19` 범위이므로, 해당 신호가 아직 없는 환경에서는 관련 Loki/Tempo 패널이 비어 있을 수 있다. 앱 DB latency/error metric은 `db_client_operation_duration_seconds_*`, `db_client_operation_errors_total` 수집 이후 채워지며, PostgreSQL/MongoDB exporter metric도 수집기가 배포된 뒤 값이 채워진다.
+
+Load dashboard는 조회 API 부하 테스트 실행 중 빠르게 상태를 판단하고 병목 후보를 좁히는 Grafana folder다. `kustomization.yaml`의 `medikong-load-dashboards` ConfigMap generator가 `k8s-sidecar-target-directory: Load` annotation으로 Grafana `Load` folder에만 provision한다. 부하 테스트 실행 시나리오, 프로필, runner image, 실행 Taskfile은 `service` repo 책임이고, `gitops`는 Prometheus/Grafana로 들어온 관측 신호를 보여주는 dashboard와 scrape/render 검증만 맡는다.
+
+Load dashboard는 synthetic dashboard와 섞지 않는다. Synthetic은 실제 사용 처리 과정처럼 주기적으로 보내는 자동화 테스트 트래픽을 확인하는 영역이며 `Logs 50 - Synthetic`에서 run/step/result 로그를 본다. Load는 사용자가 선택한 부하 테스트 profile과 target을 기준으로 RPS, latency, error, service saturation, 원인 후보를 확인하는 영역이다.
+
+Load dashboard는 수집 신호를 역할별로 나눠 본다. `Load 20 - Latency and Errors`는 이미 scrape 중인 Kong Gateway metric을 사용해 실제 ingress가 받은 요청의 latency, response code, error rate를 본다. k6 runner 자체의 VU, iteration, dropped iteration 같은 발생기 지표가 필요하면 k6 Prometheus/OTel output을 별도 수집 경로로 켠 뒤 `scenario`, `profile`, `target`, `environment`, `route`, `status`처럼 낮은 cardinality label만 사용한다. `request_id`, `trace_id`, 사용자 ID, raw URL은 metric label로 올리지 않는다. 필요하면 로그 본문 field나 Tempo trace 조회로 내려간다.
+
+Load dashboard 확인 순서:
+
+```text
+Load 50 - Service Resource and Traffic
+  auth/concert/notification/payment/reservation/ticket의 CPU, memory, RPS, p95 latency를 2열 큰 그래프로 비교한다.
+Load 60 - k6 Runner Execution
+  runner stdout JSON으로 남은 실험 조건과 실행 결과 원문을 확인한다. API별 상세 비교는 Grafana 패널로 분산하지 않고, 필요한 run의 JSON 로그와 서비스/Kong 지표를 함께 대조한다.
+Load 70 - Slow Trace Discovery
+  Load 60에서 확인한 실험 시간 범위에 맞춰 service/route/min duration 기준의 느린 요청 trace 후보를 보고, trace_id 링크로 Tempo Explore에 바로 들어간다.
+```
+
+`Load 40 - Cause Candidates`는 원인을 확정하는 화면이 아니다. 아직 metric 계약이 없는 connection pool wait, queue depth, consumer lag 같은 항목은 readiness/stat/table 패널로 먼저 드러내며, 없는 신호를 억지 PromQL로 정상처럼 보이게 만들지 않는다. 값이 비어 있으면 해당 metric 수집 계약이나 exporter 배포가 먼저 필요하다.
 
 Loki 로그 확인은 `Logs 10 - Overview`부터 시작한다. Overview는 서비스 5xx, slow request, warning/error, synthetic 실패, Kong 4xx/5xx처럼 큰 이상 신호와 24시간 RED(request/error/duration) 흐름을 먼저 보여주고 원문 로그를 많이 두지 않는다. 서비스/route/status/latency 범위를 넓게 비교할 때는 `Logs 20 - Services and Requests`를 보고, 평상시 trace 후보를 찾을 때는 `Logs 25 - Service Log Search`에서 최근 서비스 요청 로그와 전체 Tempo trace 목록을 함께 본 뒤 trace_id, user_id, request_id를 JSON field로 검색한다. 이후 `Logs 30 - Service Errors`에서 서비스별 에러 로그를 나눠 본 뒤, `Logs 40 - Drilldown`에서 `request_id`, `trace_id`, reservation/payment/ticket ID를 JSON field로 검색한다. 특정 서비스 장애를 깊게 볼 때는 `Logs 80 - Service Trace Detail`에서 서비스 하나를 고르고 에러 로그, 요청 흐름, request_id, trace_id, Tempo trace를 한 화면에서 추적한다.
 

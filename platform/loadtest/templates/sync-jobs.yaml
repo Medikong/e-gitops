@@ -1,0 +1,57 @@
+{{- if .Values.syncJobs.dataset.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-sync-dataset" (include "read-api-loadtest.fullname" .) | trunc 63 | trimSuffix "-" | quote }}
+  namespace: {{ include "read-api-loadtest.namespace" . | quote }}
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.syncJobs.dataset.hook | quote }}
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: {{ .Values.syncJobs.dataset.hookWeight | quote }}
+  labels:
+{{ include "read-api-loadtest.labelsForScenario" (dict "root" . "scenario" .Values.dataset.scenario) | indent 4 }}
+    medikong.io/execution: gitops-sync
+spec:
+  activeDeadlineSeconds: {{ .Values.syncJobs.dataset.activeDeadlineSeconds }}
+  backoffLimit: {{ .Values.syncJobs.dataset.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.syncJobs.dataset.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+{{ include "read-api-loadtest.labelsForScenario" (dict "root" . "scenario" .Values.dataset.scenario) | indent 8 }}
+        app.kubernetes.io/component: k6-runner
+        medikong.io/execution: gitops-sync
+        medikong.io/phase: dataset-setup
+    spec:
+{{ include "read-api-loadtest.podSpec" (dict "root" . "scenario" .Values.dataset.scenario "credentialsSecretName" .Values.dataset.credentialsSecretName) | indent 6 }}
+{{- end }}
+{{- if and .Values.syncJobs.dataset.enabled .Values.syncJobs.read.enabled }}
+---
+{{- end }}
+{{- if .Values.syncJobs.read.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-sync-read" (include "read-api-loadtest.fullname" .) | trunc 63 | trimSuffix "-" | quote }}
+  namespace: {{ include "read-api-loadtest.namespace" . | quote }}
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.syncJobs.read.hook | quote }}
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: {{ .Values.syncJobs.read.hookWeight | quote }}
+  labels:
+{{ include "read-api-loadtest.labelsForScenario" (dict "root" . "scenario" .Values.loadtest.scenario) | indent 4 }}
+    medikong.io/execution: gitops-sync
+spec:
+  activeDeadlineSeconds: {{ .Values.syncJobs.read.activeDeadlineSeconds }}
+  backoffLimit: {{ .Values.syncJobs.read.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.syncJobs.read.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+{{ include "read-api-loadtest.labelsForScenario" (dict "root" . "scenario" .Values.loadtest.scenario) | indent 8 }}
+        app.kubernetes.io/component: k6-runner
+        medikong.io/execution: gitops-sync
+        medikong.io/phase: loadtest
+    spec:
+{{ include "read-api-loadtest.podSpec" (dict "root" . "scenario" .Values.loadtest.scenario "credentialsSecretName" .Values.loadtest.credentialsSecretName) | indent 6 }}
+{{- end }}

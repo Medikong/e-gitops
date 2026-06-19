@@ -1,0 +1,6 @@
+apiVersion: v2
+name: read-api-loadtest
+description: k6 read API load test runner for Medikong
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -9,6 +9,7 @@
 | Kong Gateway | `platform/kong` | `archive/k8s-kustomize/kong`에서 이식 필요 |
 | Monitoring | `platform/monitoring` | `monitoring` namespace 기준 Prometheus 기본 스택 운영 경로 |
 | Observability | `platform/observability` | Tempo, Loki 같은 trace/log backend 운영 경로 |
+| Metrics Server | `platform/metrics-server` | HPA와 `kubectl top`이 사용하는 resource metrics 경로 |
 | Policy | `platform/policies` | cluster-level 정책 추가 예정 |
 | Data | `platform/data` | DB/Kafka 초기 dev 리소스 이식 필요 |
 

@@ -1,0 +1,43 @@
+version: "3"
+
+vars:
+  HELM: '{{default "helm" .HELM}}'
+  KUBECTL: '{{default "kubectl" .KUBECTL}}'
+  GITOPS_ROOT: '{{default "../../.." .GITOPS_ROOT}}'
+  OBSERVABILITY_NAMESPACE: '{{default "observability" .OBSERVABILITY_NAMESPACE}}'
+  PYROSCOPE_RELEASE: '{{default "pyroscope" .PYROSCOPE_RELEASE}}'
+  PYROSCOPE_CHART: '{{default "grafana/pyroscope" .PYROSCOPE_CHART}}'
+  PYROSCOPE_CHART_REPO: '{{default "https://grafana.github.io/helm-charts" .PYROSCOPE_CHART_REPO}}'
+  PYROSCOPE_CHART_REPO_NAME: '{{default "grafana" .PYROSCOPE_CHART_REPO_NAME}}'
+  PYROSCOPE_CHART_VERSION: '{{default "2.0.3" .PYROSCOPE_CHART_VERSION}}'
+  PYROSCOPE_VALUES: '{{default "platform/observability/pyroscope/values/aws-dev.yaml" .PYROSCOPE_VALUES}}'
+  PYROSCOPE_LOCAL_VALUES: '{{default "platform/observability/pyroscope/values/local.yaml" .PYROSCOPE_LOCAL_VALUES}}'
+
+tasks:
+  repo:
+    cmds:
+      - '{{.HELM}} repo add {{.PYROSCOPE_CHART_REPO_NAME}} {{.PYROSCOPE_CHART_REPO}} --force-update >/dev/null'
+      - '{{.HELM}} repo update {{.PYROSCOPE_CHART_REPO_NAME}} >/dev/null'
+
+  render:
+    desc: Pyroscope aws-dev/local Helm values를 렌더링합니다.
+    cmds:
+      - task repo
+      - '{{.HELM}} template {{.PYROSCOPE_RELEASE}} {{.PYROSCOPE_CHART}} --version {{.PYROSCOPE_CHART_VERSION}} --namespace {{.OBSERVABILITY_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.PYROSCOPE_VALUES}} >/dev/null'
+      - '{{.HELM}} template {{.PYROSCOPE_RELEASE}} {{.PYROSCOPE_CHART}} --version {{.PYROSCOPE_CHART_VERSION}} --namespace {{.OBSERVABILITY_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.PYROSCOPE_LOCAL_VALUES}} >/dev/null'
+
+  up:
+    desc: Docker Desktop dev에 Pyroscope profile backend를 배포합니다.
+    cmds:
+      - task render
+      - '{{.HELM}} upgrade --install {{.PYROSCOPE_RELEASE}} {{.PYROSCOPE_CHART}} --version {{.PYROSCOPE_CHART_VERSION}} --namespace {{.OBSERVABILITY_NAMESPACE}} --create-namespace -f {{.GITOPS_ROOT}}/{{.PYROSCOPE_LOCAL_VALUES}} --wait --timeout=300s'
+
+  status:
+    desc: Pyroscope 리소스 상태를 표시합니다.
+    cmds:
+      - '{{.KUBECTL}} get pods,svc,statefulset,pvc -n {{.OBSERVABILITY_NAMESPACE}} -l app.kubernetes.io/name=pyroscope'
+
+  down:
+    desc: Docker Desktop dev Pyroscope release를 정리합니다.
+    cmds:
+      - '{{.HELM}} uninstall {{.PYROSCOPE_RELEASE}} --namespace {{.OBSERVABILITY_NAMESPACE}} --ignore-not-found'

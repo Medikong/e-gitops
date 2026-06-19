@@ -1,0 +1,48 @@
+loadtest:
+  scenario: reservation-seat-contention-load-test
+  credentialsSecretName: read-api-loadtest-credentials
+
+dataset:
+  profile: reservation-seat-contention
+  revision: reservation-contention-v1
+  concerts: 1
+  performancesPerConcert: 1
+  seatSections: 1
+  seatRows: 1
+  seatsPerRow: 10
+  customerPool:
+    size: 100
+    revision: reservation-contention-v1
+
+scenarios:
+  reservationSeatContention:
+    requestPrefix: loadtest-reservation-contention
+    executor: ramping-arrival-rate
+    vus: 5
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 20
+    maxVUs: 80
+    duration: 2m
+    stages:
+      - duration: 30s
+        target: 2
+      - duration: 30s
+        target: 5
+      - duration: 1m
+        target: 10
+    thinkTimeSeconds: 0
+    activeCustomerCount: 100
+    maxSeatAttempts: 1
+    concertLimit: 10
+    performanceLimit: 10
+    seatLimit: 20
+    seatCandidateCount: 5
+    thresholds:
+      httpReqFailedRate: "0.05"
+      httpReqDurationP95Ms: "1000"
+      httpReqDurationP99Ms: "2000"
+      checksRate: "0.95"
+      handledRate: "0.95"
+      createdRate: "0.0001"
+      infraFailureRate: "0.01"

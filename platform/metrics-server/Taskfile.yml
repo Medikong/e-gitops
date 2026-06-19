@@ -1,0 +1,45 @@
+version: "3"
+
+vars:
+  HELM: '{{default "helm" .HELM}}'
+  KUBECTL: '{{default "kubectl" .KUBECTL}}'
+  GITOPS_ROOT: '{{default "../.." .GITOPS_ROOT}}'
+  METRICS_SERVER_NAMESPACE: '{{default "kube-system" .METRICS_SERVER_NAMESPACE}}'
+  METRICS_SERVER_RELEASE: '{{default "metrics-server" .METRICS_SERVER_RELEASE}}'
+  METRICS_SERVER_CHART: '{{default "metrics-server/metrics-server" .METRICS_SERVER_CHART}}'
+  METRICS_SERVER_CHART_REPO: '{{default "https://kubernetes-sigs.github.io/metrics-server/" .METRICS_SERVER_CHART_REPO}}'
+  METRICS_SERVER_CHART_REPO_NAME: '{{default "metrics-server" .METRICS_SERVER_CHART_REPO_NAME}}'
+  METRICS_SERVER_CHART_VERSION: '{{default "3.13.1" .METRICS_SERVER_CHART_VERSION}}'
+  METRICS_SERVER_VALUES: '{{default "platform/metrics-server/values/aws-dev.yaml" .METRICS_SERVER_VALUES}}'
+  METRICS_SERVER_LOCAL_VALUES: '{{default "platform/metrics-server/values/local.yaml" .METRICS_SERVER_LOCAL_VALUES}}'
+
+tasks:
+  repo:
+    cmds:
+      - '{{.HELM}} repo add {{.METRICS_SERVER_CHART_REPO_NAME}} {{.METRICS_SERVER_CHART_REPO}} --force-update >/dev/null'
+      - '{{.HELM}} repo update {{.METRICS_SERVER_CHART_REPO_NAME}} >/dev/null'
+
+  render:
+    desc: metrics-server aws-dev/local Helm values를 렌더링합니다.
+    cmds:
+      - task repo
+      - '{{.HELM}} template {{.METRICS_SERVER_RELEASE}} {{.METRICS_SERVER_CHART}} --version {{.METRICS_SERVER_CHART_VERSION}} --namespace {{.METRICS_SERVER_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.METRICS_SERVER_VALUES}} >/dev/null'
+      - '{{.HELM}} template {{.METRICS_SERVER_RELEASE}} {{.METRICS_SERVER_CHART}} --version {{.METRICS_SERVER_CHART_VERSION}} --namespace {{.METRICS_SERVER_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.METRICS_SERVER_LOCAL_VALUES}} >/dev/null'
+
+  up:
+    desc: Docker Desktop dev에 metrics-server를 배포합니다.
+    cmds:
+      - task render
+      - '{{.HELM}} upgrade --install {{.METRICS_SERVER_RELEASE}} {{.METRICS_SERVER_CHART}} --version {{.METRICS_SERVER_CHART_VERSION}} --namespace {{.METRICS_SERVER_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.METRICS_SERVER_LOCAL_VALUES}} --wait --timeout=300s'
+      - '{{.KUBECTL}} wait --for=condition=Available apiservice/v1beta1.metrics.k8s.io --timeout=180s'
+
+  status:
+    desc: metrics-server와 resource metrics API 상태를 표시합니다.
+    cmds:
+      - '{{.KUBECTL}} get deployment,pod,svc -n {{.METRICS_SERVER_NAMESPACE}} -l app.kubernetes.io/name=metrics-server'
+      - '{{.KUBECTL}} get apiservice v1beta1.metrics.k8s.io'
+
+  down:
+    desc: Docker Desktop dev metrics-server release를 정리합니다.
+    cmds:
+      - '{{.HELM}} uninstall {{.METRICS_SERVER_RELEASE}} --namespace {{.METRICS_SERVER_NAMESPACE}} --ignore-not-found'

@@ -32,6 +32,12 @@ includes:
   synthetic:
     taskfile: platform/synthetic/Taskfile.yml
     dir: platform/synthetic
+  loadtest:
+    taskfile: platform/loadtest/Taskfile.yml
+    dir: platform/loadtest
+  metrics-server:
+    taskfile: platform/metrics-server/Taskfile.yml
+    dir: platform/metrics-server
 
 tasks:
   default:
@@ -61,6 +67,7 @@ tasks:
     desc: Prometheus/Grafana, Tempo/Loki, 로컬 dev 대상 서비스 Helm release를 Docker Desktop Kubernetes에 배포합니다.
     cmds:
       - task: dev:check
+      - task: metrics-server:up
       - task --taskfile platform/monitoring/Taskfile.yml up
       - task: dev:observability
       - task: dev:platform
@@ -89,6 +96,29 @@ tasks:
     desc: 배포된 synthetic CronJob에서 수동 Job을 1회 실행하고 로그를 봅니다.
     cmds:
       - task: synthetic:run
+
+  dev:loadtest:
+    desc: Docker Desktop dev에 특정 loadtest 시나리오를 배포하고 dataset setup과 실행을 순차 처리합니다. SCENARIO=<scenario-name> PRESET=<preset-name>
+    cmds:
+      - task: dev:registry
+      - task: loadtest:run-local
+
+  dev:loadtest:deploy:
+    desc: Docker Desktop dev에 read API loadtest Helm release를 배포합니다.
+    cmds:
+      - task: dev:registry
+      - task: loadtest:secret-local
+      - task: loadtest:deploy
+
+  dev:loadtest:setup-dataset:
+    desc: read API loadtest dataset setup Job을 1회 실행하고 완료를 기다립니다.
+    cmds:
+      - task: loadtest:setup-dataset
+
+  dev:loadtest:run:
+    desc: read API loadtest Job을 1회 실행하고 완료를 기다립니다.
+    cmds:
+      - task: loadtest:run
 
   dev:platform:
     internal: true
@@ -995,6 +1025,7 @@ tasks:
         done
       - task: observability:down
       - task --taskfile platform/monitoring/Taskfile.yml down
+      - task: metrics-server:down
       - task: dev:kong:down
       - |
         set -eu
@@ -1212,6 +1243,7 @@ tasks:
       - '{{.KUBECTL}} kustomize platform/synthetic-credentials >/dev/null'
       - '{{.KUBECTL}} kustomize platform/synthetic-credentials-private-dev >/dev/null'
       - task istio:render
+      - task: metrics-server:render
 
   argo:validate:
     cmds:

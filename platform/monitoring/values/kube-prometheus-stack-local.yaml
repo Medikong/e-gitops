@@ -60,6 +60,12 @@ grafana:
               value: service_name
             - key: deployment.environment
               value: deployment_environment
+        tracesToProfiles:
+          datasourceUid: pyroscope
+          tags:
+            - key: service.name
+              value: service
+          profileTypeId: process_cpu:cpu:nanoseconds:cpu:nanoseconds
     - name: Loki
       uid: loki
       type: loki
@@ -73,6 +79,12 @@ grafana:
             matcherRegex: '"trace_id"\s*:\s*"([a-fA-F0-9]{32})"'
             datasourceUid: tempo
             url: '$${__value.raw}'
+    - name: Pyroscope
+      uid: pyroscope
+      type: grafana-pyroscope-datasource
+      access: proxy
+      url: http://pyroscope.observability.svc.cluster.local:4040
+      isDefault: false
   persistence:
     enabled: false
   resources:

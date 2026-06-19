@@ -1,0 +1,49 @@
+imageMirror:
+  images:
+    - name: pyroscope
+      description: Pyroscope profile backend
+      source: docker.io/grafana/pyroscope:2.0.3
+      targetRegistry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+      targetRepository: grafana/pyroscope
+      tag: 2.0.3
+
+alloy:
+  enabled: false
+
+agent:
+  enabled: false
+
+minio:
+  enabled: false
+
+pyroscope:
+  replicaCount: 1
+  disableSelfProfile: true
+  image:
+    registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+    repository: grafana/pyroscope
+    tag: 2.0.3
+  imagePullSecrets:
+    - name: ecr-registry
+  extraArgs:
+    log.level: info
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: medikong-aws-gp3
+  resources:
+    requests:
+      cpu: 50m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 2Gi
+  # aws-dev 3-node cluster currently has no dedicated platform worker.
+  # Keep this empty temporarily so the scheduler can place Pyroscope on available workers.
+  nodeSelector: {}
+
+serviceMonitor:
+  enabled: true
+  labels:
+    release: kube-prometheus-stack
+  interval: 30s

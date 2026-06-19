@@ -60,11 +60,30 @@ container:
     initialDelaySeconds: 15
     periodSeconds: 20
 
+database:
+  sqlalchemy:
+    poolSize: 5
+    maxOverflow: 0
+    poolTimeoutSeconds: 5
+    poolRecycleSeconds: 1800
+
 observability:
   tracing:
     enabled: false
     otlpEndpoint: ""
     excludedUrls: /health,/healthz,/readyz,/metrics
+  profiling:
+    enabled: false
+    serverAddress: ""
+    applicationName: ""
+    sampleRate: 100
+    spanProfilesEnabled: false
+    oncpu: true
+    gilOnly: true
+    tags: {}
+    basicAuthUsername: ""
+    basicAuthPassword: ""
+    tenantId: ""
 
 podSecurityContext: {}
 securityContext:

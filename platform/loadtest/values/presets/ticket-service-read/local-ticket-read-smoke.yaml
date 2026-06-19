@@ -1,0 +1,45 @@
+loadtest:
+  scenario: ticket-service-read-load-test
+
+trafficModel:
+  preset: local-ticket-read-smoke
+  mau: ""
+  stickiness: ""
+  peakParticipationRate: ""
+  peakWindowMinutes: ""
+  journeysPerUser: ""
+  safetyFactor: ""
+  targetTicketsPerCustomer: 60
+  calculatedJourneyRate: 1
+  expectedJourneys: 60
+
+dataset:
+  profile: ticket-service-read
+  revision: ticket-read-v1
+  customerPool:
+    size: 10
+    revision: ticket-read-v1
+
+scenarios:
+  ticketServiceRead:
+    requestPrefix: loadtest-ticket-read
+    executor: constant-arrival-rate
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 5
+    maxVUs: 10
+    duration: 3m
+    stages: []
+    thinkTimeSeconds: 0
+    ticketListLimit: 10
+    ticketListPaginationPages: 3
+    ticketListMaxPages: 5
+    ticketsPerCustomer: 50
+    waitTargetTicketPosition: 31
+    activeCustomerCount: 10
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
+      successRate: "0.99"

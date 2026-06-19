@@ -1,0 +1,24 @@
+loadtest:
+  scenario: read-api-baseline
+
+dataset:
+  profile: read-api-basic
+
+scenarios:
+  readApiBaseline:
+    requestPrefix: loadtest-read
+    vus: 5
+    duration: 2m
+    stages:
+      - duration: 1m
+        target: 1
+      - duration: 1m
+        target: 3
+      - duration: 1m
+        target: 5
+    thinkTimeSeconds: 0
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "500"
+      httpReqDurationP99Ms: "1000"
+      checksRate: "0.99"
