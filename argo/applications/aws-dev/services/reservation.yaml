@@ -15,7 +15,7 @@ spec:
           - $values/values/base.yaml
           - $values/values/env/aws-dev.yaml
           - $values/values/services/reservation.yaml
-          - $values/values/overrides/aws-dev-smoke-stable.yaml
+          - $values/values/services/aws-dev/reservation.yaml
           - $values/values/scenarios/istio/reservation-canary-v2.yaml
     - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD

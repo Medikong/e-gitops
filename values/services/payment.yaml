@@ -144,11 +144,5 @@ networkPolicy:
           port: 15010
         - protocol: TCP
           port: 443
-hpa:
-  enabled: true
-  minReplicas: 1
-  maxReplicas: 3
-  targetCPUUtilizationPercentage: 70
-
 nodeSelector:
   role: app

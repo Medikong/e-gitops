@@ -22,13 +22,6 @@ deployment:
 
 container:
   port: 8085
-  resources:
-    requests:
-      cpu: 25m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
   env:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@ticket-db:5432/ticket_db
@@ -143,11 +136,5 @@ networkPolicy:
           port: 15010
         - protocol: TCP
           port: 443
-hpa:
-  enabled: true
-  minReplicas: 1
-  maxReplicas: 3
-  targetCPUUtilizationPercentage: 70
-
 nodeSelector:
   role: app
