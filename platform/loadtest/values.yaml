@@ -69,12 +69,18 @@ manualRuns:
   dataset:
     enabled: false
     runId: ""
+    hook: Sync
+    hookWeight: "0"
+    hookDeletePolicy: BeforeHookCreation,HookSucceeded
     activeDeadlineSeconds: 1800
     backoffLimit: 0
     ttlSecondsAfterFinished: 86400
   read:
     enabled: false
     runId: ""
+    hook: Sync
+    hookWeight: "10"
+    hookDeletePolicy: BeforeHookCreation,HookSucceeded
     activeDeadlineSeconds: 900
     backoffLimit: 0
     ttlSecondsAfterFinished: 86400
@@ -108,6 +114,13 @@ trafficModel:
   targetTicketsPerCustomer: ""
   calculatedJourneyRate: ""
   expectedJourneys: ""
+
+scaleOutReport:
+  enabled: false
+  pollEveryIterations: 10
+  targets: []
+  rbac:
+    create: false
 
 scenarios:
   readApiBaseline:

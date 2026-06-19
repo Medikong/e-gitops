@@ -1,0 +1,47 @@
+loadtest:
+  scenario: reservation-journey-load-test
+  credentialsSecretName: read-api-loadtest-credentials
+
+trafficModel:
+  preset: aws-dev-smoke-1m
+  mau: ""
+  stickiness: ""
+  peakParticipationRate: ""
+  peakWindowMinutes: 1
+  journeysPerUser: 1
+  safetyFactor: 1
+  targetTicketsPerCustomer: 100
+  calculatedJourneyRate: 1
+  expectedJourneys: 60
+
+dataset:
+  profile: reservation-journey
+  revision: reservation-v1
+  concerts: 5
+  performancesPerConcert: 1
+  customerPool:
+    size: 20
+    revision: reservation-v1
+
+scenarios:
+  reservationJourney:
+    requestPrefix: loadtest-reservation-smoke
+    executor: constant-arrival-rate
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 30
+    duration: 1m
+    stages: []
+    thinkTimeSeconds: 0
+    ticketListLimit: 20
+    ticketListMaxPages: 5
+    activeCustomerCount: 20
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "1500"
+      httpReqDurationP99Ms: "3000"
+      checksRate: "0.99"
+      successRate: "0.99"
+      conflictRate: "0.05"
+      ticketIssuedRate: "0.99"

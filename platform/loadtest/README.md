@@ -150,6 +150,13 @@ k6 실행 로그와 `handleSummary` 결과를 stdout JSON line으로 남기고, 
 API별 처리량 비교에서는 `loadtest_run_report.api_step_results[].rps`를 보고, 전체 실행 처리량은 `loadtest_run_report.rps`를 본다.
 레이턴시는 일반적인 사용자 체감에 가까운 p50과 tail latency를 보는 p95/p99를 함께 기록한다.
 전체 실행은 `loadtest_run_report.http_req_duration_p50_ms`와 `loadtest_summary.http_req_duration_p50_ms`, API step별 결과는 `loadtest_run_report.api_step_results[].http_req_duration_p50_ms`를 본다.
+시나리오별 판단은 `loadtest_run_report.scenario_report`에 둔다.
+기존 top-level 필드와 `api_step_results`는 대시보드 호환을 위해 유지하고, stress 한계 탐색처럼 추가 판단이 필요한 값만 `scenario_report`에 확장한다.
+
+`mau10k-normal-peak`와 `mau10k-ticket-open`은 기준선 비교용이고, `stress-find-limit`는 한계 후보를 찾기 위한 실행이다.
+`stress-find-limit` 결과는 `scenario_report.stage_results`에서 `5 journey/s`, `10 journey/s`, `20 journey/s`별 p95/p99, error rate, reservation 5xx/timeout을 본다.
+`409 reservation.conflict`는 정상 경합으로 보고 한계 후보에서 제외한다.
+`scenario_report.first_limit_candidate`가 있으면 첫 후보 stage의 `limit_reasons`를 우선 확인하고, `scale_out_results`의 `hpa_decision_seconds`, `scale_out_ready_seconds`로 HPA 반응 지연을 함께 본다.
 
 ## Scenario conditions
 
@@ -191,6 +198,7 @@ preset values 파일은 `values/presets/reservation-journey/` 아래에 두고, 
 
 ```text
 values/presets/reservation-journey/local-ticket-open-5m.yaml
+values/presets/reservation-journey/aws-dev-smoke-1m.yaml
 values/presets/reservation-journey/mau10k-normal-peak.yaml
 values/presets/reservation-journey/mau10k-ticket-open.yaml
 values/presets/reservation-journey/mau10k-ticket-open-aggressive.yaml
@@ -207,6 +215,9 @@ values/presets/ticket-service-read/local-ticket-read-smoke.yaml
 
 `local-ticket-open-5m`은 로컬 재검증용이다.
 MAU 1만 티켓 오픈 가정을 5분 동안 `2 journey/s`로 짧게 실행해 ticket-service tail latency와 관측계 부담을 함께 확인한다.
+
+`aws-dev-smoke-1m`은 aws-dev에서 runner, credential, dataset setup, 예매 여정, 자동 보고서 경로만 빠르게 확인하는 1분 smoke다.
+`1 journey/s`로 1분만 실행하므로 용량 판단에는 쓰지 않는다.
 
 `mau10k-ticket-open`은 MAU 1만, DAU/MAU 20%, DAU의 30%가 티켓 오픈 10분 안에 몰리는 상황을 가정한다.
 계산값은 `1 journey/s`이고 safety factor 2를 적용해 `2 journey/s`로 실행한다.
@@ -232,8 +243,10 @@ activeCustomerCount >= ceil(expectedJourneys / targetTicketsPerCustomer)
 ## Commands
 
 운영에서는 배포나 sync만으로 부하테스트를 자동 실행하지 않는다.
-aws-dev chart는 CronJob을 만들지 않고 Argo sync hook도 기본으로 꺼두며, 실험할 때만 `manualRuns.*.enabled`와 `manualRuns.*.runId` 값을 GitOps로 바꿔 선언한다.
+aws-dev chart는 CronJob을 만들지 않는다.
+실험할 때만 `manualRuns.*.runId` 값을 GitOps로 바꿔 Argo Hook Job을 한 번 실행한다.
 같은 수동 Job을 다시 만들려면 `runId`를 새 값으로 바꾼다.
+Hook Job은 성공하면 ArgoCD가 자동 삭제하고, 실패하면 로그 확인을 위해 남긴다.
 runner image는 `.github/workflows/loadtest-image-publish.yml`이 ECR에 publish하고, `values/aws-dev.yaml`의 `image.tag`를 commit SHA 기반 tag로 갱신한다.
 
 로컬에서는 개발 편의를 위해 Taskfile 명령으로 직접 실행한다.
@@ -303,15 +316,17 @@ task --dir gitops dev:loadtest:setup-dataset
 task --dir gitops dev:loadtest:run
 ```
 
-`values/aws-dev.yaml`은 CronJob을 만들지 않고 Argo sync hook Job도 끈다.
-부하테스트는 자동 반복 실행하면 결과 해석이 흐려지므로, 실험 조건을 확정한 뒤 manualRuns로 한 번씩 실행한다.
+`values/aws-dev.yaml`은 CronJob을 만들지 않는다.
+부하테스트는 자동 반복 실행하면 결과 해석이 흐려지므로, 실험 조건을 확정한 뒤 `manualRuns.*.runId`로 한 번씩 실행한다.
+`enabled`는 이전 값 파일과의 호환성을 위해 남겨두지만, 새 수동 실행은 `runId`만 채우면 된다.
+성공한 Hook Job은 ArgoCD가 자동 삭제하므로 실행 후 `enabled: false`로 되돌리는 복구 커밋은 필요 없다.
+실험을 더 이상 선언하지 않으려면 `runId: ""`로 비운다.
 
 GitOps 관리형 수동 dataset setup 예시:
 
 ```yaml
 manualRuns:
   dataset:
-    enabled: true
     runId: dataset-20260615-001
 ```
 
@@ -320,11 +335,10 @@ GitOps 관리형 수동 read baseline 예시:
 ```yaml
 manualRuns:
   read:
-    enabled: true
     runId: read-20260615-001
 ```
 
-같은 수동 Job을 다시 만들려면 `runId`를 새 값으로 바꾼다.
+같은 수동 Job을 다시 만들려면 `runId`를 새 값으로 바꾼다. 실패한 Hook Job은 남아 있으므로, 원인을 확인한 뒤 새 `runId`로 재실행한다.
 `reservation-journey-load-test` 실행 예시:
 
 ```yaml

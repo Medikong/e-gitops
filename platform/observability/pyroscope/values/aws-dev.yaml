@@ -38,9 +38,8 @@ pyroscope:
     limits:
       cpu: 500m
       memory: 2Gi
-  # aws-dev 3-node cluster currently has no dedicated platform worker.
-  # Keep this empty temporarily so the scheduler can place Pyroscope on available workers.
-  nodeSelector: {}
+  nodeSelector:
+    role: platform
 
 serviceMonitor:
   enabled: true

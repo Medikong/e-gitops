@@ -19,6 +19,8 @@ spec:
         deployment:
           accessible_namespaces:
             - "**"
+          node_selector:
+            role: platform
           resources:
             requests:
               cpu: 50m

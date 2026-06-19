@@ -1,5 +1,5 @@
 import { experimentConditionFields, summaryLine } from './log.js';
-import { HTTP_STEP_ROUTES, serviceLabel } from './http-metrics.js';
+import { HTTP_STEP_ROUTES, loadStageId, loadStageLabel, serviceLabel } from './http-metrics.js';
 
 function metricValue(metrics, name, key) {
   const metric = metrics && metrics[name];
@@ -92,6 +92,10 @@ function metricNameWithStep(name, step) {
   return `${name}{step:${step}}`;
 }
 
+function metricNameWithLoadStage(name, stageId) {
+  return `${name}{load_stage:${stageId}}`;
+}
+
 function reservationCreateOutcomeMetrics(metrics, step) {
   if (!step.endsWith('.reservation.create')) {
     return {};
@@ -105,6 +109,93 @@ function reservationCreateOutcomeMetrics(metrics, step) {
     reservation_create_5xx_count: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_5xx_count', step), 'count'),
     reservation_create_timeout_rate: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_timeout_rate', step), 'rate'),
     reservation_create_timeout_count: metricValue(metrics, metricNameWithStep('loadtest_reservation_create_timeout_count', step), 'count'),
+  };
+}
+
+function scaleOutMetricSuffix(target) {
+  return `${target.namespace}_${target.service}`.toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+}
+
+function scaleOutResults(config, metrics) {
+  const scaleOut = config.scaleOutReport || {};
+  if (!scaleOut.enabled || !Array.isArray(scaleOut.targets) || scaleOut.targets.length === 0) {
+    return [];
+  }
+  return scaleOut.targets.map((target) => {
+    const suffix = scaleOutMetricSuffix(target);
+    return {
+      service: target.service,
+      namespace: target.namespace,
+      baseline_replicas: metricValue(metrics, `loadtest_scale_out_${suffix}_baseline_replicas`, 'min'),
+      max_desired_replicas: metricValue(metrics, `loadtest_scale_out_${suffix}_desired_replicas`, 'max'),
+      hpa_decision_seconds: metricValue(metrics, `loadtest_scale_out_${suffix}_hpa_decision_seconds`, 'min'),
+      scale_out_ready_seconds: metricValue(metrics, `loadtest_scale_out_${suffix}_ready_seconds`, 'min'),
+    };
+  });
+}
+
+function limitReasons(config, row) {
+  const reasons = [];
+  if (row.reservation_create_5xx_rate !== null && row.reservation_create_5xx_rate > 0) {
+    reasons.push('reservation_create_5xx');
+  }
+  if (row.reservation_create_timeout_rate !== null && row.reservation_create_timeout_rate > 0) {
+    reasons.push('reservation_create_timeout');
+  }
+  if (row.http_req_failed_rate !== null && row.http_req_failed_rate >= config.thresholds.httpReqFailedRate) {
+    reasons.push('http_req_failed_rate');
+  }
+  if (row.http_req_duration_p99_ms !== null && row.http_req_duration_p99_ms >= config.thresholds.httpReqDurationP99Ms) {
+    reasons.push('http_req_duration_p99_ms');
+  }
+  return reasons;
+}
+
+function stressStageResults(config, metrics) {
+  return (config.stages || []).map((stage, index) => {
+    const stageId = loadStageId(stage, index);
+    const row = {
+      stage: stageId,
+      label: loadStageLabel(stage),
+      duration: stage.duration,
+      target_journeys_per_second: Number(stage.target),
+      http_req_duration_p95_ms: metricValue(metrics, metricNameWithLoadStage('http_req_duration', stageId), 'p(95)'),
+      http_req_duration_p99_ms: metricValue(metrics, metricNameWithLoadStage('http_req_duration', stageId), 'p(99)'),
+      http_req_failed_rate: metricValue(metrics, metricNameWithLoadStage('http_req_failed', stageId), 'rate'),
+      http_reqs_count: metricValue(metrics, metricNameWithLoadStage('http_reqs', stageId), 'count'),
+      http_reqs_rate: metricValue(metrics, metricNameWithLoadStage('http_reqs', stageId), 'rate'),
+      reservation_create_5xx_rate: metricValue(metrics, metricNameWithLoadStage('loadtest_reservation_create_5xx_rate', stageId), 'rate'),
+      reservation_create_timeout_rate: metricValue(metrics, metricNameWithLoadStage('loadtest_reservation_create_timeout_rate', stageId), 'rate'),
+    };
+    const reasons = limitReasons(config, row);
+    return {
+      ...row,
+      status: reasons.length > 0 ? 'LIMIT_CANDIDATE' : 'OK',
+      limit_reasons: reasons,
+    };
+  });
+}
+
+function scenarioReport(config, data) {
+  const metrics = data.metrics || {};
+  const base = {
+    scenario: config.scenario,
+    traffic_model_preset: (config.trafficModel || {}).preset,
+    scale_out_results: scaleOutResults(config, metrics),
+  };
+  if (config.scenario === 'reservation-journey-load-test' && (config.trafficModel || {}).preset === 'stress-find-limit') {
+    const stageResults = stressStageResults(config, metrics);
+    return {
+      ...base,
+      report_type: 'reservation_journey_stress_find_limit',
+      load_unit: 'journey/s',
+      stage_results: stageResults,
+      first_limit_candidate: stageResults.find((row) => row.limit_reasons.length > 0) || null,
+    };
+  }
+  return {
+    ...base,
+    report_type: 'generic',
   };
 }
 
@@ -344,6 +435,7 @@ function runReportLine(config, data, result, stepRows) {
     reservation_infra_failure_rate: metricValue(data.metrics || {}, 'loadtest_reservation_infra_failure_rate', 'rate'),
     execution_conditions: experimentConditionFields(config, 'summary'),
     api_step_results: apiStepResults(stepRows),
+    scenario_report: scenarioReport(config, data),
   });
 }
 

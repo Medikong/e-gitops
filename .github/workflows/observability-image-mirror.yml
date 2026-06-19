@@ -27,6 +27,7 @@ on:
           - opentelemetry-collector-contrib
           - loki
           - loki-sidecar
+          - pyroscope
       platforms:
         description: "미러링할 플랫폼 목록. 예: linux/arm64 또는 linux/arm64,linux/amd64"
         required: true

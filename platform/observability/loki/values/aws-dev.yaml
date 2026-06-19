@@ -80,9 +80,8 @@ singleBinary:
     limits:
       cpu: 500m
       memory: 768Mi
-  # aws-dev 3-node cluster currently has no dedicated platform worker.
-  # Keep this empty temporarily so the scheduler can place Loki on available workers.
-  nodeSelector: {}
+  nodeSelector:
+    role: platform
 
 sidecar:
   image:

@@ -1,11 +1,17 @@
 import http from 'k6/http';
 import { check, fail, group, sleep } from 'k6';
-import { Rate } from 'k6/metrics';
+import { Counter, Rate } from 'k6/metrics';
 
 import { loginAdmin, loginProvider } from '../lib/auth.js';
 import { getConfig, requireCustomerPool, requireDatasetCredentials } from '../lib/config.js';
 import { activeCustomerCount, customerPoolAccount, customerPoolIndexForIteration } from '../lib/customer-pool.js';
-import { httpStepThresholds, RESERVATION_JOURNEY_STEPS } from '../lib/http-metrics.js';
+import {
+  httpStageThresholds,
+  httpStepThresholds,
+  loadStageForElapsed,
+  loadStageId,
+  RESERVATION_JOURNEY_STEPS,
+} from '../lib/http-metrics.js';
 import {
   logDatasetFinished,
   logExperimentConditions,
@@ -16,6 +22,7 @@ import {
 } from '../lib/log.js';
 import { requireField } from '../lib/pick.js';
 import { summaryOutput } from '../lib/report.js';
+import { observeScaleOut, scaleOutOptions, setupScaleOutBaselines } from '../lib/scale-out.js';
 import {
   approvePayment,
   createReservationWithSeatRetry,
@@ -28,7 +35,23 @@ const config = getConfig();
 const journeySuccess = new Rate('loadtest_reservation_journey_success');
 const reservationConflictRate = new Rate('loadtest_reservation_conflict_rate');
 const ticketIssuedRate = new Rate('loadtest_ticket_issued_rate');
+const reservationCreate201Rate = new Rate('loadtest_reservation_create_201_rate');
+const reservationCreate409Rate = new Rate('loadtest_reservation_create_409_rate');
+const reservationCreate5xxRate = new Rate('loadtest_reservation_create_5xx_rate');
+const reservationCreateTimeoutRate = new Rate('loadtest_reservation_create_timeout_rate');
+const reservationCreate201Count = new Counter('loadtest_reservation_create_201_count');
+const reservationCreate409Count = new Counter('loadtest_reservation_create_409_count');
+const reservationCreate5xxCount = new Counter('loadtest_reservation_create_5xx_count');
+const reservationCreateTimeoutCount = new Counter('loadtest_reservation_create_timeout_count');
 const PRE_LOGIN_STEP = 'reservation_journey.setup.pre_login';
+const RESERVATION_CREATE_STEP = 'reservation_journey.reservation.create';
+
+function measurementElapsedSeconds(setupData) {
+  if (!setupData || !setupData.measurementStartedAtMs) {
+    return 0;
+  }
+  return Math.max(0, (Date.now() - setupData.measurementStartedAtMs) / 1000);
+}
 
 function iterationConfig(setupData) {
   const datasetRevision = setupData && setupData.datasetRevision ? setupData.datasetRevision : config.dataset.revision;
@@ -41,14 +64,66 @@ function iterationConfig(setupData) {
   };
   const iterationId = `${Date.now()}-${__VU}-${__ITER}`;
   const customerIndex = customerPoolIndexForIteration(runBaseConfig, __VU, __ITER);
+  const loadStage = loadStageForElapsed(runBaseConfig.stages, measurementElapsedSeconds(setupData));
   return {
     ...runBaseConfig,
+    loadStage,
     iterationId,
     requestIdBase: `${config.requestPrefix}-${config.scenario}-${iterationId}`,
     customer: {
       index: customerIndex,
     },
   };
+}
+
+function metricTags(runConfig) {
+  return {
+    environment: runConfig.environment,
+    profile: runConfig.dataset.profile,
+    test_type: runConfig.testType,
+    target: runConfig.target,
+    step: RESERVATION_CREATE_STEP,
+    ...(runConfig.loadStage ? {
+      load_stage: runConfig.loadStage.id,
+      load_stage_label: runConfig.loadStage.label,
+      load_stage_target: String(runConfig.loadStage.target),
+    } : {}),
+  };
+}
+
+function recordReservationStatus(runConfig, status) {
+  const tags = metricTags(runConfig);
+  const is201 = status === 201;
+  const is409 = status === 409;
+  const isTimeout = status === 0;
+  const is5xx = status >= 500 && status < 600;
+
+  reservationCreate201Rate.add(is201, tags);
+  reservationCreate409Rate.add(is409, tags);
+  reservationCreate5xxRate.add(is5xx, tags);
+  reservationCreateTimeoutRate.add(isTimeout, tags);
+  if (is201) {
+    reservationCreate201Count.add(1, tags);
+  }
+  if (is409) {
+    reservationCreate409Count.add(1, tags);
+  }
+  if (is5xx) {
+    reservationCreate5xxCount.add(1, tags);
+  }
+  if (isTimeout) {
+    reservationCreateTimeoutCount.add(1, tags);
+  }
+}
+
+function reservationCreateStageThresholds(stages) {
+  const result = {};
+  for (let index = 0; index < (stages || []).length; index += 1) {
+    const stageId = loadStageId(stages[index], index);
+    result[`loadtest_reservation_create_5xx_rate{load_stage:${stageId}}`] = ['rate>=0'];
+    result[`loadtest_reservation_create_timeout_rate{load_stage:${stageId}}`] = ['rate>=0'];
+  }
+  return result;
 }
 
 function executorConfig() {
@@ -269,6 +344,7 @@ function stateFromTarget(target) {
 }
 
 export const options = {
+  ...scaleOutOptions(config),
   setupTimeout: config.setupTimeout,
   scenarios: {
     [config.scenario]: {
@@ -292,6 +368,8 @@ export const options = {
     loadtest_reservation_conflict_rate: [`rate<${config.thresholds.reservationConflictRate}`],
     loadtest_ticket_issued_rate: [`rate>${config.thresholds.ticketIssuedRate}`],
     ...httpStepThresholds(RESERVATION_JOURNEY_STEPS, config.thresholds),
+    ...httpStageThresholds(config.executor === 'ramping-arrival-rate' ? config.stages : [], config.thresholds),
+    ...reservationCreateStageThresholds(config.executor === 'ramping-arrival-rate' ? config.stages : []),
   },
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   tags: {
@@ -314,6 +392,8 @@ export function setup() {
     customerState: state,
     datasetState,
     datasetRevision: setupConfig.dataset.revision,
+    measurementStartedAtMs: Date.now(),
+    scaleOutBaselines: setupScaleOutBaselines(setupConfig),
   };
 }
 
@@ -328,6 +408,7 @@ export default function reservationJourneyLoadTest(setupData) {
   let conflictMetricRecorded = false;
   let ticketMetricRecorded = false;
 
+  observeScaleOut(runConfig, setupData, __ITER);
   logRunStarted(runConfig);
   try {
     group('catalog.select_seat', () => {
@@ -347,7 +428,8 @@ export default function reservationJourneyLoadTest(setupData) {
           Object.assign(state, stateFromTarget(target));
           return target;
         },
-        (isConflict) => {
+        (isConflict, status) => {
+          recordReservationStatus(runConfig, status);
           reservationConflictRate.add(isConflict);
           conflictMetricRecorded = true;
           if (isConflict) {

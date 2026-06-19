@@ -1,10 +1,18 @@
-{{- if .Values.manualRuns.dataset.enabled }}
-{{- $runId := required "manualRuns.dataset.runId is required when manualRuns.dataset.enabled is true" .Values.manualRuns.dataset.runId -}}
+{{- $datasetRunId := default "" .Values.manualRuns.dataset.runId -}}
+{{- $datasetEnabled := or .Values.manualRuns.dataset.enabled (ne $datasetRunId "") -}}
+{{- $readRunId := default "" .Values.manualRuns.read.runId -}}
+{{- $readEnabled := or .Values.manualRuns.read.enabled (ne $readRunId "") -}}
+{{- if $datasetEnabled }}
+{{- $runId := required "manualRuns.dataset.runId is required when manualRuns.dataset.enabled is true" $datasetRunId -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ printf "%s-dataset-%s" (include "read-api-loadtest.fullname" .) $runId | trunc 63 | trimSuffix "-" | quote }}
   namespace: {{ include "read-api-loadtest.namespace" . | quote }}
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.manualRuns.dataset.hook | quote }}
+    argocd.argoproj.io/hook-delete-policy: {{ .Values.manualRuns.dataset.hookDeletePolicy | quote }}
+    argocd.argoproj.io/sync-wave: {{ .Values.manualRuns.dataset.hookWeight | quote }}
   labels:
 {{ include "read-api-loadtest.labelsForScenario" (dict "root" . "scenario" .Values.dataset.scenario) | indent 4 }}
     medikong.io/execution: gitops-manual
@@ -22,16 +30,20 @@ spec:
     spec:
 {{ include "read-api-loadtest.podSpec" (dict "root" . "scenario" .Values.dataset.scenario "credentialsSecretName" .Values.dataset.credentialsSecretName) | indent 6 }}
 {{- end }}
-{{- if and .Values.manualRuns.dataset.enabled .Values.manualRuns.read.enabled }}
+{{- if and $datasetEnabled $readEnabled }}
 ---
 {{- end }}
-{{- if .Values.manualRuns.read.enabled }}
-{{- $runId := required "manualRuns.read.runId is required when manualRuns.read.enabled is true" .Values.manualRuns.read.runId -}}
+{{- if $readEnabled }}
+{{- $runId := required "manualRuns.read.runId is required when manualRuns.read.enabled is true" $readRunId -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ printf "%s-read-%s" (include "read-api-loadtest.fullname" .) $runId | trunc 63 | trimSuffix "-" | quote }}
   namespace: {{ include "read-api-loadtest.namespace" . | quote }}
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.manualRuns.read.hook | quote }}
+    argocd.argoproj.io/hook-delete-policy: {{ .Values.manualRuns.read.hookDeletePolicy | quote }}
+    argocd.argoproj.io/sync-wave: {{ .Values.manualRuns.read.hookWeight | quote }}
   labels:
 {{ include "read-api-loadtest.labelsForScenario" (dict "root" . "scenario" .Values.loadtest.scenario) | indent 4 }}
     medikong.io/execution: gitops-manual

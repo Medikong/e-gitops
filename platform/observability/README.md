@@ -133,6 +133,7 @@ ECR mirror 방식
 platform/observability/tempo/values/aws-dev.yaml
 platform/observability/collector/values/aws-dev.yaml
 platform/observability/loki/values/aws-dev.yaml
+platform/observability/pyroscope/values/aws-dev.yaml
 ```
 
 각 values 파일의 `imageMirror.images`가 CI 미러링 기준이다. Helm chart schema가 외부 key를 허용하지 않는 컴포넌트는 `image-mirror/<환경>.yaml`에 같은 구조로 둔다. workflow는 `platform/observability/*/values/<환경>.yaml`와 `platform/observability/*/image-mirror/<환경>.yaml`를 함께 스캔한다.

@@ -3,7 +3,7 @@ environment: aws-dev
 image:
   registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
   repository: read-api-loadtest
-  tag: dea40900e699b2b2331fc8167c9a4f1a04700859
+  tag: f7cad83f051989b146e541164463b23c78e36e84
   pullPolicy: Always
   pullSecrets:
     - ecr-registry
@@ -34,6 +34,25 @@ loadtest:
   baseUrl: http://kong-kong-proxy.kong.svc.cluster.local
   localBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
   awsBaseUrl: http://kong-kong-proxy.kong.svc.cluster.local
+
+scaleOutReport:
+  enabled: true
+  pollEveryIterations: 10
+  rbac:
+    create: true
+  targets:
+    - service: auth-service
+      namespace: ticketing-auth
+    - service: concert-service
+      namespace: ticketing-concert
+    - service: notification-service
+      namespace: ticketing-notification
+    - service: payment-service
+      namespace: ticketing-payment
+    - service: reservation-service
+      namespace: ticketing-reservation
+    - service: ticket-service
+      namespace: ticketing-ticket
 
 scenarios:
   readApiBaseline:

@@ -7,20 +7,13 @@ app:
 
 image:
   repository: auth-service
-  tag: v0.1.2
+  tag: v0.2.0
 
 deployment:
   replicas: 3
 
 container:
   port: 8080
-  resources:
-    requests:
-      cpu: 500m
-      memory: 128Mi
-    limits:
-      cpu: "2"
-      memory: 512Mi
   env:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@auth-db:5432/auth_db
@@ -103,12 +96,6 @@ networkPolicy:
           port: 4317
         - protocol: TCP
           port: 4318
-hpa:
-  enabled: true
-  minReplicas: 3
-  maxReplicas: 3
-  targetCPUUtilizationPercentage: 70
-
 nodeSelector:
   role: app
 observability:

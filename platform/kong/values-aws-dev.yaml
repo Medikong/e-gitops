@@ -40,6 +40,9 @@ ingressController:
       cpu: 200m
       memory: 256Mi
 
+nodeSelector:
+  role: platform
+
 resources:
   requests:
     cpu: 5m
