@@ -17,6 +17,8 @@ spec:
         pilot:
           autoscaleEnabled: false
           replicaCount: 1
+          nodeSelector:
+            role: platform
           resources:
             requests:
               cpu: 100m

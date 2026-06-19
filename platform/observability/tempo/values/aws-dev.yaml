@@ -38,9 +38,8 @@ persistence:
   storageClassName: medikong-aws-gp3
   size: 10Gi
 
-# aws-dev 3-node cluster currently has no dedicated platform worker.
-# Keep this empty temporarily so the scheduler can place Tempo on available workers.
-nodeSelector: {}
+nodeSelector:
+  role: platform
 
 serviceMonitor:
   enabled: false
