@@ -314,6 +314,36 @@ Runtime validation:
 task circuit-breaker:check
 ```
 
+## Notification failure isolation policy
+
+`notification-service` keeps a default `DestinationRule` in GitOps so failure
+isolation does not depend on a manual runtime patch. This policy is intentionally
+lighter than the reservation policy because notification is an asynchronous
+side-effect service and should not consume the same connection budget as core
+reservation traffic.
+
+Default policy:
+
+```text
+connectionPool.tcp.maxConnections = 50
+connectionPool.http.http1MaxPendingRequests = 50
+connectionPool.http.maxRequestsPerConnection = 20
+outlierDetection.consecutive5xxErrors = 3
+outlierDetection.interval = 10s
+outlierDetection.baseEjectionTime = 30s
+outlierDetection.maxEjectionPercent = 50
+```
+
+GitOps path:
+
+```text
+platform/istio/traffic/notification
+```
+
+Only the stable `DestinationRule` is included in the default GitOps state.
+Fault injection resources that force `notification-service` to return HTTP 503
+must remain test-only resources and should be applied only during validation.
+
 The runtime ejection check requires at least two healthy `reservation-service`
 endpoints with Envoy sidecars. If the application pods are failing because DB or
 Kafka is unavailable, keep this as a manifest-level implementation until the

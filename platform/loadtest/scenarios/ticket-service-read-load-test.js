@@ -43,6 +43,7 @@ function setupTags(runConfig) {
 
 function setupRequestJson(runConfig, token, method, path, body, expectedStatuses) {
   const payload = body === null || body === undefined ? null : JSON.stringify(body);
+  const route = `${method} ${path}`;
   const response = http.request(method, `${runConfig.baseUrl}${path}`, payload, {
     headers: {
       Accept: 'application/json',
@@ -54,16 +55,22 @@ function setupRequestJson(runConfig, token, method, path, body, expectedStatuses
     timeout: `${runConfig.timeoutSeconds}s`,
     tags: {
       ...setupTags(runConfig),
-      name: `${method} ${path}`,
-      route: `${method} ${path}`,
+      name: route,
+      route,
       service: 'ticket-service',
+      step: SETUP_TICKET_ISSUE_STEP,
     },
   });
 
   const ok = check(response, {
     [`${SETUP_TICKET_ISSUE_STEP} returned expected status`]: (res) => expectedStatuses.includes(res.status),
     [`${SETUP_TICKET_ISSUE_STEP} returned json`]: (res) => String(res.headers['Content-Type'] || res.headers['content-type'] || '').includes('application/json'),
-  }, setupTags(runConfig));
+  }, {
+    ...setupTags(runConfig),
+    route,
+    service: 'ticket-service',
+    step: SETUP_TICKET_ISSUE_STEP,
+  });
   if (!ok) {
     fail(`${SETUP_TICKET_ISSUE_STEP} ${method} ${path} failed with status ${response.status}`);
   }
@@ -254,7 +261,7 @@ export const options = {
     ],
     checks: [`rate>${config.thresholds.checksRate}`],
     loadtest_ticket_service_read_success: [`rate>${config.thresholds.ticketServiceReadSuccessRate}`],
-    ...httpStepThresholds(TICKET_SERVICE_READ_STEPS, config.thresholds),
+    ...httpStepThresholds([PRE_LOGIN_STEP, SETUP_TICKET_ISSUE_STEP, ...TICKET_SERVICE_READ_STEPS], config.thresholds),
   },
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   tags: {

@@ -120,6 +120,85 @@ tasks:
     cmds:
       - task: loadtest:run
 
+  aws:loadtest:
+    desc: aws-dev loadtest run values를 갱신해 ArgoCD로 1회 실행합니다. 기본 PRESET=aws-dev-smoke-1m
+    cmds:
+      - |
+        set -eu
+        preset="${PRESET:-${LOADTEST_PRESET:-aws-dev-smoke-1m}}"
+        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-reservation-journey-load-test}}"
+        scenario_base="${scenario%-load-test}"
+
+        preset_file=""
+        for candidate in \
+          "platform/loadtest/values/presets/${scenario}/${preset}.yaml" \
+          "platform/loadtest/values/presets/${scenario_base}/${preset}.yaml" \
+          "platform/loadtest/values/presets/${preset}.yaml"; do
+          if [ -f "${candidate}" ]; then
+            preset_file="${candidate}"
+            break
+          fi
+        done
+        if [ -z "${preset_file}" ]; then
+          printf 'Unknown PRESET=%s for SCENARIO=%s.\n' "${preset}" "${scenario}" >&2
+          exit 2
+        fi
+
+        run_id="${LOADTEST_RUN_ID:-${preset}-$(date -u +%Y%m%d%H%M%S)}"
+        run_id="$(printf '%s' "${run_id}" \
+          | tr '[:upper:]' '[:lower:]' \
+          | sed 's/[^a-z0-9-]/-/g; s/^-*//; s/-*$//; s/--*/-/g' \
+          | cut -c1-40)"
+        if [ -z "${run_id}" ]; then
+          printf '%s\n' 'LOADTEST_RUN_ID did not contain any Kubernetes-safe characters.' >&2
+          exit 2
+        fi
+
+        run_file="platform/loadtest/values/runs/aws-dev/${scenario_base}-${preset}.yaml"
+        argo_file="argo/applications/aws-dev/platform/loadtest.yaml"
+        chart_preset_file="${preset_file#platform/loadtest/}"
+        chart_run_file="${run_file#platform/loadtest/}"
+
+        mkdir -p "$(dirname "${run_file}")"
+        RUN_FILE="${run_file}" RUN_ID="${run_id}" ruby -e '
+          path = ENV.fetch("RUN_FILE")
+          run_id = ENV.fetch("RUN_ID")
+          File.write(path, %(manualRuns:\n  read:\n    runId: "#{run_id}"\n))
+        '
+
+        ARGO_FILE="${argo_file}" CHART_PRESET_FILE="${chart_preset_file}" CHART_RUN_FILE="${chart_run_file}" ruby -e '
+          path = ENV.fetch("ARGO_FILE")
+          files = [
+            "values/aws-dev.yaml",
+            ENV.fetch("CHART_PRESET_FILE"),
+            ENV.fetch("CHART_RUN_FILE"),
+          ]
+          lines = File.readlines(path)
+          out = []
+          i = 0
+          while i < lines.length
+            out << lines[i]
+            if lines[i].match?(/^\s+valueFiles:\s*$/)
+              i += 1
+              i += 1 while i < lines.length && lines[i].match?(/^\s+-\s+/)
+              files.each { |file| out << "        - #{file}\n" }
+              next
+            end
+            i += 1
+          end
+          File.write(path, out.join)
+        '
+
+        LOADTEST_VALUES_FILE=values/aws-dev.yaml LOADTEST_SCENARIO_VALUES_FILE="${chart_preset_file}" task loadtest:render >/dev/null
+        git add "${argo_file}" "${run_file}"
+        if git diff --cached --quiet; then
+          printf '%s\n' 'No loadtest trigger changes to commit.'
+          exit 0
+        fi
+        git commit -m "chore(loadtest): trigger aws-dev ${preset} run"
+        git push
+        printf 'Triggered aws-dev loadtest preset=%s scenario=%s run_id=%s\n' "${preset}" "${scenario}" "${run_id}"
+
   dev:platform:
     internal: true
     desc: Docker Desktop dev의 namespace, data, Kong 기반 리소스를 준비합니다.
@@ -698,6 +777,7 @@ tasks:
     desc: Istio platform ArgoCD Application 레이어를 렌더링합니다.
     cmds:
       - '{{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}} >/dev/null'
+      - '{{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/notification >/dev/null'
 
   dev:istio:
     desc: 현재 Kubernetes 컨텍스트에 Istio platform ArgoCD Application을 등록하고 상태 확인 명령을 안내합니다.
@@ -845,28 +925,37 @@ tasks:
         printf '%s\n' '  platform/istio/traffic/reservation/scenarios/rollback'
 
   circuit-breaker:render:
-    desc: reservation-service circuit breaker와 fault injection scenario manifest를 렌더링합니다.
+    desc: reservation-service/notification-service circuit breaker와 fault injection scenario manifest를 렌더링합니다.
     cmds:
       - |
         set -eu
         {{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/reservation >/dev/null
+        {{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/notification >/dev/null
         for scenario in fault-5xx fault-delay rollback; do
           {{.KUBECTL}} kustomize "{{.ISTIO_PLATFORM}}/traffic/reservation/scenarios/${scenario}" >/dev/null
         done
 
   circuit-breaker:check:
-    desc: reservation-service circuit breaker 정책과 검증 대상 리소스 상태를 확인합니다.
+    desc: reservation-service/notification-service circuit breaker 정책과 검증 대상 리소스 상태를 확인합니다.
     cmds:
       - |
         set -eu
         {{.KUBECTL}} get destinationrule -n ticketing-reservation reservation-service
+        {{.KUBECTL}} get destinationrule -n ticketing-notification notification-service
         {{.KUBECTL}} get virtualservice -n ticketing-reservation reservation-service
         {{.KUBECTL}} get pods -n ticketing-reservation -l app=reservation-service --show-labels
+        {{.KUBECTL}} get pods -n ticketing-notification -l app=notification-service --show-labels
         printf '%s\n' 'Expected DestinationRule trafficPolicy:'
         printf '%s\n' '  connectionPool.tcp.maxConnections=100'
         printf '%s\n' '  connectionPool.http.http1MaxPendingRequests=100'
         printf '%s\n' '  connectionPool.http.maxRequestsPerConnection=50'
         printf '%s\n' '  outlierDetection.consecutive5xxErrors=5'
+        printf '%s\n' '  outlierDetection.baseEjectionTime=30s'
+        printf '%s\n' 'Expected notification DestinationRule trafficPolicy:'
+        printf '%s\n' '  connectionPool.tcp.maxConnections=50'
+        printf '%s\n' '  connectionPool.http.http1MaxPendingRequests=50'
+        printf '%s\n' '  connectionPool.http.maxRequestsPerConnection=20'
+        printf '%s\n' '  outlierDetection.consecutive5xxErrors=3'
         printf '%s\n' '  outlierDetection.baseEjectionTime=30s'
         printf '%s\n' 'Expected VirtualService stable policy:'
         printf '%s\n' '  timeout=2s'

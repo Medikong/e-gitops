@@ -11,6 +11,7 @@ import {
   loadStageForElapsed,
   loadStageId,
   RESERVATION_JOURNEY_STEPS,
+  serviceLabel,
 } from '../lib/http-metrics.js';
 import {
   logDatasetFinished,
@@ -187,6 +188,8 @@ function preLoginTags(runConfig) {
 
 function setupAuthRequestJson(runConfig, method, path, body, expectedStatuses) {
   const payload = body === null || body === undefined ? null : JSON.stringify(body);
+  const route = `${method} ${path}`;
+  const service = serviceLabel(PRE_LOGIN_STEP);
   const response = http.request(method, `${runConfig.baseUrl}${path}`, payload, {
     headers: {
       Accept: 'application/json',
@@ -197,16 +200,22 @@ function setupAuthRequestJson(runConfig, method, path, body, expectedStatuses) {
     timeout: `${runConfig.timeoutSeconds}s`,
     tags: {
       ...preLoginTags(runConfig),
-      name: `${method} ${path}`,
-      route: `${method} ${path}`,
-      service: 'auth-service',
+      name: route,
+      route,
+      service,
+      step: PRE_LOGIN_STEP,
     },
   });
 
   const ok = check(response, {
     'reservation journey setup auth returned expected status': (res) => expectedStatuses.includes(res.status),
     'reservation journey setup auth returned json': (res) => String(res.headers['Content-Type'] || res.headers['content-type'] || '').includes('application/json'),
-  }, preLoginTags(runConfig));
+  }, {
+    ...preLoginTags(runConfig),
+    route,
+    service,
+    step: PRE_LOGIN_STEP,
+  });
   if (!ok) {
     fail(`${PRE_LOGIN_STEP} ${method} ${path} failed with status ${response.status}`);
   }
@@ -367,7 +376,7 @@ export const options = {
     loadtest_reservation_journey_success: [`rate>${config.thresholds.reservationJourneySuccessRate}`],
     loadtest_reservation_conflict_rate: [`rate<${config.thresholds.reservationConflictRate}`],
     loadtest_ticket_issued_rate: [`rate>${config.thresholds.ticketIssuedRate}`],
-    ...httpStepThresholds(RESERVATION_JOURNEY_STEPS, config.thresholds),
+    ...httpStepThresholds([PRE_LOGIN_STEP, ...RESERVATION_JOURNEY_STEPS], config.thresholds),
     ...httpStageThresholds(config.executor === 'ramping-arrival-rate' ? config.stages : [], config.thresholds),
     ...reservationCreateStageThresholds(config.executor === 'ramping-arrival-rate' ? config.stages : []),
   },

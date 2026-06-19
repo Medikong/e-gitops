@@ -3,6 +3,7 @@ import { check, fail, group, sleep } from 'k6';
 
 import { loginAdmin, loginProvider } from '../lib/auth.js';
 import { activeCustomerCount, customerPoolAccount, customerPoolIndexForIteration } from '../lib/customer-pool.js';
+import { serviceLabel } from '../lib/http-metrics.js';
 import { logDatasetFinished } from '../lib/log.js';
 import { requireField } from '../lib/pick.js';
 import { setupReadApiBasicDataset } from './datasets/read-api-basic.js';
@@ -124,6 +125,8 @@ function preLoginTags(runConfig) {
 
 function setupAuthRequestJson(runConfig, method, path, body, expectedStatuses, step) {
   const payload = body === null || body === undefined ? null : JSON.stringify(body);
+  const route = `${method} ${path}`;
+  const service = serviceLabel(step);
   const response = http.request(method, `${runConfig.baseUrl}${path}`, payload, {
     headers: {
       Accept: 'application/json',
@@ -134,16 +137,22 @@ function setupAuthRequestJson(runConfig, method, path, body, expectedStatuses, s
     timeout: `${runConfig.timeoutSeconds}s`,
     tags: {
       ...preLoginTags(runConfig),
-      name: `${method} ${path}`,
-      route: `${method} ${path}`,
-      service: 'auth-service',
+      name: route,
+      route,
+      service,
+      step,
     },
   });
 
   const ok = check(response, {
     [`${step} returned expected status`]: (res) => expectedStatuses.includes(res.status),
     [`${step} returned json`]: (res) => String(res.headers['Content-Type'] || res.headers['content-type'] || '').includes('application/json'),
-  }, preLoginTags(runConfig));
+  }, {
+    ...preLoginTags(runConfig),
+    route,
+    service,
+    step,
+  });
   if (!ok) {
     fail(`${step} ${method} ${path} failed with status ${response.status}`);
   }

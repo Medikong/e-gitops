@@ -38,7 +38,8 @@ measure: GET /tickets/me?limit=...&cursor=...
 기본 좌석 선택은 dataset concert 안에서 run id 기반으로 분산한다.
 좌석 경쟁 자체를 확인하는 실험은 별도 시나리오로 둔다.
 `reservation_id`, `payment_id`, `ticket_id` 같은 동적 ID는 metric label/tag가 아니라 JSON 로그 필드에만 남긴다.
-단계별 latency는 본 실행 step tag가 붙은 `http_req_duration`으로 보고, setup/pre-login은 run report의 `api_step_results` 대상에서 제외한다.
+단계별 latency는 step tag가 붙은 `http_req_duration`으로 본다.
+본 실행 step은 물론 setup/pre-login auth 호출도 `api_step_results`에 포함해, smoke가 setup에서 실패해도 `/auth/signup|login`의 p50/p95/p99, error rate, RPS를 확인할 수 있게 한다.
 예매 성공률, 409 비율, 티켓 발급률은 custom metric threshold로 본다.
 
 `reservation-create-load-test`는 예약 생성 경로만 분리한 R2 시나리오다.
@@ -244,9 +245,10 @@ activeCustomerCount >= ceil(expectedJourneys / targetTicketsPerCustomer)
 
 운영에서는 배포나 sync만으로 부하테스트를 자동 실행하지 않는다.
 aws-dev chart는 CronJob을 만들지 않는다.
-실험할 때만 `manualRuns.*.runId` 값을 GitOps로 바꿔 Argo Hook Job을 한 번 실행한다.
-같은 수동 Job을 다시 만들려면 `runId`를 새 값으로 바꾼다.
-Hook Job은 성공하면 ArgoCD가 자동 삭제하고, 실패하면 로그 확인을 위해 남긴다.
+aws-dev 수동 실행은 `task aws:loadtest`가 GitOps run values의 `manualRuns.read.runId`를 새 값으로 바꾸고 commit/push해서 ArgoCD Hook Job을 한 번 생성한다.
+기본 실행은 `aws-dev-smoke-1m`이고, 다른 실험은 `PRESET=<preset-name>`으로 선택한다.
+팀원은 git push 권한만 있으면 실행할 수 있고, 각자 로컬 kubeconfig나 SSH 키를 가질 필요가 없다.
+Job은 클러스터 안에서 실행되므로 로컬이나 GitHub Actions runner의 CPU로 부하를 만들지 않는다.
 runner image는 `.github/workflows/loadtest-image-publish.yml`이 ECR에 publish하고, `values/aws-dev.yaml`의 `image.tag`를 commit SHA 기반 tag로 갱신한다.
 
 로컬에서는 개발 편의를 위해 Taskfile 명령으로 직접 실행한다.
@@ -265,6 +267,10 @@ S3 업로드와 AWS 장기 보관은 포함하지 않는다.
 Kong rate limit을 포함한 제품 경로 기준선을 보려면 `LOADTEST_DISABLE_KONG_RATE_LIMIT=false`를 명시한다.
 
 ```bash
+task --dir gitops aws:loadtest
+PRESET=mau10k-ticket-open task --dir gitops aws:loadtest
+PRESET=stress-find-limit task --dir gitops aws:loadtest
+
 SCENARIO=read-api-baseline task --dir gitops dev:loadtest
 SCENARIO=auth-login-load-test task --dir gitops dev:loadtest
 SCENARIO=ticket-service-read-load-test task --dir gitops dev:loadtest
@@ -310,6 +316,7 @@ task --dir gitops/platform/loadtest status
 로컬 root task 기준:
 
 ```bash
+task --dir gitops aws:loadtest
 task --dir gitops dev:loadtest
 task --dir gitops dev:loadtest:deploy
 task --dir gitops dev:loadtest:setup-dataset
@@ -317,7 +324,8 @@ task --dir gitops dev:loadtest:run
 ```
 
 `values/aws-dev.yaml`은 CronJob을 만들지 않는다.
-부하테스트는 자동 반복 실행하면 결과 해석이 흐려지므로, 실험 조건을 확정한 뒤 `manualRuns.*.runId`로 한 번씩 실행한다.
+부하테스트는 자동 반복 실행하면 결과 해석이 흐려지므로, 실험 조건을 확정한 뒤 `task aws:loadtest`로 한 번씩 실행한다.
+GitOps에 실행 선언을 남겨야 하는 예외 상황에서는 `manualRuns.*.runId`를 사용할 수 있다.
 `enabled`는 이전 값 파일과의 호환성을 위해 남겨두지만, 새 수동 실행은 `runId`만 채우면 된다.
 성공한 Hook Job은 ArgoCD가 자동 삭제하므로 실행 후 `enabled: false`로 되돌리는 복구 커밋은 필요 없다.
 실험을 더 이상 선언하지 않으려면 `runId: ""`로 비운다.

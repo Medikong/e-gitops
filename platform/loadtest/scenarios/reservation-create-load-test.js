@@ -151,7 +151,7 @@ export const options = {
     loadtest_reservation_handled_rate: [`rate>${config.thresholds.reservationHandledRate}`],
     loadtest_reservation_created_rate: [`rate>${config.thresholds.reservationCreatedRate}`],
     loadtest_reservation_infra_failure_rate: [`rate<${config.thresholds.reservationInfraFailureRate}`],
-    ...httpStepThresholds(RESERVATION_CREATE_STEPS, config.thresholds),
+    ...httpStepThresholds([PRE_LOGIN_STEP, ...RESERVATION_CREATE_STEPS], config.thresholds),
   },
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   tags: {
