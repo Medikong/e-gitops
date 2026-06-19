@@ -277,6 +277,7 @@ export function summaryLine(config, data) {
     scenario: config.scenario || __ENV.LOADTEST_SCENARIO || 'read-api-baseline',
     target: config.target || __ENV.LOADTEST_TARGET || 'local',
     summary_step: config.summaryStep,
+    http_req_duration_p50_ms: summaryMetricValue(config, metrics, 'http_req_duration', 'med'),
     http_req_duration_p95_ms: summaryMetricValue(config, metrics, 'http_req_duration', 'p(95)'),
     http_req_duration_p99_ms: summaryMetricValue(config, metrics, 'http_req_duration', 'p(99)'),
     http_req_failed_rate: summaryMetricValue(config, metrics, 'http_req_failed', 'rate'),

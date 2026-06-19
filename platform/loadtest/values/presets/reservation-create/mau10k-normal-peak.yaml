@@ -34,7 +34,7 @@ scenarios:
     timeUnit: 2s
     preAllocatedVUs: 20
     maxVUs: 50
-    duration: 10m
+    duration: 5m
     stages: []
     thinkTimeSeconds: 1
     activeCustomerCount: 50

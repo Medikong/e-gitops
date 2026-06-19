@@ -103,7 +103,7 @@ measure: ticket-wait-by-list, 특정 reservationId의 ticket을 목록 paginatio
 ```
 
 분석 기준은 `loadtest_run_report.api_step_results`의 `ticket-list`, `ticket-list-pagination`, `ticket-wait-by-list` 행이다.
-각 행에서 p95/p99, error rate, `http_reqs_rate`, `rps`, request count를 비교한다.
+각 행에서 p50/p95/p99, error rate, `http_reqs_rate`, `rps`, request count를 비교한다.
 RPS, duration, VU, local/cluster 차이는 scenario 코드가 아니라 `values/scenarios/ticket-service-read-load-test.yaml` 또는 `values/presets/ticket-service-read/*.yaml`에서 조절한다.
 
 `setup-read-dataset`은 부하테스트용 fake read dataset을 준비한다.
@@ -148,6 +148,8 @@ k6 실행 로그와 `handleSummary` 결과를 stdout JSON line으로 남기고, 
 실험 결과는 `loadtest_run_report` JSON line 하나를 단일 결과로 보고, 호환용 전체 요약은 `loadtest_summary` JSON line으로 함께 남긴다.
 요청 처리량은 기존 k6 이름인 `http_reqs_rate`와 사람이 읽기 쉬운 별칭인 `rps`를 함께 기록한다.
 API별 처리량 비교에서는 `loadtest_run_report.api_step_results[].rps`를 보고, 전체 실행 처리량은 `loadtest_run_report.rps`를 본다.
+레이턴시는 일반적인 사용자 체감에 가까운 p50과 tail latency를 보는 p95/p99를 함께 기록한다.
+전체 실행은 `loadtest_run_report.http_req_duration_p50_ms`와 `loadtest_summary.http_req_duration_p50_ms`, API step별 결과는 `loadtest_run_report.api_step_results[].http_req_duration_p50_ms`를 본다.
 
 ## Scenario conditions
 

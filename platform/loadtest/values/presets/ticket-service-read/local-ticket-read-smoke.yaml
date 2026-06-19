@@ -28,7 +28,7 @@ scenarios:
     timeUnit: 1s
     preAllocatedVUs: 5
     maxVUs: 10
-    duration: 1m
+    duration: 3m
     stages: []
     thinkTimeSeconds: 0
     ticketListLimit: 10

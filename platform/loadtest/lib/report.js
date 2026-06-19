@@ -76,6 +76,7 @@ function reportSummary(config, data) {
   return {
     status: reportStatus(thresholds),
     thresholds,
+    http_req_duration_p50_ms: summaryMetricValue(config, metrics, 'http_req_duration', 'med'),
     http_req_duration_p95_ms: summaryMetricValue(config, metrics, 'http_req_duration', 'p(95)'),
     http_req_duration_p99_ms: summaryMetricValue(config, metrics, 'http_req_duration', 'p(99)'),
     http_req_failed_rate: summaryMetricValue(config, metrics, 'http_req_failed', 'rate'),
@@ -125,6 +126,7 @@ function httpStepRows(data) {
       step,
       route: HTTP_STEP_ROUTES[step] || step,
       service: serviceLabel(step),
+      http_req_duration_p50_ms: metricValue(metrics, metricNameWithStep('http_req_duration', step), 'med'),
       http_req_duration_p95_ms: metricValue(metrics, metricNameWithStep('http_req_duration', step), 'p(95)'),
       http_req_duration_p99_ms: metricValue(metrics, metricNameWithStep('http_req_duration', step), 'p(99)'),
       http_req_failed_rate: metricValue(metrics, metricNameWithStep('http_req_failed', step), 'rate'),
@@ -142,12 +144,13 @@ function markdownHttpStepRows(rows) {
     return ['No step-level HTTP metrics captured.'];
   }
   return [
-    '| step | service | route | p95 | p99 | error rate | checks | requests | RPS |',
-    '|---|---|---|---:|---:|---:|---:|---:|---:|',
+    '| step | service | route | p50 | p95 | p99 | error rate | checks | requests | RPS |',
+    '|---|---|---|---:|---:|---:|---:|---:|---:|---:|',
     ...rows.map((row) => [
       row.step,
       row.service,
       row.route,
+      `${formatNumber(row.http_req_duration_p50_ms)} ms`,
       `${formatNumber(row.http_req_duration_p95_ms)} ms`,
       `${formatNumber(row.http_req_duration_p99_ms)} ms`,
       formatRate(row.http_req_failed_rate),
@@ -163,6 +166,7 @@ function apiStepResults(rows) {
     step: row.step,
     service: row.service,
     route: row.route,
+    http_req_duration_p50_ms: row.http_req_duration_p50_ms,
     http_req_duration_p95_ms: row.http_req_duration_p95_ms,
     http_req_duration_p99_ms: row.http_req_duration_p99_ms,
     http_req_failed_rate: row.http_req_failed_rate,
@@ -223,6 +227,7 @@ function markdownReport(config, data) {
     '',
     '## Quick Metrics',
     '',
+    `- p50 latency: ${formatNumber(result.http_req_duration_p50_ms)} ms`,
     `- p95 latency: ${formatNumber(result.http_req_duration_p95_ms)} ms`,
     `- p99 latency: ${formatNumber(result.http_req_duration_p99_ms)} ms`,
     `- error rate: ${formatRate(result.http_req_failed_rate)}`,
@@ -253,7 +258,7 @@ function htmlReport(config, data) {
   const meta = metadata(config);
   const result = reportSummary(config, data);
   const stepRows = httpStepRows(data);
-  const stepRowsHtml = stepRows.map((row) => `<tr><td>${escapeHtml(row.step)}</td><td>${escapeHtml(row.service)}</td><td>${escapeHtml(row.route)}</td><td>${escapeHtml(formatNumber(row.http_req_duration_p95_ms))} ms</td><td>${escapeHtml(formatNumber(row.http_req_duration_p99_ms))} ms</td><td>${escapeHtml(formatRate(row.http_req_failed_rate))}</td><td>${escapeHtml(formatRate(row.checks_pass_rate))}</td><td>${escapeHtml(formatNumber(row.http_reqs_count, 0))}</td><td>${escapeHtml(formatNumber(row.http_reqs_rate))}</td></tr>`).join('');
+  const stepRowsHtml = stepRows.map((row) => `<tr><td>${escapeHtml(row.step)}</td><td>${escapeHtml(row.service)}</td><td>${escapeHtml(row.route)}</td><td>${escapeHtml(formatNumber(row.http_req_duration_p50_ms))} ms</td><td>${escapeHtml(formatNumber(row.http_req_duration_p95_ms))} ms</td><td>${escapeHtml(formatNumber(row.http_req_duration_p99_ms))} ms</td><td>${escapeHtml(formatRate(row.http_req_failed_rate))}</td><td>${escapeHtml(formatRate(row.checks_pass_rate))}</td><td>${escapeHtml(formatNumber(row.http_reqs_count, 0))}</td><td>${escapeHtml(formatNumber(row.http_reqs_rate))}</td></tr>`).join('');
   const thresholdRowsHtml = result.thresholds.map((row) => {
     const status = row.ok === false ? 'FAIL' : row.ok === null ? 'WARN' : 'PASS';
     return `<tr><td>${escapeHtml(row.metric)}</td><td>${escapeHtml(row.expression)}</td><td>${status}</td></tr>`;
@@ -292,6 +297,7 @@ function htmlReport(config, data) {
   </dl>
   <h2>Quick Metrics</h2>
   <dl>
+    <dt>p50 latency</dt><dd>${escapeHtml(formatNumber(result.http_req_duration_p50_ms))} ms</dd>
     <dt>p95 latency</dt><dd>${escapeHtml(formatNumber(result.http_req_duration_p95_ms))} ms</dd>
     <dt>p99 latency</dt><dd>${escapeHtml(formatNumber(result.http_req_duration_p99_ms))} ms</dd>
     <dt>error rate</dt><dd>${escapeHtml(formatRate(result.http_req_failed_rate))}</dd>
@@ -301,8 +307,8 @@ function htmlReport(config, data) {
   </dl>
   <h2>HTTP Metrics By Step</h2>
   <table>
-    <thead><tr><th>Step</th><th>Service</th><th>Route</th><th>p95</th><th>p99</th><th>Error rate</th><th>Checks</th><th>Requests</th><th>RPS</th></tr></thead>
-    <tbody>${stepRowsHtml || '<tr><td colspan="9">No step-level HTTP metrics captured.</td></tr>'}</tbody>
+    <thead><tr><th>Step</th><th>Service</th><th>Route</th><th>p50</th><th>p95</th><th>p99</th><th>Error rate</th><th>Checks</th><th>Requests</th><th>RPS</th></tr></thead>
+    <tbody>${stepRowsHtml || '<tr><td colspan="10">No step-level HTTP metrics captured.</td></tr>'}</tbody>
   </table>
   <h2>Thresholds</h2>
   <table>
@@ -325,6 +331,7 @@ function runReportLine(config, data, result, stepRows) {
     target: config.target,
     target_base_url: config.baseUrl,
     status: result.status,
+    http_req_duration_p50_ms: result.http_req_duration_p50_ms,
     http_req_duration_p95_ms: result.http_req_duration_p95_ms,
     http_req_duration_p99_ms: result.http_req_duration_p99_ms,
     http_req_failed_rate: result.http_req_failed_rate,
