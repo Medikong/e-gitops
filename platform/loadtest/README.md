@@ -246,7 +246,7 @@ activeCustomerCount >= ceil(expectedJourneys / targetTicketsPerCustomer)
 운영에서는 배포나 sync만으로 부하테스트를 자동 실행하지 않는다.
 aws-dev chart는 CronJob을 만들지 않는다.
 aws-dev 수동 실행은 `task aws:loadtest`가 GitOps run values의 `manualRuns.read.runId`를 새 값으로 바꾸고 commit/push해서 ArgoCD Hook Job을 한 번 생성한다.
-aws-dev Kong shared resources는 `platform/kong-overlays/aws-dev-loadtest`를 사용해 `ticketing-rate-limit-*` 한도를 크게 올린 상태로 배포한다.
+aws-dev Kong shared resources는 `platform/kong-overlays/aws-dev`를 사용해 `ticketing-rate-limit-*` 한도를 크게 올린 상태로 배포한다.
 기본 실행은 `aws-dev-smoke-1m`이고, 다른 실험은 `PRESET=<preset-name>`으로 선택한다.
 팀원은 git push 권한만 있으면 실행할 수 있고, 각자 로컬 kubeconfig나 SSH 키를 가질 필요가 없다.
 Job은 클러스터 안에서 실행되므로 로컬이나 GitHub Actions runner의 CPU로 부하를 만들지 않는다.
@@ -260,7 +260,7 @@ runner image는 `.github/workflows/loadtest-image-publish.yml`이 ECR에 publish
 실험 결과의 기준은 runner stdout JSON과 Loki/Grafana 조회이며, 로컬 report 파일은 만들지 않는다.
 `run_id`는 artifact, metadata, log에서만 쓰고 Prometheus metric label/tag에는 넣지 않는다.
 S3 업로드와 AWS 장기 보관은 포함하지 않는다.
-공개 concert ingress는 Kong rate limit이 `minute: 120`으로 설정되어 있으므로, 기본 local/aws-dev values는 `thinkTimeSeconds`를 둬 한도 안에서 기준선을 확인한다.
+공개 concert ingress의 기본 Kong rate limit은 `minute: 120`이지만, aws-dev는 환경 정책상 rate limit 한도를 크게 올린 overlay로 배포한다.
 예매 여정 부하테스트는 한계 지점을 보기 위해 `thinkTimeSeconds: 0`과 k6 `ramping-arrival-rate`를 사용한다.
 이때 `stages[].target`은 HTTP RPS가 아니라 초당 예매 여정 시작 수다.
 한 예매 여정은 이미 로그인된 사용자 기준 공연/회차/좌석 조회, 예약 생성, 결제 승인, 티켓 조회를 포함하므로 실제 HTTP RPS는 target보다 크다.
