@@ -125,8 +125,10 @@ tasks:
     cmds:
       - |
         set -eu
-        preset="${PRESET:-${LOADTEST_PRESET:-aws-dev-smoke-1m}}"
-        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-reservation-journey-load-test}}"
+        preset="${PRESET:-${LOADTEST_PRESET:-{{.PRESET | default ""}}}}"
+        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-{{.SCENARIO | default ""}}}}"
+        preset="${preset:-aws-dev-smoke-1m}"
+        scenario="${scenario:-reservation-journey-load-test}"
         scenario_base="${scenario%-load-test}"
 
         preset_file=""

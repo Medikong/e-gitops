@@ -34,8 +34,8 @@ tasks:
         set -eu
         values_file="${LOADTEST_VALUES_FILE:-{{.VALUES_FILE}}}"
         scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
-        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
-        scenario="${LOADTEST_SCENARIO:-${SCENARIO:-}}"
+        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-{{.PRESET | default ""}}}}}"
+        scenario="${LOADTEST_SCENARIO:-${SCENARIO:-{{.SCENARIO | default ""}}}}"
         if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
           scenario="reservation-journey-load-test"
         fi
@@ -134,8 +134,8 @@ tasks:
         set -eu
         values_file="${LOADTEST_VALUES_FILE:-{{.VALUES_FILE}}}"
         scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
-        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
-        scenario="${LOADTEST_SCENARIO:-${SCENARIO:-}}"
+        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-{{.PRESET | default ""}}}}}"
+        scenario="${LOADTEST_SCENARIO:-${SCENARIO:-{{.SCENARIO | default ""}}}}"
         if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
           scenario="reservation-journey-load-test"
         fi
@@ -183,8 +183,8 @@ tasks:
       - task: ensure-no-active-loadtest
       - |
         set -eu
-        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
-        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-}}"
+        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-{{.PRESET | default ""}}}}}"
+        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-{{.SCENARIO | default ""}}}}"
         if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
           scenario="reservation-journey-load-test"
         fi
