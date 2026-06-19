@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/Medikong/gitops.git
     targetRevision: HEAD
-    path: platform/kong
+    path: platform/kong-overlays/aws-dev-loadtest
   destination:
     server: https://kubernetes.default.svc
     namespace: ticketing-auth
