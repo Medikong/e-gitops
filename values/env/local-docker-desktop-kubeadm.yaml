@@ -1,5 +1,7 @@
 environment: local-docker-desktop-kubeadm
 
+nodeSelector: null
+
 image:
   registry: localhost:5001
   tag: dev

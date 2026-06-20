@@ -374,8 +374,8 @@ tasks:
               --namespace "${namespace}" \
               --create-namespace \
               -f {{.VALUES_BASE}} \
-              -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
               -f "${service_file}" \
+              -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
               ${override_args} \
               --set-string image.registry="${image_registry}" \
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
@@ -591,8 +591,8 @@ tasks:
               --namespace "${namespace}" \
               --create-namespace \
               -f {{.VALUES_BASE}} \
-              -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
               -f "${service_file}" \
+              -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
               --set-string image.registry="${image_registry}" \
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
               --set-string image.pullPolicy=Always \
@@ -692,8 +692,8 @@ tasks:
           service="${service%.yaml}"
           {{.HELM}} template "${service}-{{.LOCAL_DOCKER_DESKTOP_ENV}}-dev" {{.SERVICE_CHART}} \
             -f {{.VALUES_BASE}} \
-            -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
             -f "${service_file}" \
+            -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
             --set-string image.registry="${image_registry}" \
             --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
             --set-string image.pullPolicy=Always \
@@ -1019,8 +1019,8 @@ tasks:
         for service in payment ticket notification; do
           {{.HELM}} template "${service}-sidecar" {{.SERVICE_CHART}} \
             -f {{.VALUES_BASE}} \
-            -f values/env/aws-dev.yaml \
-            -f "values/services/${service}.yaml" >/dev/null
+            -f "values/services/${service}.yaml" \
+            -f values/env/aws-dev.yaml >/dev/null
         done
 
   sidecar:check:
@@ -1067,8 +1067,8 @@ tasks:
         set -eu
         {{.HELM}} template reservation-canary {{.SERVICE_CHART}} \
           -f {{.VALUES_BASE}} \
-          -f values/env/aws-dev.yaml \
           -f values/services/reservation.yaml \
+          -f values/env/aws-dev.yaml \
           -f values/scenarios/istio/reservation-canary-v2.yaml >/dev/null
         {{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/reservation >/dev/null
         for scenario in canary-20 canary-50 canary-100 rollback; do
@@ -1358,8 +1358,8 @@ tasks:
             fi
             {{.HELM}} template "${service}-${env}" {{.SERVICE_CHART}} \
               -f {{.VALUES_BASE}} \
-              -f "values/env/${env}.yaml" \
               -f "${service_file}" \
+              -f "values/env/${env}.yaml" \
               ${extra_values} >/dev/null
           done
         done
@@ -1428,8 +1428,8 @@ tasks:
         fi
         {{.HELM}} template "${service}-${env}" {{.SERVICE_CHART}} \
           -f {{.VALUES_BASE}} \
-          -f "${env_file}" \
           -f "${service_file}" \
+          -f "${env_file}" \
           ${extra_values} >/dev/null
 
   scenario:all:

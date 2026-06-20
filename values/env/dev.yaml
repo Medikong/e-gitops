@@ -1,5 +1,7 @@
 environment: dev
 
+nodeSelector: null
+
 image:
   registry: localhost:5001
   tag: dev

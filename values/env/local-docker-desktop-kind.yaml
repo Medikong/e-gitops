@@ -1,5 +1,7 @@
 environment: local-docker-desktop-kind
 
+nodeSelector: null
+
 image:
   registry: kind-registry:5000
   pullPolicy: IfNotPresent

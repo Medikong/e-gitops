@@ -1,5 +1,7 @@
 environment: local-capacity-baseline
 
+nodeSelector: null
+
 image:
   registry: localhost:5001
   tag: dev

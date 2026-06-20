@@ -1,5 +1,7 @@
 environment: local-vm-kubeadm
 
+nodeSelector: null
+
 image:
   registry: 10.10.10.10:5000
   pullPolicy: IfNotPresent
