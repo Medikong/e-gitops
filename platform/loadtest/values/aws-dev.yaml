@@ -3,7 +3,7 @@ environment: aws-dev
 image:
   registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
   repository: read-api-loadtest
-  tag: 707a819c508f32382e281e154b9e9dc3ec98128e
+  tag: 3ecd2b2b08ad231abb3ae3c182c6db3cf6372ff9
   pullPolicy: Always
   pullSecrets:
     - ecr-registry
