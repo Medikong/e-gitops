@@ -5,7 +5,7 @@ vars:
   KUBECTL: '{{default "kubectl" .KUBECTL}}'
   SERVICE_CHART: '{{default "charts/medikong-service" .SERVICE_CHART}}'
   VALUES_BASE: '{{default "values/base.yaml" .VALUES_BASE}}'
-  ENVIRONMENTS: dev local-docker-desktop-kubeadm local-docker-desktop-kind local-vm-kubeadm aws-dev aws-prod private-dev
+  ENVIRONMENTS: dev local-docker-desktop-kubeadm local-docker-desktop-kind local-vm-kubeadm local-hpa-spike aws-dev aws-prod private-dev
   AWS_SCENARIOS: network hpa storage release
   LOCAL_DOCKER_DESKTOP_ENV: dev
   LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX: local-docker-desktop
@@ -107,9 +107,14 @@ tasks:
       - task: metrics-server:up
       - |
         set -eu
-        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-capacity-baseline-load-test}}"
+        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
+        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-}}"
+        if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
+          scenario="reservation-journey-load-test"
+        fi
+        scenario="${scenario:-capacity-baseline-load-test}"
         if [ "${scenario}" = "capacity-baseline-load-test" ]; then
-          preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-local-smoke}}}"
+          preset="${preset:-local-smoke}"
           scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
           if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
             scenario_base="${scenario%-load-test}"
@@ -149,6 +154,20 @@ tasks:
           warmup_seconds="${LOADTEST_CAPACITY_BASELINE_PROMETHEUS_WARMUP_SECONDS:-90}"
           printf 'Waiting %ss for Prometheus scrape warmup before capacity baseline run.\n' "${warmup_seconds}"
           sleep "${warmup_seconds}"
+        else
+          if [ "${scenario}" = "reservation-journey-load-test" ] && { [ "${preset}" = "local-hpa-spike-3m" ] || [ "${preset}" = "local-hpa-spike-smoke-1m" ] || [ "${preset}" = "local-hpa-spike-scaleout-6m" ]; }; then
+            printf 'Redeploying local dev services with HPA enabled for preset=%s.\n' "${preset}"
+            task dev:services \
+              LOCAL_DOCKER_DESKTOP_ENV=local-hpa-spike \
+              DEV_ROLLOUT_ID="local-hpa-spike-$(date -u +%Y%m%dT%H%M%SZ)"
+            if [ "${preset}" = "local-hpa-spike-smoke-1m" ]; then
+              warmup_seconds="${LOADTEST_LOCAL_HPA_SPIKE_WARMUP_SECONDS:-15}"
+            else
+              warmup_seconds="${LOADTEST_LOCAL_HPA_SPIKE_WARMUP_SECONDS:-60}"
+            fi
+            printf 'Waiting %ss for metrics-server/HPA warmup before local HPA spike run.\n' "${warmup_seconds}"
+            sleep "${warmup_seconds}"
+          fi
         fi
       - task: loadtest:run-local
 
@@ -310,6 +329,9 @@ tasks:
           extra_helm_args="${extra_helm_args} --set nodeSelector=null"
           extra_helm_args="${extra_helm_args} --set deployment.podAnnotations.sidecar\\.istio\\.io/proxyCPULimit=null"
         fi
+        if [ "{{.LOCAL_DOCKER_DESKTOP_ENV}}" = "local-hpa-spike" ]; then
+          extra_helm_args="${extra_helm_args} --set nodeSelector=null"
+        fi
         yaml_section_field() {
           awk -v section="$2" -v wanted="$3" '
             $1 == section ":" { in_section = 1; next }
@@ -339,6 +361,11 @@ tasks:
           namespace="$(yaml_section_field "${service_file}" app namespace)"
           release="${service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
           service_helm_args="${extra_helm_args}"
+          override_file="values/overrides/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${service}.yaml"
+          override_args=""
+          if [ -f "${override_file}" ]; then
+            override_args="-f ${override_file}"
+          fi
           if [ "{{.LOCAL_DOCKER_DESKTOP_ENV}}" = "local-capacity-baseline" ] && [ "${service}" = "auth" ]; then
             service_helm_args="${service_helm_args} --set-string container.env[1].value=${capacity_auth_token_ttl_seconds}"
           fi
@@ -349,6 +376,7 @@ tasks:
               -f {{.VALUES_BASE}} \
               -f values/env/{{.LOCAL_DOCKER_DESKTOP_ENV}}.yaml \
               -f "${service_file}" \
+              ${override_args} \
               --set-string image.registry="${image_registry}" \
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
               --set-string image.pullPolicy=Always \
@@ -379,6 +407,22 @@ tasks:
           done
         fi
         pids=""
+        rollout_failures="$(mktemp)"
+        diagnose_rollout_failure() {
+          namespace="$1"
+          app_name="$2"
+          printf '\n===== Rollout diagnostics: %s/%s =====\n' "${namespace}" "${app_name}" >&2
+          {{.KUBECTL}} get deployment "${app_name}" -n "${namespace}" -o wide >&2 || true
+          {{.KUBECTL}} describe deployment "${app_name}" -n "${namespace}" >&2 || true
+          {{.KUBECTL}} get rs,pods,hpa -n "${namespace}" -l "app=${app_name}" -o wide >&2 || true
+          {{.KUBECTL}} describe pods -n "${namespace}" -l "app=${app_name}" >&2 || true
+          {{.KUBECTL}} top pods -n "${namespace}" -l "app=${app_name}" >&2 || true
+          {{.KUBECTL}} get events -n "${namespace}" --sort-by=.lastTimestamp >&2 | tail -n 40 >&2 || true
+          for pod in $({{.KUBECTL}} get pods -n "${namespace}" -l "app=${app_name}" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null || true); do
+            printf '\n----- Recent logs: %s/%s -----\n' "${namespace}" "${pod}" >&2
+            {{.KUBECTL}} logs -n "${namespace}" "${pod}" --all-containers --tail=80 --prefix=true >&2 || true
+          done
+        }
         for service in {{.DEV_SERVICES}}; do
           service_file="values/services/${service}.yaml"
           if [ ! -f "${service_file}" ]; then
@@ -388,7 +432,10 @@ tasks:
           app_name="$(yaml_section_field "${service_file}" app name)"
           namespace="$(yaml_section_field "${service_file}" app namespace)"
           (
-            {{.KUBECTL}} rollout status "deployment/${app_name}" -n "${namespace}" --timeout=180s
+            if ! {{.KUBECTL}} rollout status "deployment/${app_name}" -n "${namespace}" --timeout=180s; then
+              printf '%s %s\n' "${namespace}" "${app_name}" >> "${rollout_failures}"
+              exit 1
+            fi
           ) &
           pids="${pids} $!"
         done
@@ -399,8 +446,15 @@ tasks:
           fi
         done
         if [ "${failed}" -ne 0 ]; then
+          if [ -s "${rollout_failures}" ]; then
+            sort -u "${rollout_failures}" | while read -r namespace app_name; do
+              diagnose_rollout_failure "${namespace}" "${app_name}"
+            done
+          fi
+          rm -f "${rollout_failures}"
           exit 1
         fi
+        rm -f "${rollout_failures}"
 
   dev:services:monitored:
     internal: true

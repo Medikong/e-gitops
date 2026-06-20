@@ -199,7 +199,11 @@ preset values 파일은 `values/presets/reservation-journey/` 아래에 두고, 
 
 ```text
 values/presets/reservation-journey/local-ticket-open-5m.yaml
+values/presets/reservation-journey/local-hpa-spike-smoke-1m.yaml
+values/presets/reservation-journey/local-hpa-spike-3m.yaml
+values/presets/reservation-journey/local-hpa-spike-scaleout-6m.yaml
 values/presets/reservation-journey/aws-dev-smoke-1m.yaml
+values/presets/reservation-journey/aws-dev-hpa-spike-8m.yaml
 values/presets/reservation-journey/mau10k-normal-peak.yaml
 values/presets/reservation-journey/mau10k-ticket-open.yaml
 values/presets/reservation-journey/mau10k-ticket-open-aggressive.yaml
@@ -218,8 +222,21 @@ values/presets/ticket-service-read/local-ticket-read-smoke.yaml
 `local-ticket-open-5m`은 로컬 재검증용이다.
 MAU 1만 티켓 오픈 가정을 5분 동안 `2 journey/s`로 짧게 실행해 ticket-service tail latency와 관측계 부담을 함께 확인한다.
 
+`local-hpa-spike-smoke-1m`은 로컬 HPA spike 배선 확인용 smoke preset이다.
+`task --dir gitops dev:loadtest PRESET=local-hpa-spike-smoke-1m`은 spike 본 실행과 같은 `values/env/local-hpa-spike.yaml` 및 service별 CPU request override를 적용하되, `1 -> 3 journey/s`로 1분만 실행한다.
+
+`local-hpa-spike-3m`은 로컬 Docker Desktop에서 전체 예매 여정과 서비스 HPA 동작을 함께 확인하는 짧은 spike preset이다.
+`task --dir gitops dev:loadtest PRESET=local-hpa-spike-3m`은 실행 전에 서비스를 `values/env/local-hpa-spike.yaml`로 재배포해 HPA를 켜고, `1 -> 5 -> 10 -> 10 journey/s`로 3분간 부하를 올린다.
+서비스 CPU request는 `workspace/docs/evidence/loadtest/capacity-baseline/reports/*-service-1000m-2026-06-20/loadtest-run-report.json`을 기준으로 `values/overrides/local-hpa-spike/<service>.yaml`에 반영한다. `local-hpa-spike-scaleout-6m`에서는 50 journey/s 구간에서 HPA 반응을 확인하기 위해 reservation, payment, ticket request를 scale-out 검증용으로 낮춘다.
+
+`local-hpa-spike-scaleout-6m`은 로컬에서 HPA scale-out 발생을 확인하기 위한 후속 preset이다.
+`10 -> 20 -> 40 -> 50 journey/s`로 올리고 `50 journey/s`를 3분 유지한다.
+
 `aws-dev-smoke-1m`은 aws-dev에서 runner, credential, dataset setup, 예매 여정, 자동 보고서 경로만 빠르게 확인하는 1분 smoke다.
 `1 journey/s`로 1분만 실행하므로 용량 판단에는 쓰지 않는다.
+
+`aws-dev-hpa-spike-8m`은 aws-dev에서 전체 예매 여정 중 각 서비스 HPA가 상승하는지 확인하는 spike preset이다.
+`5 -> 25 -> 40 -> 40 journey/s` ramping-arrival-rate로 빠르게 부하를 올리고 유지 구간을 두며, `scenario_report.stage_results`와 `scale_out_results`에서 stage별 병목과 HPA decision/ready 시간을 함께 본다.
 
 `mau10k-ticket-open`은 MAU 1만, DAU/MAU 20%, DAU의 30%가 티켓 오픈 10분 안에 몰리는 상황을 가정한다.
 계산값은 `1 journey/s`이고 safety factor 2를 적용해 `2 journey/s`로 실행한다.
@@ -275,6 +292,7 @@ Kong rate limit을 포함한 제품 경로 기준선을 보려면 `LOADTEST_DISA
 task --dir gitops aws:loadtest
 PRESET=mau10k-ticket-open task --dir gitops aws:loadtest
 PRESET=stress-find-limit task --dir gitops aws:loadtest
+PRESET=aws-dev-hpa-spike-8m task --dir gitops aws:loadtest
 SCENARIO=reservation-create-load-test PRESET=stress-find-limit task --dir gitops aws:loadtest
 
 SCENARIO=read-api-baseline task --dir gitops dev:loadtest
@@ -287,6 +305,9 @@ PRESET=mau10k-ticket-open task --dir gitops dev:loadtest
 SCENARIO=reservation-create-load-test PRESET=mau10k-ticket-open task --dir gitops dev:loadtest
 SCENARIO=reservation-create-load-test PRESET=stress-find-limit task --dir gitops dev:loadtest
 SCENARIO=reservation-seat-contention-load-test PRESET=stress-find-limit task --dir gitops dev:loadtest
+PRESET=local-hpa-spike-smoke-1m task --dir gitops dev:loadtest
+PRESET=local-hpa-spike-3m task --dir gitops dev:loadtest
+PRESET=local-hpa-spike-scaleout-6m task --dir gitops dev:loadtest
 SCENARIO=ticket-service-read-load-test PRESET=local-ticket-read-smoke task --dir gitops dev:loadtest
 LOADTEST_DISABLE_KONG_RATE_LIMIT=false SCENARIO=reservation-journey-load-test task --dir gitops dev:loadtest
 
@@ -308,6 +329,9 @@ SCENARIO=reservation-journey-load-test task --dir gitops/platform/loadtest run-l
 SCENARIO=reservation-create-load-test task --dir gitops/platform/loadtest run-local
 SCENARIO=reservation-seat-contention-load-test task --dir gitops/platform/loadtest run-local
 PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest run-local
+PRESET=local-hpa-spike-smoke-1m task --dir gitops/platform/loadtest run-local
+PRESET=local-hpa-spike-3m task --dir gitops/platform/loadtest run-local
+PRESET=local-hpa-spike-scaleout-6m task --dir gitops/platform/loadtest run-local
 SCENARIO=reservation-create-load-test PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest run-local
 SCENARIO=reservation-create-load-test PRESET=stress-find-limit task --dir gitops/platform/loadtest run-local
 SCENARIO=reservation-seat-contention-load-test PRESET=stress-find-limit task --dir gitops/platform/loadtest run-local

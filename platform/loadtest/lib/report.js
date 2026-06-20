@@ -191,11 +191,21 @@ function scenarioReport(config, data) {
     traffic_model_preset: (config.trafficModel || {}).preset,
     scale_out_results: scaleOutResults(config, metrics),
   };
-  if (config.scenario === 'reservation-journey-load-test' && (config.trafficModel || {}).preset === 'stress-find-limit') {
+  const trafficModelPreset = (config.trafficModel || {}).preset;
+  const isReservationJourneyHpaSpike = (
+    trafficModelPreset === 'aws-dev-hpa-spike-8m'
+    || trafficModelPreset === 'local-hpa-spike-3m'
+    || trafficModelPreset === 'local-hpa-spike-scaleout-6m'
+    || trafficModelPreset === 'local-hpa-spike-smoke-1m'
+  );
+  if (
+    config.scenario === 'reservation-journey-load-test'
+    && (trafficModelPreset === 'stress-find-limit' || isReservationJourneyHpaSpike)
+  ) {
     const stageResults = stressStageResults(config, metrics);
     return {
       ...base,
-      report_type: 'reservation_journey_stress_find_limit',
+      report_type: isReservationJourneyHpaSpike ? 'reservation_journey_hpa_spike' : 'reservation_journey_stress_find_limit',
       load_unit: 'journey/s',
       stage_results: stageResults,
       first_limit_candidate: stageResults.find((row) => row.limit_reasons.length > 0) || null,

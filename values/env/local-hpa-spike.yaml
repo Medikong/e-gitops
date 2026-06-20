@@ -1,0 +1,45 @@
+environment: local-hpa-spike
+
+image:
+  registry: localhost:5001
+  tag: dev
+  pullPolicy: Always
+
+deployment:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+container:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+observability:
+  tracing:
+    enabled: true
+    otlpEndpoint: http://opentelemetry-collector.observability.svc.cluster.local:4317
+    excludedUrls: /health,/healthz,/readyz,/metrics
+  profiling:
+    enabled: true
+    serverAddress: http://pyroscope.observability.svc.cluster.local:4040
+    sampleRate: 25
+    spanProfilesEnabled: true
+
+pdb:
+  enabled: false
+
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+serviceMonitor:
+  enabled: true

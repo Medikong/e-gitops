@@ -1,0 +1,88 @@
+loadtest:
+  scenario: reservation-journey-load-test
+  credentialsSecretName: read-api-loadtest-credentials
+
+trafficModel:
+  preset: local-hpa-spike-smoke-1m
+  mau: ""
+  stickiness: ""
+  peakParticipationRate: ""
+  peakWindowMinutes: 1
+  journeysPerUser: 1
+  safetyFactor: ""
+  targetTicketsPerCustomer: 100
+  calculatedJourneyRate: 3
+  expectedJourneys: 150
+
+scaleOutReport:
+  enabled: true
+  pollEveryIterations: 5
+  rbac:
+    create: true
+  targets:
+    - service: auth-service
+      namespace: ticketing-auth
+    - service: concert-service
+      namespace: ticketing-concert
+    - service: notification-service
+      namespace: ticketing-notification
+    - service: payment-service
+      namespace: ticketing-payment
+    - service: reservation-service
+      namespace: ticketing-reservation
+    - service: ticket-service
+      namespace: ticketing-ticket
+
+dataset:
+  profile: reservation-journey
+  revision: reservation-local-hpa-spike-smoke-v1
+  concerts: 4
+  performancesPerConcert: 2
+  customerPool:
+    size: 30
+    revision: reservation-local-hpa-spike-smoke-v1
+
+manualRuns:
+  dataset:
+    activeDeadlineSeconds: 900
+  read:
+    activeDeadlineSeconds: 900
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+scenarios:
+  reservationJourney:
+    requestPrefix: loadtest-reservation-local-hpa-spike-smoke
+    executor: ramping-arrival-rate
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 20
+    maxVUs: 60
+    duration: 1m
+    stages:
+      - duration: 30s
+        target: 1
+      - duration: 30s
+        target: 3
+    thinkTimeSeconds: 0
+    ticketListLimit: 20
+    ticketListMaxPages: 5
+    activeCustomerCount: 30
+    maxSeatAttempts: 3
+    concertLimit: 40
+    performanceLimit: 60
+    seatLimit: 200
+    thresholds:
+      httpReqFailedRate: "0.10"
+      httpReqDurationP95Ms: "3000"
+      httpReqDurationP99Ms: "7000"
+      checksRate: "0.90"
+      successRate: "0.90"
+      conflictRate: "0.25"
+      ticketIssuedRate: "0.90"
