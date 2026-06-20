@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: data-aws-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/Medikong/gitops.git
+      targetRevision: HEAD
+      path: platform/data/chart
+      helm:
+        releaseName: medikong-data
+        valueFiles:
+          - $values/platform/data/aws-dev/postgresql.yaml
+          - $values/platform/data/aws-dev/postgres-auth.yaml
+          - $values/platform/data/aws-dev/postgres-concert.yaml
+          - $values/platform/data/aws-dev/postgres-reservation.yaml
+          - $values/platform/data/aws-dev/postgres-payment.yaml
+          - $values/platform/data/aws-dev/postgres-ticket.yaml
+          - $values/platform/data/aws-dev/mongodb.yaml
+    - repoURL: https://github.com/Medikong/gitops.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ticketing-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true

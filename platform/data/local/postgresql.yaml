@@ -1,0 +1,14 @@
+profile: local
+
+postgresql:
+  config:
+    sharedBuffers: 128MB
+    effectiveCacheSize: 512MB
+    workMem: 8MB
+    maintenanceWorkMem: 128MB
+    maxConnections: 200
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  storage: 1Gi

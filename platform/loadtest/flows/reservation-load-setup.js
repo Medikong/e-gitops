@@ -3,7 +3,7 @@ import { check, fail, group, sleep } from 'k6';
 
 import { loginAdmin, loginProvider } from '../lib/auth.js';
 import { activeCustomerCount, customerPoolAccount, customerPoolIndexForIteration } from '../lib/customer-pool.js';
-import { serviceLabel } from '../lib/http-metrics.js';
+import { loadStageForElapsed, serviceLabel } from '../lib/http-metrics.js';
 import { logDatasetFinished } from '../lib/log.js';
 import { requireField } from '../lib/pick.js';
 import { setupReadApiBasicDataset } from './datasets/read-api-basic.js';
@@ -62,8 +62,12 @@ export function iterationConfig(config, setupData) {
   };
   const iterationId = `${Date.now()}-${__VU}-${__ITER}`;
   const customerIndex = customerPoolIndexForIteration(runBaseConfig, __VU, __ITER);
+  const measurementStartedAtMs = setupData && setupData.measurementStartedAtMs ? setupData.measurementStartedAtMs : null;
+  const measurementElapsedSeconds = measurementStartedAtMs === null ? 0 : Math.max(0, (Date.now() - measurementStartedAtMs) / 1000);
+  const loadStage = loadStageForElapsed(runBaseConfig.stages, measurementElapsedSeconds);
   return {
     ...runBaseConfig,
+    loadStage,
     iterationId,
     requestIdBase: `${config.requestPrefix}-${config.scenario}-${iterationId}`,
     customer: {

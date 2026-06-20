@@ -1,0 +1,6 @@
+postgresql:
+  databases:
+    payment:
+      name: payment-db
+      namespace: ticketing-payment
+      database: payment_db

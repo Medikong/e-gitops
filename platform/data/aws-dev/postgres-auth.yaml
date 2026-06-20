@@ -1,0 +1,6 @@
+postgresql:
+  databases:
+    auth:
+      name: auth-db
+      namespace: ticketing-auth
+      database: auth_db

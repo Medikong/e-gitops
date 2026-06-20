@@ -1,0 +1,32 @@
+deployment:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+
+canary:
+  enabled: false
+
+container:
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 256Mi
+    limits:
+      cpu: null
+      memory: 768Mi
+
+database:
+  sqlalchemy:
+    poolSize: 20
+    maxOverflow: 20
+    poolTimeoutSeconds: 10
+    poolRecycleSeconds: 1800
+
+pdb:
+  enabled: false
+
+hpa:
+  enabled: false

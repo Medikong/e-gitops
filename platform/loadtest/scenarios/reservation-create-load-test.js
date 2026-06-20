@@ -2,7 +2,12 @@ import { fail, group } from 'k6';
 import { Counter, Rate } from 'k6/metrics';
 
 import { getConfig, requireCustomerPool, requireDatasetCredentials } from '../lib/config.js';
-import { httpStepThresholds, RESERVATION_CREATE_STEPS } from '../lib/http-metrics.js';
+import {
+  httpStageThresholds,
+  httpStepThresholds,
+  loadStageId,
+  RESERVATION_CREATE_STEPS,
+} from '../lib/http-metrics.js';
 import {
   logExperimentConditions,
   logJourneyStep,
@@ -59,6 +64,11 @@ function metricTags(runConfig) {
     test_type: runConfig.testType,
     target: runConfig.target,
     step: RESERVATION_CREATE_STEP,
+    ...(runConfig.loadStage ? {
+      load_stage: runConfig.loadStage.id,
+      load_stage_label: runConfig.loadStage.label,
+      load_stage_target: String(runConfig.loadStage.target),
+    } : {}),
   };
 }
 
@@ -128,6 +138,16 @@ function createReservationWithRetry(runConfig, customerToken, state) {
   return null;
 }
 
+function reservationCreateStageThresholds(stages) {
+  const result = {};
+  for (let index = 0; index < (stages || []).length; index += 1) {
+    const stageId = loadStageId(stages[index], index);
+    result[`loadtest_reservation_create_5xx_rate{load_stage:${stageId}}`] = ['rate>=0'];
+    result[`loadtest_reservation_create_timeout_rate{load_stage:${stageId}}`] = ['rate>=0'];
+  }
+  return result;
+}
+
 export const options = {
   setupTimeout: config.setupTimeout,
   scenarios: {
@@ -152,6 +172,8 @@ export const options = {
     loadtest_reservation_created_rate: [`rate>${config.thresholds.reservationCreatedRate}`],
     loadtest_reservation_infra_failure_rate: [`rate<${config.thresholds.reservationInfraFailureRate}`],
     ...httpStepThresholds([PRE_LOGIN_STEP, ...RESERVATION_CREATE_STEPS], config.thresholds),
+    ...httpStageThresholds(config.executor === 'ramping-arrival-rate' ? config.stages : [], config.thresholds),
+    ...reservationCreateStageThresholds(config.executor === 'ramping-arrival-rate' ? config.stages : []),
   },
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   tags: {
@@ -174,6 +196,7 @@ export function setup() {
     customerState: state,
     datasetState,
     datasetRevision: setupConfig.dataset.revision,
+    measurementStartedAtMs: Date.now(),
   };
 }
 

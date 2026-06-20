@@ -17,7 +17,7 @@ metadata:
 {{ toYaml . | nindent 4 }}
 {{- end }}
 spec:
-{{- if not .Values.hpa.enabled }}
+{{- if and (not .Values.hpa.enabled) (ne .Values.deployment.replicasManaged false) }}
   replicas: {{ .Values.deployment.replicas }}
 {{- end }}
   selector:

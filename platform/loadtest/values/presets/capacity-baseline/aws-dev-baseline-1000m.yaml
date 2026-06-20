@@ -1,0 +1,105 @@
+loadtest:
+  scenario: capacity-baseline-load-test
+  credentialsSecretName: read-api-loadtest-credentials
+
+trafficModel:
+  preset: aws-dev-baseline-1000m
+
+dataset:
+  scenario: setup-capacity-baseline-dataset
+  profile: capacity-baseline
+  revision: capacity-baseline-aws-dev-v1
+  concerts: 16
+  performancesPerConcert: 4
+  seatSections: 1
+  seatRows: 20
+  seatsPerRow: 50
+  customerPool:
+    size: 1000
+    emailPrefix: capacity-customer
+    emailDomain: loadtest.medikong.local
+    password: loadtest1234
+    revision: capacity-baseline-aws-dev-v1
+
+manualRuns:
+  dataset:
+    activeDeadlineSeconds: 3600
+  read:
+    activeDeadlineSeconds: 5400
+
+resources:
+  requests:
+    cpu: 1000m
+    memory: 2Gi
+  limits:
+    cpu: "4"
+    memory: 6Gi
+
+scenarios:
+  capacityBaseline:
+    requestPrefix: loadtest-capacity-baseline
+    timeoutSeconds: 10
+    setupTimeout: 10m
+    preAllocatedVUs: 600
+    maxVUs: 1500
+    serviceSteps:
+      - auth
+      - concert
+      - reservation
+      - payment
+      - ticket
+      - notification
+    stages:
+      - duration: 90s
+        target: 80
+      - duration: 90s
+        target: 120
+      - duration: 90s
+        target: 160
+      - duration: 90s
+        target: 220
+      - duration: 90s
+        target: 300
+    gracefulStop: 15s
+    activeCustomerCount: 500
+    concertLimit: 20
+    performanceLimit: 20
+    seatLimit: 200
+    ticketListLimit: 20
+    paymentAmount: 50000
+    paymentPoolCount: 48000
+    ticketsPerCustomer: 30
+    notificationsPerCustomer: 30
+    targetUtilization: "0.70"
+    seedMethod: deterministic_bulk_insert
+    fixedConditions:
+      environment: aws-dev
+      hpa: "disabled"
+      replicas: "1"
+      cpuRequest: 1000m
+      cpuLimit: none
+      authTokenTtlSeconds: "7200"
+      dbProfile: aws-dev-capacity-baseline
+    seedRowCounts:
+      customer_count: 1000
+      provider_count: 1
+      admin_count: 1
+      concert_count: 16
+      performance_count: 64
+      seat_count: 64000
+      payment_pool_count: 48000
+      ticket_count: 30000
+      notification_count: 30000
+    resourceObservation:
+      enabled: true
+      source: metrics-api
+      prometheusUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+      queryWindow: 1m
+      pollEveryIterations: 5
+      rbac:
+        create: true
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "100"
+      httpReqDurationP99Ms: "300"
+      checksRate: "0.99"

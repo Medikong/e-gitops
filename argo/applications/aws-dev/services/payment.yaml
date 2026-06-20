@@ -16,6 +16,7 @@ spec:
           - $values/values/env/aws-dev.yaml
           - $values/values/services/payment.yaml
           - $values/values/services/aws-dev/payment.yaml
+          - $values/values/services/aws-dev-capacity-baseline/common.yaml
     - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values

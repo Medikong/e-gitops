@@ -1,4 +1,5 @@
 import { getCommonConfig } from './config/common.js';
+import { getCapacityBaselineConfig } from './config/scenarios/capacity-baseline.js';
 import { getDatasetConfig } from './config/dataset.js';
 import { getAuthLoginConfig } from './config/scenarios/auth-login.js';
 import { getReadApiBaselineConfig } from './config/scenarios/read-api-baseline.js';
@@ -24,6 +25,9 @@ function scenarioConfig(scenario) {
   }
   if (scenario === 'auth-login-load-test') {
     return getAuthLoginConfig();
+  }
+  if (scenario === 'capacity-baseline-load-test') {
+    return getCapacityBaselineConfig();
   }
   if (scenario === 'ticket-service-read-load-test') {
     return getTicketServiceReadConfig();

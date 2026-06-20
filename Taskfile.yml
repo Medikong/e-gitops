@@ -16,6 +16,8 @@ vars:
   DEV_IMAGE_TAG: '{{default "dev" .DEV_IMAGE_TAG}}'
   DEV_ROLLOUT_ID: '{{default "" .DEV_ROLLOUT_ID}}'
   DEV_SERVICES: '{{default "auth concert notification payment reservation ticket" .DEV_SERVICES}}'
+  LOADTEST_CAPACITY_BASELINE_CPU_REQUEST: '{{default "" .LOADTEST_CAPACITY_BASELINE_CPU_REQUEST}}'
+  LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS: '{{default "" .LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS}}'
   KONG_CHART: '{{default "kong/kong" .KONG_CHART}}'
   KONG_CHART_VERSION: '{{default "3.2.0" .KONG_CHART_VERSION}}'
   KONG_NAMESPACE: '{{default "kong" .KONG_NAMESPACE}}'
@@ -101,6 +103,53 @@ tasks:
     desc: Docker Desktop dev에 특정 loadtest 시나리오를 배포하고 dataset setup과 실행을 순차 처리합니다. SCENARIO=<scenario-name> PRESET=<preset-name>
     cmds:
       - task: dev:registry
+      - task --taskfile platform/monitoring/Taskfile.yml up
+      - task: metrics-server:up
+      - |
+        set -eu
+        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-capacity-baseline-load-test}}"
+        if [ "${scenario}" = "capacity-baseline-load-test" ]; then
+          preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-local-smoke}}}"
+          scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
+          if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
+            scenario_base="${scenario%-load-test}"
+            for candidate in \
+              "platform/loadtest/values/presets/${scenario}/${preset}.yaml" \
+              "platform/loadtest/values/presets/${scenario_base}/${preset}.yaml" \
+              "platform/loadtest/values/presets/${preset}.yaml"; do
+              if [ -f "${candidate}" ]; then
+                scenario_values_file="${candidate}"
+                break
+              fi
+            done
+          fi
+          if [ -z "${scenario_values_file}" ] && [ -f "platform/loadtest/values/scenarios/${scenario}.yaml" ]; then
+            scenario_values_file="platform/loadtest/values/scenarios/${scenario}.yaml"
+          fi
+          capacity_cpu_request="${LOADTEST_CAPACITY_BASELINE_CPU_REQUEST:-}"
+          capacity_auth_token_ttl_seconds="${LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS:-}"
+          if [ -z "${capacity_cpu_request}" ] && [ -n "${scenario_values_file}" ]; then
+            if command -v ruby >/dev/null 2>&1; then
+              capacity_cpu_request="$(ruby -ryaml -e 'value = YAML.load_file(ARGV[0]).dig("scenarios", "capacityBaseline", "fixedConditions", "cpuRequest"); puts value if value' "${scenario_values_file}")"
+            fi
+          fi
+          if [ -z "${capacity_auth_token_ttl_seconds}" ] && [ -n "${scenario_values_file}" ]; then
+            if command -v ruby >/dev/null 2>&1; then
+              capacity_auth_token_ttl_seconds="$(ruby -ryaml -e 'value = YAML.load_file(ARGV[0]).dig("scenarios", "capacityBaseline", "fixedConditions", "authTokenTtlSeconds"); puts value if value' "${scenario_values_file}")"
+            fi
+          fi
+          capacity_cpu_request="${capacity_cpu_request:-500m}"
+          capacity_auth_token_ttl_seconds="${capacity_auth_token_ttl_seconds:-7200}"
+          printf 'Capacity baseline service CPU request=%s auth token ttl=%ss values=%s\n' "${capacity_cpu_request}" "${capacity_auth_token_ttl_seconds}" "${scenario_values_file:-default}"
+          task dev:services \
+            LOCAL_DOCKER_DESKTOP_ENV=local-capacity-baseline \
+            DEV_ROLLOUT_ID="capacity-baseline-$(date -u +%Y%m%dT%H%M%SZ)" \
+            LOADTEST_CAPACITY_BASELINE_CPU_REQUEST="${capacity_cpu_request}" \
+            LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS="${capacity_auth_token_ttl_seconds}"
+          warmup_seconds="${LOADTEST_CAPACITY_BASELINE_PROMETHEUS_WARMUP_SECONDS:-90}"
+          printf 'Waiting %ss for Prometheus scrape warmup before capacity baseline run.\n' "${warmup_seconds}"
+          sleep "${warmup_seconds}"
+        fi
       - task: loadtest:run-local
 
   dev:loadtest:deploy:
@@ -162,10 +211,36 @@ tasks:
         chart_run_file="${run_file#platform/loadtest/}"
 
         mkdir -p "$(dirname "${run_file}")"
-        RUN_FILE="${run_file}" RUN_ID="${run_id}" ruby -e '
+        service_steps="${LOADTEST_CAPACITY_BASELINE_SERVICE_STEPS:-}"
+        RUN_FILE="${run_file}" RUN_ID="${run_id}" SERVICE_STEPS_JSON="${service_steps}" ruby -rjson -ryaml -e '
           path = ENV.fetch("RUN_FILE")
           run_id = ENV.fetch("RUN_ID")
-          File.write(path, %(manualRuns:\n  read:\n    runId: "#{run_id}"\n))
+          data = {
+            "manualRuns" => {
+              "read" => {
+                "runId" => run_id,
+              },
+            },
+          }
+          service_steps_json = ENV.fetch("SERVICE_STEPS_JSON", "").strip
+          unless service_steps_json.empty?
+            begin
+              service_steps = JSON.parse(service_steps_json)
+            rescue JSON::ParserError => e
+              warn "LOADTEST_CAPACITY_BASELINE_SERVICE_STEPS must be a JSON string array: #{e.message}"
+              exit 2
+            end
+            unless service_steps.is_a?(Array) && service_steps.all? { |step| step.is_a?(String) && !step.empty? }
+              warn "LOADTEST_CAPACITY_BASELINE_SERVICE_STEPS must be a JSON string array."
+              exit 2
+            end
+            data["scenarios"] = {
+              "capacityBaseline" => {
+                "serviceSteps" => service_steps,
+              },
+            }
+          end
+          File.write(path, data.to_yaml.sub(/\A---\n/, ""))
         '
 
         ARGO_FILE="${argo_file}" CHART_PRESET_FILE="${chart_preset_file}" CHART_RUN_FILE="${chart_run_file}" ruby -e '
@@ -210,7 +285,6 @@ tasks:
       - task: dev:kong
 
   dev:services:
-    internal: true
     desc: Docker Desktop dev에 로컬 dev 대상 서비스 Helm release를 병렬 배포하고 병렬로 rollout을 기다립니다.
     cmds:
       - |
@@ -223,6 +297,18 @@ tasks:
         fi
         if [ -n "${image_namespace}" ]; then
           image_registry="${image_registry%/}/${image_namespace#/}"
+        fi
+        extra_helm_args=""
+        if [ "{{.LOCAL_DOCKER_DESKTOP_ENV}}" = "local-capacity-baseline" ]; then
+          capacity_cpu_request='{{.LOADTEST_CAPACITY_BASELINE_CPU_REQUEST}}'
+          capacity_cpu_request="${capacity_cpu_request:-${LOADTEST_CAPACITY_BASELINE_CPU_REQUEST:-500m}}"
+          capacity_auth_token_ttl_seconds='{{.LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS}}'
+          capacity_auth_token_ttl_seconds="${capacity_auth_token_ttl_seconds:-${LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS:-7200}}"
+          extra_helm_args="${extra_helm_args} --set hpa.enabled=false"
+          extra_helm_args="${extra_helm_args} --set-string container.resources.requests.cpu=${capacity_cpu_request}"
+          extra_helm_args="${extra_helm_args} --set container.resources.limits.cpu=null"
+          extra_helm_args="${extra_helm_args} --set nodeSelector=null"
+          extra_helm_args="${extra_helm_args} --set deployment.podAnnotations.sidecar\\.istio\\.io/proxyCPULimit=null"
         fi
         yaml_section_field() {
           awk -v section="$2" -v wanted="$3" '
@@ -252,6 +338,10 @@ tasks:
           service="$(basename "${service_file}" .yaml)"
           namespace="$(yaml_section_field "${service_file}" app namespace)"
           release="${service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
+          service_helm_args="${extra_helm_args}"
+          if [ "{{.LOCAL_DOCKER_DESKTOP_ENV}}" = "local-capacity-baseline" ] && [ "${service}" = "auth" ]; then
+            service_helm_args="${service_helm_args} --set-string container.env[1].value=${capacity_auth_token_ttl_seconds}"
+          fi
           (
             {{.HELM}} upgrade --install "${release}" {{.SERVICE_CHART}} \
               --namespace "${namespace}" \
@@ -262,7 +352,8 @@ tasks:
               --set-string image.registry="${image_registry}" \
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
               --set-string image.pullPolicy=Always \
-              --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id='"${rollout_id}"
+              --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id='"${rollout_id}" \
+              ${service_helm_args}
           ) &
           pids="${pids} $!"
         done
@@ -274,6 +365,18 @@ tasks:
         done
         if [ "${failed}" -ne 0 ]; then
           exit 1
+        fi
+        if [ "{{.LOCAL_DOCKER_DESKTOP_ENV}}" = "local-capacity-baseline" ]; then
+          for service in {{.DEV_SERVICES}}; do
+            service_file="values/services/${service}.yaml"
+            if [ ! -f "${service_file}" ]; then
+              printf 'Unknown DEV_SERVICES entry: %s (expected values/services/%s.yaml).\n' "${service}" "${service}" >&2
+              exit 2
+            fi
+            app_name="$(yaml_section_field "${service_file}" app name)"
+            namespace="$(yaml_section_field "${service_file}" app namespace)"
+            {{.KUBECTL}} scale "deployment/${app_name}" -n "${namespace}" --replicas=1
+          done
         fi
         pids=""
         for service in {{.DEV_SERVICES}}; do
@@ -732,7 +835,16 @@ tasks:
       - |
         set -eu
         {{.KUBECTL}} delete job/kafka-create-topics -n ticketing-messaging --ignore-not-found=true
-        {{.KUBECTL}} apply -k platform/data
+        {{.HELM}} upgrade --install medikong-data platform/data/chart \
+          --namespace ticketing-system \
+          --create-namespace \
+          -f platform/data/local/postgresql.yaml \
+          -f platform/data/local/postgres-auth.yaml \
+          -f platform/data/local/postgres-concert.yaml \
+          -f platform/data/local/postgres-reservation.yaml \
+          -f platform/data/local/postgres-payment.yaml \
+          -f platform/data/local/postgres-ticket.yaml \
+          -f platform/data/local/mongodb.yaml
         pids=""
         for item in \
           ticketing-auth/auth-db \
@@ -1120,7 +1232,7 @@ tasks:
       - task: dev:kong:down
       - |
         set -eu
-        {{.KUBECTL}} delete -k platform/data --ignore-not-found=true
+        {{.HELM}} uninstall medikong-data --namespace ticketing-system --ignore-not-found
         {{.KUBECTL}} delete -k platform/namespaces --ignore-not-found=true
 
   aws:check:
@@ -1326,7 +1438,24 @@ tasks:
       - '{{.KUBECTL}} kustomize platform/namespaces >/dev/null'
       - 'ruby -e ''require "yaml"; YAML.load_stream(File.read("platform/storage/storageclass-aws-gp3.yaml"))'' >/dev/null'
       - 'ruby -e ''require "yaml"; YAML.load_stream(File.read("platform/storage/local-path-private-dev.yaml"))'' >/dev/null'
-      - '{{.KUBECTL}} kustomize platform/data >/dev/null'
+      - >-
+        {{.HELM}} template medikong-data platform/data/chart
+        -f platform/data/local/postgresql.yaml
+        -f platform/data/local/postgres-auth.yaml
+        -f platform/data/local/postgres-concert.yaml
+        -f platform/data/local/postgres-reservation.yaml
+        -f platform/data/local/postgres-payment.yaml
+        -f platform/data/local/postgres-ticket.yaml
+        -f platform/data/local/mongodb.yaml >/dev/null
+      - >-
+        {{.HELM}} template medikong-data platform/data/chart
+        -f platform/data/aws-dev/postgresql.yaml
+        -f platform/data/aws-dev/postgres-auth.yaml
+        -f platform/data/aws-dev/postgres-concert.yaml
+        -f platform/data/aws-dev/postgres-reservation.yaml
+        -f platform/data/aws-dev/postgres-payment.yaml
+        -f platform/data/aws-dev/postgres-ticket.yaml
+        -f platform/data/aws-dev/mongodb.yaml >/dev/null
       - '{{.KUBECTL}} kustomize platform/data-private-dev >/dev/null'
       - '{{.KUBECTL}} kustomize platform/kong >/dev/null'
       - '{{.KUBECTL}} kustomize platform/monitoring >/dev/null'

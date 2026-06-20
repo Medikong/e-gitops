@@ -62,6 +62,10 @@ tasks:
         if [ -n "${scenario_values_file}" ]; then
           values_args="${values_args} -f ${scenario_values_file}"
         fi
+        capacity_service_steps="${LOADTEST_CAPACITY_BASELINE_SERVICE_STEPS:-}"
+        if [ -n "${capacity_service_steps}" ]; then
+          values_args="${values_args} --set-json scenarios.capacityBaseline.serviceSteps=${capacity_service_steps}"
+        fi
         image_args=""
         if [ "${LOADTEST_IMAGE_OVERRIDE:-}" = "true" ] || [ "${values_file}" = "values/local.yaml" ]; then
           image_ref="$(task image-ref --silent)"
@@ -162,6 +166,10 @@ tasks:
         if [ -n "${scenario_values_file}" ]; then
           values_args="${values_args} -f ${scenario_values_file}"
         fi
+        capacity_service_steps="${LOADTEST_CAPACITY_BASELINE_SERVICE_STEPS:-}"
+        if [ -n "${capacity_service_steps}" ]; then
+          values_args="${values_args} --set-json scenarios.capacityBaseline.serviceSteps=${capacity_service_steps}"
+        fi
         image_args=""
         if [ "${LOADTEST_IMAGE_OVERRIDE:-}" = "true" ] || [ "${values_file}" = "values/local.yaml" ]; then
           image_ref="$(task image-ref --silent)"
@@ -217,7 +225,7 @@ tasks:
         disable_kong_rate_limit="${LOADTEST_DISABLE_KONG_RATE_LIMIT:-}"
         if [ -z "${disable_kong_rate_limit}" ]; then
           case "${scenario}" in
-            reservation-journey-load-test|reservation-create-load-test|reservation-seat-contention-load-test|ticket-service-read-load-test)
+            reservation-journey-load-test|reservation-create-load-test|reservation-seat-contention-load-test|ticket-service-read-load-test|capacity-baseline-load-test)
               disable_kong_rate_limit="true"
               ;;
           esac
@@ -297,6 +305,8 @@ tasks:
           failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
           if [ "${failed:-0}" -ge 1 ]; then
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
+            {{.KUBECTL}} -n {{.NAMESPACE}} describe job "${job_name}" || true
+            {{.KUBECTL}} -n {{.NAMESPACE}} describe pods -l "job-name=${job_name}" || true
             exit 1
           fi
           if [ "${complete:-0}" -ge 1 ]; then
@@ -305,6 +315,8 @@ tasks:
           fi
           if [ "$(date +%s)" -ge "${deadline}" ]; then
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
+            {{.KUBECTL}} -n {{.NAMESPACE}} describe job "${job_name}" || true
+            {{.KUBECTL}} -n {{.NAMESPACE}} describe pods -l "job-name=${job_name}" || true
             printf 'Timed out waiting for job/%s.\n' "${job_name}" >&2
             exit 1
           fi
@@ -335,6 +347,8 @@ tasks:
           failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
           if [ "${failed:-0}" -ge 1 ]; then
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
+            {{.KUBECTL}} -n {{.NAMESPACE}} describe job "${job_name}" || true
+            {{.KUBECTL}} -n {{.NAMESPACE}} describe pods -l "job-name=${job_name}" || true
             exit 1
           fi
           if [ "${complete:-0}" -ge 1 ]; then
@@ -343,6 +357,8 @@ tasks:
           fi
           if [ "$(date +%s)" -ge "${deadline}" ]; then
             {{.KUBECTL}} -n {{.NAMESPACE}} logs "job/${job_name}" --tail=120 || true
+            {{.KUBECTL}} -n {{.NAMESPACE}} describe job "${job_name}" || true
+            {{.KUBECTL}} -n {{.NAMESPACE}} describe pods -l "job-name=${job_name}" || true
             printf 'Timed out waiting for job/%s.\n' "${job_name}" >&2
             exit 1
           fi

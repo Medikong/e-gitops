@@ -302,6 +302,110 @@ scenarios:
       handledRate: "0.95"
       createdRate: "0.0001"
       infraFailureRate: "0.01"
+  capacityBaseline:
+    requestPrefix: loadtest-capacity-baseline
+    timeoutSeconds: 10
+    setupTimeout: 5m
+    vus: 5
+    rate: 1
+    timeUnit: 1s
+    preAllocatedVUs: 10
+    maxVUs: 20
+    duration: 1m
+    serviceSteps:
+      - auth
+      - concert
+      - reservation
+      - payment
+      - ticket
+      - notification
+    stages:
+      - duration: 20s
+        target: 1
+      - duration: 20s
+        target: 2
+    gracefulStop: 10s
+    thinkTimeSeconds: 0
+    activeCustomerCount: 20
+    concertLimit: 20
+    performanceLimit: 20
+    seatLimit: 100
+    ticketListLimit: 20
+    paymentAmount: 50000
+    paymentPoolCount: 8000
+    ticketsPerCustomer: 20
+    notificationsPerCustomer: 20
+    targetUtilization: "0.70"
+    seedMethod: deterministic_bulk_insert
+    fixedConditions:
+      hpa: "disabled"
+      replicas: "1"
+      cpuRequest: 500m
+      cpuLimit: none
+      authTokenTtlSeconds: "7200"
+    schemaRevisions:
+      auth-service: model-v1
+      concert-service: model-v1
+      reservation-service: model-v1
+      payment-service: model-v1
+      ticket-service: model-v1
+      notification-service: model-v1
+    seedRowCounts:
+      customer_count: 120
+      provider_count: 1
+      admin_count: 1
+      concert_count: 8
+      performance_count: 16
+      seat_count: 8000
+      payment_pool_count: 8000
+      ticket_count: 2400
+      notification_count: 2400
+    resourceObservation:
+      enabled: false
+      source: prometheus
+      prometheusUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+      queryWindow: 1m
+      pollEveryIterations: 10
+      rbac:
+        create: false
+      targets:
+        - service: auth-service
+          namespace: ticketing-auth
+          podSelector: app.kubernetes.io/name=auth-service
+          podRegex: auth-service-.*
+        - service: concert-service
+          namespace: ticketing-concert
+          podSelector: app.kubernetes.io/name=concert-service
+          podRegex: concert-service-.*
+        - service: reservation-service
+          namespace: ticketing-reservation
+          podSelector: app.kubernetes.io/name=reservation-service
+          podRegex: reservation-service-.*
+        - service: payment-service
+          namespace: ticketing-payment
+          podSelector: app.kubernetes.io/name=payment-service
+          podRegex: payment-service-.*
+        - service: ticket-service
+          namespace: ticketing-ticket
+          podSelector: app.kubernetes.io/name=ticket-service
+          podRegex: ticket-service-.*
+        - service: notification-service
+          namespace: ticketing-notification
+          podSelector: app.kubernetes.io/name=notification-service
+          podRegex: notification-service-.*
+    database:
+      authUrl: postgresql+psycopg://user:password@auth-db.ticketing-auth.svc.cluster.local:5432/auth_db
+      concertUrl: postgresql+psycopg://user:password@concert-db.ticketing-concert.svc.cluster.local:5432/concert_db
+      reservationUrl: postgresql+psycopg://user:password@reservation-db.ticketing-reservation.svc.cluster.local:5432/reservation_db
+      paymentUrl: postgresql+psycopg://user:password@payment-db.ticketing-payment.svc.cluster.local:5432/payment_db
+      ticketUrl: postgresql+psycopg://user:password@ticket-db.ticketing-ticket.svc.cluster.local:5432/ticket_db
+      mongodbUrl: mongodb://notification-db.ticketing-notification.svc.cluster.local:27017
+      mongodbDbName: notification_db
+    thresholds:
+      httpReqFailedRate: "0.01"
+      httpReqDurationP95Ms: "100"
+      httpReqDurationP99Ms: "300"
+      checksRate: "0.99"
 
 k6:
   output: ""

@@ -1,0 +1,12 @@
+container:
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@auth-db:5432/auth_db
+    - name: AUTH_TOKEN_TTL_SECONDS
+      value: "7200"
+    - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
+      value: "604800"
+    - name: JWT_SECRET
+      value: ticketing-dev-secret
+    - name: JWT_ISSUER
+      value: auth-service

@@ -1,0 +1,14 @@
+profile: aws-dev
+
+postgresql:
+  config:
+    sharedBuffers: 256MB
+    effectiveCacheSize: 1GB
+    workMem: 16MB
+    maintenanceWorkMem: 256MB
+    maxConnections: 300
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+  storage: 10Gi

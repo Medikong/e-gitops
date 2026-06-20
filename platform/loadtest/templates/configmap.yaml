@@ -176,6 +176,50 @@ data:
   LOADTEST_RESERVATION_SEAT_CONTENTION_THRESHOLD_HANDLED_RATE: {{ .Values.scenarios.reservationSeatContention.thresholds.handledRate | quote }}
   LOADTEST_RESERVATION_SEAT_CONTENTION_THRESHOLD_CREATED_RATE: {{ .Values.scenarios.reservationSeatContention.thresholds.createdRate | quote }}
   LOADTEST_RESERVATION_SEAT_CONTENTION_THRESHOLD_INFRA_FAILURE_RATE: {{ .Values.scenarios.reservationSeatContention.thresholds.infraFailureRate | quote }}
+  LOADTEST_CAPACITY_BASELINE_REQUEST_PREFIX: {{ .Values.scenarios.capacityBaseline.requestPrefix | quote }}
+  LOADTEST_CAPACITY_BASELINE_TIMEOUT_SECONDS: {{ .Values.scenarios.capacityBaseline.timeoutSeconds | quote }}
+  LOADTEST_CAPACITY_BASELINE_SETUP_TIMEOUT: {{ .Values.scenarios.capacityBaseline.setupTimeout | quote }}
+  LOADTEST_CAPACITY_BASELINE_VUS: {{ .Values.scenarios.capacityBaseline.vus | quote }}
+  LOADTEST_CAPACITY_BASELINE_RATE: {{ .Values.scenarios.capacityBaseline.rate | quote }}
+  LOADTEST_CAPACITY_BASELINE_TIME_UNIT: {{ .Values.scenarios.capacityBaseline.timeUnit | quote }}
+  LOADTEST_CAPACITY_BASELINE_PRE_ALLOCATED_VUS: {{ .Values.scenarios.capacityBaseline.preAllocatedVUs | quote }}
+  LOADTEST_CAPACITY_BASELINE_MAX_VUS: {{ .Values.scenarios.capacityBaseline.maxVUs | quote }}
+  LOADTEST_CAPACITY_BASELINE_DURATION: {{ .Values.scenarios.capacityBaseline.duration | quote }}
+  LOADTEST_CAPACITY_BASELINE_SERVICE_STEPS: {{ toJson .Values.scenarios.capacityBaseline.serviceSteps | quote }}
+  LOADTEST_CAPACITY_BASELINE_STAGES: {{ toJson .Values.scenarios.capacityBaseline.stages | quote }}
+  LOADTEST_CAPACITY_BASELINE_GRACEFUL_STOP: {{ .Values.scenarios.capacityBaseline.gracefulStop | quote }}
+  LOADTEST_CAPACITY_BASELINE_THINK_TIME_SECONDS: {{ .Values.scenarios.capacityBaseline.thinkTimeSeconds | quote }}
+  LOADTEST_CAPACITY_BASELINE_ACTIVE_CUSTOMER_COUNT: {{ .Values.scenarios.capacityBaseline.activeCustomerCount | quote }}
+  LOADTEST_CAPACITY_BASELINE_CONCERT_LIMIT: {{ .Values.scenarios.capacityBaseline.concertLimit | quote }}
+  LOADTEST_CAPACITY_BASELINE_PERFORMANCE_LIMIT: {{ .Values.scenarios.capacityBaseline.performanceLimit | quote }}
+  LOADTEST_CAPACITY_BASELINE_SEAT_LIMIT: {{ .Values.scenarios.capacityBaseline.seatLimit | quote }}
+  LOADTEST_CAPACITY_BASELINE_TICKET_LIST_LIMIT: {{ .Values.scenarios.capacityBaseline.ticketListLimit | quote }}
+  LOADTEST_CAPACITY_BASELINE_PAYMENT_AMOUNT: {{ .Values.scenarios.capacityBaseline.paymentAmount | quote }}
+  LOADTEST_CAPACITY_BASELINE_PAYMENT_POOL_COUNT: {{ .Values.scenarios.capacityBaseline.paymentPoolCount | quote }}
+  LOADTEST_CAPACITY_BASELINE_TICKETS_PER_CUSTOMER: {{ .Values.scenarios.capacityBaseline.ticketsPerCustomer | quote }}
+  LOADTEST_CAPACITY_BASELINE_NOTIFICATIONS_PER_CUSTOMER: {{ .Values.scenarios.capacityBaseline.notificationsPerCustomer | quote }}
+  LOADTEST_CAPACITY_BASELINE_TARGET_UTILIZATION: {{ .Values.scenarios.capacityBaseline.targetUtilization | quote }}
+  LOADTEST_CAPACITY_BASELINE_SEED_METHOD: {{ .Values.scenarios.capacityBaseline.seedMethod | quote }}
+  LOADTEST_CAPACITY_BASELINE_FIXED_CONDITIONS: {{ toJson .Values.scenarios.capacityBaseline.fixedConditions | quote }}
+  LOADTEST_CAPACITY_BASELINE_SCHEMA_REVISIONS: {{ toJson .Values.scenarios.capacityBaseline.schemaRevisions | quote }}
+  LOADTEST_CAPACITY_BASELINE_SEED_ROW_COUNTS: {{ toJson .Values.scenarios.capacityBaseline.seedRowCounts | quote }}
+  LOADTEST_CAPACITY_BASELINE_RESOURCE_OBSERVATION_ENABLED: {{ .Values.scenarios.capacityBaseline.resourceObservation.enabled | quote }}
+  LOADTEST_CAPACITY_BASELINE_RESOURCE_OBSERVATION_SOURCE: {{ .Values.scenarios.capacityBaseline.resourceObservation.source | quote }}
+  LOADTEST_CAPACITY_BASELINE_PROMETHEUS_URL: {{ .Values.scenarios.capacityBaseline.resourceObservation.prometheusUrl | quote }}
+  LOADTEST_CAPACITY_BASELINE_RESOURCE_QUERY_WINDOW: {{ .Values.scenarios.capacityBaseline.resourceObservation.queryWindow | quote }}
+  LOADTEST_CAPACITY_BASELINE_RESOURCE_POLL_EVERY_ITERATIONS: {{ .Values.scenarios.capacityBaseline.resourceObservation.pollEveryIterations | quote }}
+  LOADTEST_CAPACITY_BASELINE_RESOURCE_TARGETS: {{ toJson .Values.scenarios.capacityBaseline.resourceObservation.targets | quote }}
+  LOADTEST_CAPACITY_BASELINE_AUTH_DATABASE_URL: {{ .Values.scenarios.capacityBaseline.database.authUrl | quote }}
+  LOADTEST_CAPACITY_BASELINE_CONCERT_DATABASE_URL: {{ .Values.scenarios.capacityBaseline.database.concertUrl | quote }}
+  LOADTEST_CAPACITY_BASELINE_RESERVATION_DATABASE_URL: {{ .Values.scenarios.capacityBaseline.database.reservationUrl | quote }}
+  LOADTEST_CAPACITY_BASELINE_PAYMENT_DATABASE_URL: {{ .Values.scenarios.capacityBaseline.database.paymentUrl | quote }}
+  LOADTEST_CAPACITY_BASELINE_TICKET_DATABASE_URL: {{ .Values.scenarios.capacityBaseline.database.ticketUrl | quote }}
+  LOADTEST_CAPACITY_BASELINE_MONGODB_URL: {{ .Values.scenarios.capacityBaseline.database.mongodbUrl | quote }}
+  LOADTEST_CAPACITY_BASELINE_MONGODB_DB_NAME: {{ .Values.scenarios.capacityBaseline.database.mongodbDbName | quote }}
+  LOADTEST_CAPACITY_BASELINE_THRESHOLD_HTTP_REQ_FAILED_RATE: {{ .Values.scenarios.capacityBaseline.thresholds.httpReqFailedRate | quote }}
+  LOADTEST_CAPACITY_BASELINE_THRESHOLD_HTTP_REQ_DURATION_P95_MS: {{ .Values.scenarios.capacityBaseline.thresholds.httpReqDurationP95Ms | quote }}
+  LOADTEST_CAPACITY_BASELINE_THRESHOLD_HTTP_REQ_DURATION_P99_MS: {{ .Values.scenarios.capacityBaseline.thresholds.httpReqDurationP99Ms | quote }}
+  LOADTEST_CAPACITY_BASELINE_THRESHOLD_CHECKS_RATE: {{ .Values.scenarios.capacityBaseline.thresholds.checksRate | quote }}
   LOADTEST_CUSTOMER_POOL_SIZE: {{ .Values.dataset.customerPool.size | quote }}
   LOADTEST_CUSTOMER_POOL_EMAIL_PREFIX: {{ .Values.dataset.customerPool.emailPrefix | quote }}
   LOADTEST_CUSTOMER_POOL_EMAIL_DOMAIN: {{ .Values.dataset.customerPool.emailDomain | quote }}

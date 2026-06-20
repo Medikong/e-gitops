@@ -96,6 +96,13 @@ function metricNameWithLoadStage(name, stageId) {
   return `${name}{load_stage:${stageId}}`;
 }
 
+function metricNameWithTags(name, tags) {
+  const selector = Object.entries(tags)
+    .map(([key, value]) => `${key}:${value}`)
+    .join(',');
+  return `${name}{${selector}}`;
+}
+
 function reservationCreateOutcomeMetrics(metrics, step) {
   if (!step.endsWith('.reservation.create')) {
     return {};
@@ -159,6 +166,7 @@ function stressStageResults(config, metrics) {
       label: loadStageLabel(stage),
       duration: stage.duration,
       target_journeys_per_second: Number(stage.target),
+      target_iterations_per_second: Number(stage.target),
       http_req_duration_p95_ms: metricValue(metrics, metricNameWithLoadStage('http_req_duration', stageId), 'p(95)'),
       http_req_duration_p99_ms: metricValue(metrics, metricNameWithLoadStage('http_req_duration', stageId), 'p(99)'),
       http_req_failed_rate: metricValue(metrics, metricNameWithLoadStage('http_req_failed', stageId), 'rate'),
@@ -193,10 +201,181 @@ function scenarioReport(config, data) {
       first_limit_candidate: stageResults.find((row) => row.limit_reasons.length > 0) || null,
     };
   }
+  if (config.scenario === 'reservation-create-load-test' && (config.trafficModel || {}).preset === 'stress-find-limit') {
+    const stageResults = stressStageResults(config, metrics).map((row) => ({
+      ...row,
+      label: row.label.replace('journey/s', 'iterations/s'),
+    }));
+    return {
+      ...base,
+      report_type: 'reservation_create_stress_find_limit',
+      load_unit: 'iterations/s',
+      stage_results: stageResults,
+      first_limit_candidate: stageResults.find((row) => row.limit_reasons.length > 0) || null,
+    };
+  }
   return {
     ...base,
     report_type: 'generic',
   };
+}
+
+function capacityBaselineStageId(service, stage) {
+  const target = Number(stage && stage.target);
+  const targetLabel = Number.isFinite(target) ? String(target).replace(/\./g, '_') : 'unknown';
+  return `${service.replace(/-service$/, '')}_rps_${targetLabel}`;
+}
+
+function capacityBaselineServiceSteps(config = {}) {
+  const enabledServices = new Set(config.serviceSteps || []);
+  const allSteps = [
+    {
+      service: 'auth-service',
+      steps: [
+        { step: 'capacity_baseline.auth.login', api: 'POST /auth/login' },
+      ],
+    },
+    {
+      service: 'concert-service',
+      steps: [
+        { step: 'capacity_baseline.concert.concerts', api: 'GET /concerts' },
+        { step: 'capacity_baseline.concert.performances', api: 'GET /concerts/{concertId}/performances' },
+        { step: 'capacity_baseline.concert.seats', api: 'GET /performances/{performanceId}/seats' },
+      ],
+    },
+    {
+      service: 'reservation-service',
+      steps: [
+        { step: 'capacity_baseline.reservation.create', api: 'POST /reservations' },
+      ],
+    },
+    {
+      service: 'payment-service',
+      steps: [
+        { step: 'capacity_baseline.payment.approve', api: 'POST /payments' },
+      ],
+    },
+    {
+      service: 'ticket-service',
+      steps: [
+        { step: 'capacity_baseline.ticket.list', api: 'GET /tickets/me' },
+      ],
+    },
+    {
+      service: 'notification-service',
+      steps: [
+        { step: 'capacity_baseline.notification.list', api: 'GET /notifications' },
+      ],
+    },
+  ];
+  return enabledServices.size === 0
+    ? allSteps
+    : allSteps.filter((row) => enabledServices.has(row.service));
+}
+
+function capacityBaselineStepResult(config, metrics, service, step, api, stage) {
+  const capacityStep = capacityBaselineStageId(service, stage);
+  const metricTags = { capacity_step: capacityStep, measured_service: service, step };
+  const serviceTags = { capacity_step: capacityStep, measured_service: service };
+  const p95 = metricValue(metrics, metricNameWithTags('http_req_duration', metricTags), 'p(95)');
+  const p99 = metricValue(metrics, metricNameWithTags('http_req_duration', metricTags), 'p(99)');
+  const errorRate = metricValue(metrics, metricNameWithTags('http_req_failed', metricTags), 'rate');
+  const cpuUsage = metricValue(metrics, metricNameWithTags('loadtest_capacity_cpu_usage_m', serviceTags), 'avg');
+  const throttling = metricValue(metrics, metricNameWithTags('loadtest_capacity_cpu_throttling_ratio', serviceTags), 'avg');
+  const reasons = [];
+  if (p95 !== null && p95 >= config.thresholds.httpReqDurationP95Ms) {
+    reasons.push('p95_threshold');
+  }
+  if (errorRate !== null && errorRate >= config.thresholds.httpReqFailedRate) {
+    reasons.push('error_rate_threshold');
+  }
+  if (throttling !== null && throttling > 0) {
+    reasons.push('cpu_throttling');
+  }
+  return {
+    service,
+    api,
+    step,
+    capacity_step: capacityStep,
+    target_rps: Number(stage.target),
+    per_pod_rps: Number(stage.target),
+    duration: stage.duration,
+    p95_ms: p95,
+    p99_ms: p99,
+    error_rate: errorRate,
+    cpu_usage_m: cpuUsage,
+    cpu_throttling: throttling,
+    request_candidate_m: cpuUsage === null ? null : Math.ceil(cpuUsage / config.targetUtilization),
+    status: reasons.length === 0 ? 'valid' : 'limit_candidate',
+    decision_reasons: reasons,
+  };
+}
+
+function capacityBaselineServiceSummary(config, rows, service) {
+  const serviceRows = rows.filter((row) => row.service === service);
+  const validRows = serviceRows.filter((row) => row.status === 'valid');
+  const best = validRows.length === 0
+    ? null
+    : validRows.reduce((current, row) => (row.target_rps >= current.target_rps ? row : current), validRows[0]);
+  return {
+    service,
+    max_valid_rps: best ? best.target_rps : null,
+    cpu_usage_m_at_max_valid_rps: best ? best.cpu_usage_m : null,
+    request_candidate_m: best ? best.request_candidate_m : null,
+    target_utilization: config.targetUtilization,
+    status: best ? 'candidate_ready' : 'needs_review',
+    basis_capacity_step: best ? best.capacity_step : null,
+  };
+}
+
+function capacityBaselineReport(config, data) {
+  const metrics = data.metrics || {};
+  const stepResults = [];
+  for (const serviceConfig of capacityBaselineServiceSteps(config)) {
+    for (const stage of config.stages || []) {
+      for (const stepConfig of serviceConfig.steps) {
+        stepResults.push(capacityBaselineStepResult(
+          config,
+          metrics,
+          serviceConfig.service,
+          stepConfig.step,
+          stepConfig.api,
+          stage,
+        ));
+      }
+    }
+  }
+  return {
+    report_type: 'capacity_baseline',
+    scenario: config.scenario,
+    traffic_model_preset: (config.trafficModel || {}).preset,
+    dataset_revision: config.dataset && config.dataset.revision,
+    seed_method: config.seedMethod,
+    schema_revisions: config.schemaRevisions,
+    seed_row_counts: config.seedRowCounts,
+    target_utilization: config.targetUtilization,
+    service_steps: config.serviceSteps,
+    resource_observation_source: config.resourceObservation && config.resourceObservation.source,
+    services: capacityBaselineServiceSteps(config).map((row) => capacityBaselineServiceSummary(config, stepResults, row.service)),
+    step_results: stepResults,
+  };
+}
+
+function capacityBaselineRunReportLine(config, data) {
+  const result = reportSummary(config, data);
+  return JSON.stringify({
+    event: 'loadtest_run_report',
+    timestamp: new Date().toISOString(),
+    test_type: 'loadtest',
+    loadtest_run_id: config.runId,
+    scenario: config.scenario,
+    environment: config.environment,
+    target: config.target,
+    target_base_url: config.baseUrl,
+    status: result.status,
+    execution_conditions: experimentConditionFields(config, 'summary'),
+    scenario_report: capacityBaselineReport(config, data),
+  });
 }
 
 function stepsFromMetrics(metrics) {
@@ -458,5 +637,11 @@ export function summaryOutput(config, data) {
     [`${config.reportDir}/summary.json`]: JSON.stringify(data, null, 2),
     [`${config.reportDir}/report.md`]: markdownReport(config, data),
     [`${config.reportDir}/report.html`]: htmlReport(config, data),
+  };
+}
+
+export function capacityBaselineSummaryOutput(config, data) {
+  return {
+    stdout: `${capacityBaselineRunReportLine(config, data)}\n`,
   };
 }

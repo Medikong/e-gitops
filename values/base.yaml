@@ -1,6 +1,7 @@
 environment: base
 
 deployment:
+  replicasManaged: true
   replicas: 1
   strategy:
     type: RollingUpdate

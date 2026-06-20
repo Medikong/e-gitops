@@ -1,0 +1,4 @@
+{{- range $key, $_ := .Values.postgresql.databases }}
+{{- include "medikong-data.postgresql" (dict "root" $ "key" $key) }}
+---
+{{- end }}

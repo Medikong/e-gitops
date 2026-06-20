@@ -27,6 +27,14 @@ export const HTTP_STEP_METADATA = {
   'ticket-list': { route: 'GET /tickets/me', service: 'ticket-service' },
   'ticket-list-pagination': { route: 'GET /tickets/me', service: 'ticket-service' },
   'ticket-wait-by-list': { route: 'GET /tickets/me', service: 'ticket-service' },
+  'capacity_baseline.auth.login': { route: 'POST /auth/login', service: 'auth-service' },
+  'capacity_baseline.concert.concerts': { route: 'GET /concerts', service: 'concert-service' },
+  'capacity_baseline.concert.performances': { route: 'GET /concerts/{concertId}/performances', service: 'concert-service' },
+  'capacity_baseline.concert.seats': { route: 'GET /performances/{performanceId}/seats', service: 'concert-service' },
+  'capacity_baseline.reservation.create': { route: 'POST /reservations', service: 'reservation-service' },
+  'capacity_baseline.payment.approve': { route: 'POST /payments', service: 'payment-service' },
+  'capacity_baseline.ticket.list': { route: 'GET /tickets/me', service: 'ticket-service' },
+  'capacity_baseline.notification.list': { route: 'GET /notifications', service: 'notification-service' },
 };
 
 export const HTTP_STEP_ROUTES = Object.fromEntries(
@@ -74,6 +82,17 @@ export const TICKET_SERVICE_READ_STEPS = [
   'ticket-list',
   'ticket-list-pagination',
   'ticket-wait-by-list',
+];
+
+export const CAPACITY_BASELINE_STEPS = [
+  'capacity_baseline.auth.login',
+  'capacity_baseline.concert.concerts',
+  'capacity_baseline.concert.performances',
+  'capacity_baseline.concert.seats',
+  'capacity_baseline.reservation.create',
+  'capacity_baseline.payment.approve',
+  'capacity_baseline.ticket.list',
+  'capacity_baseline.notification.list',
 ];
 
 export function routeLabel(step, method, path) {

@@ -1,0 +1,28 @@
+profile: local
+
+postgresql:
+  image: postgres:15
+  user: user
+  password: password
+  config:
+    sharedBuffers: 128MB
+    effectiveCacheSize: 512MB
+    workMem: 8MB
+    maintenanceWorkMem: 128MB
+    maxConnections: 200
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  storage: 1Gi
+  databases: {}
+
+mongodb:
+  image: mongo:7
+  name: notification-db
+  namespace: ticketing-notification
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  storage: 1Gi

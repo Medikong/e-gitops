@@ -206,6 +206,7 @@ values/presets/reservation-journey/mau10k-ticket-open-aggressive.yaml
 values/presets/reservation-journey/stress-find-limit.yaml
 values/presets/reservation-create/mau10k-normal-peak.yaml
 values/presets/reservation-create/mau10k-ticket-open.yaml
+values/presets/reservation-create/stress-find-limit.yaml
 values/presets/reservation-seat-contention/mau10k-ticket-open.yaml
 values/presets/reservation-seat-contention/stress-find-limit.yaml
 values/presets/ticket-service-read/local-ticket-read-smoke.yaml
@@ -228,6 +229,9 @@ MAU 1만 티켓 오픈 가정을 5분 동안 `2 journey/s`로 짧게 실행해 t
 
 `stress-find-limit`는 MAU 모델 검증이 아니라 한계 탐색용이다.
 `5 -> 10 -> 20 journey/s` ramping-arrival-rate로 병목 위치를 찾는다.
+
+`reservation-create/stress-find-limit`는 MAU 모델 검증이 아니라 reservation-service 한계 탐색과 HPA 반응 측정용이다.
+`5 -> 10 -> 20 iterations/s` ramping-arrival-rate로 예약 생성 부하를 올리고, `scenario_report.stage_results`, `first_limit_candidate`, `scale_out_results`의 HPA decision/ready 시간을 확인한다.
 
 프리셋의 기준 식은 다음과 같다.
 
@@ -271,6 +275,7 @@ Kong rate limit을 포함한 제품 경로 기준선을 보려면 `LOADTEST_DISA
 task --dir gitops aws:loadtest
 PRESET=mau10k-ticket-open task --dir gitops aws:loadtest
 PRESET=stress-find-limit task --dir gitops aws:loadtest
+SCENARIO=reservation-create-load-test PRESET=stress-find-limit task --dir gitops aws:loadtest
 
 SCENARIO=read-api-baseline task --dir gitops dev:loadtest
 SCENARIO=auth-login-load-test task --dir gitops dev:loadtest
@@ -280,6 +285,7 @@ SCENARIO=reservation-create-load-test task --dir gitops dev:loadtest
 SCENARIO=reservation-seat-contention-load-test task --dir gitops dev:loadtest
 PRESET=mau10k-ticket-open task --dir gitops dev:loadtest
 SCENARIO=reservation-create-load-test PRESET=mau10k-ticket-open task --dir gitops dev:loadtest
+SCENARIO=reservation-create-load-test PRESET=stress-find-limit task --dir gitops dev:loadtest
 SCENARIO=reservation-seat-contention-load-test PRESET=stress-find-limit task --dir gitops dev:loadtest
 SCENARIO=ticket-service-read-load-test PRESET=local-ticket-read-smoke task --dir gitops dev:loadtest
 LOADTEST_DISABLE_KONG_RATE_LIMIT=false SCENARIO=reservation-journey-load-test task --dir gitops dev:loadtest
@@ -294,6 +300,7 @@ LOADTEST_SCENARIO_VALUES_FILE=values/scenarios/reservation-create-load-test.yaml
 LOADTEST_SCENARIO_VALUES_FILE=values/scenarios/reservation-seat-contention-load-test.yaml task --dir gitops/platform/loadtest render
 PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest render
 PRESET=mau10k-normal-peak SCENARIO=reservation-create-load-test task --dir gitops/platform/loadtest render
+PRESET=stress-find-limit SCENARIO=reservation-create-load-test task --dir gitops/platform/loadtest render
 PRESET=stress-find-limit SCENARIO=reservation-seat-contention-load-test task --dir gitops/platform/loadtest render
 SCENARIO=auth-login-load-test task --dir gitops/platform/loadtest run-local
 SCENARIO=ticket-service-read-load-test task --dir gitops/platform/loadtest run-local
@@ -302,6 +309,7 @@ SCENARIO=reservation-create-load-test task --dir gitops/platform/loadtest run-lo
 SCENARIO=reservation-seat-contention-load-test task --dir gitops/platform/loadtest run-local
 PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest run-local
 SCENARIO=reservation-create-load-test PRESET=mau10k-ticket-open task --dir gitops/platform/loadtest run-local
+SCENARIO=reservation-create-load-test PRESET=stress-find-limit task --dir gitops/platform/loadtest run-local
 SCENARIO=reservation-seat-contention-load-test PRESET=stress-find-limit task --dir gitops/platform/loadtest run-local
 SCENARIO=ticket-service-read-load-test PRESET=local-ticket-read-smoke task --dir gitops/platform/loadtest run-local
 LOADTEST_DISABLE_KONG_RATE_LIMIT=false SCENARIO=reservation-journey-load-test task --dir gitops/platform/loadtest run-local

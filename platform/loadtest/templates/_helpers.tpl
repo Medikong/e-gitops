@@ -69,6 +69,9 @@ containers:
       - -ec
     args:
       - |
+        if [ "${LOADTEST_SCENARIO:-}" = "setup-capacity-baseline-dataset" ]; then
+          exec python3 /loadtest/scripts/setup_capacity_baseline_dataset.py
+        fi
         set +e
         k6 run --log-format=raw ${K6_OUTPUT:+--out "$K6_OUTPUT"} {{- range $root.Values.k6.extraArgs }} {{ . | quote }}{{- end }} "/loadtest/scenarios/${LOADTEST_SCENARIO}.js"
         exit_code="$?"
@@ -78,6 +81,9 @@ containers:
             exit 0
             ;;
           99|201)
+            if [ "${LOADTEST_SCENARIO:-}" = "capacity-baseline-load-test" ]; then
+              exit 0
+            fi
             printf '{"event":"loadtest_threshold_exit","timestamp":"%s","test_type":"loadtest","loadtest_run_id":"%s","scenario":"%s","exit_code":%s}\\n' \
               "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${LOADTEST_RUN_ID:-}" "${LOADTEST_SCENARIO:-}" "${exit_code}"
             exit 0

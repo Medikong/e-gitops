@@ -1,0 +1,6 @@
+postgresql:
+  databases:
+    ticket:
+      name: ticket-db
+      namespace: ticketing-ticket
+      database: ticket_db
