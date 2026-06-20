@@ -71,15 +71,9 @@ scenarios:
     serviceStages:
       auth:
         - duration: 90s
-          target: 10
-        - duration: 90s
-          target: 20
+          target: 30
         - duration: 90s
           target: 40
-        - duration: 90s
-          target: 60
-        - duration: 90s
-          target: 80
       payment:
         - duration: 90s
           target: 5
