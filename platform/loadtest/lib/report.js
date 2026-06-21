@@ -236,6 +236,22 @@ function capacityBaselineStageId(service, stage) {
   return `${service.replace(/-service$/, '')}_rps_${targetLabel}`;
 }
 
+function capacityBaselineStepStageId(service, step, stage) {
+  if (service !== 'concert-service') {
+    return capacityBaselineStageId(service, stage);
+  }
+  const concertStepPrefixes = {
+    'capacity_baseline.concert.recommended': 'concert_recommended',
+    'capacity_baseline.concert.detail': 'concert_detail',
+    'capacity_baseline.concert.calendar': 'concert_calendar',
+    'capacity_baseline.concert.date_performances': 'concert_date_performances',
+    'capacity_baseline.concert.seat_map': 'concert_seat_map',
+  };
+  const target = Number(stage && stage.target);
+  const targetLabel = Number.isFinite(target) ? String(target).replace(/\./g, '_') : 'unknown';
+  return `${concertStepPrefixes[step] || 'concert'}_rps_${targetLabel}`;
+}
+
 function capacityBaselineStagesForService(config = {}, service) {
   return (config.serviceStages && config.serviceStages[service]) || config.stages || [];
 }
@@ -291,7 +307,7 @@ function capacityBaselineServiceSteps(config = {}) {
 }
 
 function capacityBaselineStepResult(config, metrics, service, step, api, stage) {
-  const capacityStep = capacityBaselineStageId(service, stage);
+  const capacityStep = capacityBaselineStepStageId(service, step, stage);
   const metricTags = { capacity_step: capacityStep, measured_service: service, step };
   const serviceTags = { capacity_step: capacityStep, measured_service: service };
   const p95 = metricValue(metrics, metricNameWithTags('http_req_duration', metricTags), 'p(95)');
@@ -333,16 +349,21 @@ function capacityBaselineStepResult(config, metrics, service, step, api, stage) 
 
 function capacityBaselineServiceSummary(config, rows, service) {
   const serviceRows = rows.filter((row) => row.service === service);
+  const stepCount = capacityBaselineServiceSteps(config).find((row) => row.service === service)?.steps.length || 0;
   const stages = capacityBaselineStagesForService(config, service).map((stage) => {
-    const capacityStep = capacityBaselineStageId(service, stage);
-    const stageRows = serviceRows.filter((row) => row.capacity_step === capacityStep);
-    const valid = stageRows.length > 0 && stageRows.every((row) => row.status === 'valid');
+    const stageRows = serviceRows.filter((row) => row.target_rps === Number(stage.target));
+    const valid = stageRows.length >= stepCount && stageRows.every((row) => row.status === 'valid');
+    const cpuUsageValues = stageRows
+      .map((row) => row.cpu_usage_m)
+      .filter((value) => value !== null && value !== undefined);
+    const maxCpuUsage = cpuUsageValues.length === 0 ? null : Math.max(...cpuUsageValues);
     return {
-      capacity_step: capacityStep,
+      capacity_step: capacityBaselineStageId(service, stage),
+      capacity_steps: stageRows.map((row) => row.capacity_step),
       target_rps: Number(stage.target),
       valid,
-      cpu_usage_m: stageRows.find((row) => row.cpu_usage_m !== null)?.cpu_usage_m ?? null,
-      request_candidate_m: stageRows.find((row) => row.request_candidate_m !== null)?.request_candidate_m ?? null,
+      cpu_usage_m: maxCpuUsage,
+      request_candidate_m: maxCpuUsage === null ? null : Math.ceil(maxCpuUsage / config.targetUtilization),
     };
   });
   const validStages = stages.filter((stage) => stage.valid);

@@ -456,10 +456,12 @@ def seed_ticket(counts: dict):
     now = datetime.now(timezone.utc)
     with pg("LOADTEST_CAPACITY_BASELINE_TICKET_DATABASE_URL", "postgresql://user:password@ticket-db:5432/ticket_db") as connection:
         cursor = connection.cursor()
-        require_table(cursor, "tickets", {"reservation_id", "user_id", "concert_id", "seat_id", "status", "qr_url", "pdf_url", "issued_at"})
+        require_table(cursor, "tickets", {"id", "reservation_id", "user_id", "concert_id", "seat_id", "status", "qr_url", "pdf_url", "issued_at"})
         require_unique_columns(cursor, "tickets", ("reservation_id",))
+        ticket_ids = [uuid_id("ticket", index) for index in range(1, ticket_count + 1)]
         ticket_reservation_ids = [uuid_id("ticket-reservation", index) for index in range(1, ticket_count + 1)]
         issued_reservation_ids = [uuid_id("paid-reservation", index) for index in range(1, ticket_issue_pool + 1)]
+        delete_uuid_values(cursor, "tickets", "id", ticket_ids)
         delete_uuid_values(cursor, "tickets", "reservation_id", ticket_reservation_ids)
         delete_uuid_values(cursor, "tickets", "reservation_id", issued_reservation_ids)
         cursor.execute(
@@ -476,6 +478,7 @@ def seed_ticket(counts: dict):
         rows = []
         for index in range(1, ticket_count + 1):
             rows.append((
+                uuid_id("ticket", index),
                 uuid_id("ticket-reservation", index),
                 str(CUSTOMER_ID_BASE + ((index - 1) % CUSTOMER_COUNT) + 1),
                 concert_id(((index - 1) % env_int("LOADTEST_DATASET_CONCERTS", 270)) + 1),
@@ -485,7 +488,7 @@ def seed_ticket(counts: dict):
                 f"https://tickets.local/{REVISION}/{index}.pdf",
                 now,
             ))
-        copy_rows(cursor, "tickets", ("reservation_id", "user_id", "concert_id", "seat_id", "status", "qr_url", "pdf_url", "issued_at"), rows)
+        copy_rows(cursor, "tickets", ("id", "reservation_id", "user_id", "concert_id", "seat_id", "status", "qr_url", "pdf_url", "issued_at"), rows)
         counts["ticket.tickets"] = expect_count("ticket.tickets", row_count(cursor, "select count(*) from tickets where qr_url like %s", (f"https://tickets.local/{REVISION}/%",)), len(rows))
 
 

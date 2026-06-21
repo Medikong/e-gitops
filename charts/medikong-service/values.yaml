@@ -66,9 +66,9 @@ workers: []
 
 database:
   sqlalchemy:
-    poolSize: 5
-    maxOverflow: 0
-    poolTimeoutSeconds: 5
+    poolSize: 35
+    maxOverflow: 20
+    poolTimeoutSeconds: 15
     poolRecycleSeconds: 1800
 
 observability:

@@ -21,7 +21,6 @@ const SERVICE_ORDER = [
 ];
 const SERVICE_SCENARIOS = {
   'auth-service': 'capacity-baseline-auth',
-  'concert-service': 'capacity-baseline-concert',
   'reservation-service': 'capacity-baseline-reservation',
   'payment-service': 'capacity-baseline-payment',
   'ticket-service': 'capacity-baseline-ticket',
@@ -29,7 +28,6 @@ const SERVICE_SCENARIOS = {
 };
 const SERVICE_FUNCTIONS = {
   'auth-service': 'measureAuth',
-  'concert-service': 'measureConcert',
   'reservation-service': 'measureReservation',
   'payment-service': 'measurePayment',
   'ticket-service': 'measureTicket',
@@ -50,6 +48,62 @@ const SERVICE_STEPS = {
   'notification-service': ['capacity_baseline.notification.list'],
 };
 const ACTIVE_SERVICE_ORDER = config.serviceSteps || SERVICE_ORDER;
+const CONCERT_MEASUREMENTS = [
+  {
+    service: 'concert-service',
+    key: 'concert-recommended',
+    scenario: 'capacity-baseline-concert-recommended',
+    exec: 'measureConcertRecommended',
+    step: 'capacity_baseline.concert.recommended',
+    capacityStepPrefix: 'concert_recommended',
+  },
+  {
+    service: 'concert-service',
+    key: 'concert-detail',
+    scenario: 'capacity-baseline-concert-detail',
+    exec: 'measureConcertDetail',
+    step: 'capacity_baseline.concert.detail',
+    capacityStepPrefix: 'concert_detail',
+  },
+  {
+    service: 'concert-service',
+    key: 'concert-calendar',
+    scenario: 'capacity-baseline-concert-calendar',
+    exec: 'measureConcertCalendar',
+    step: 'capacity_baseline.concert.calendar',
+    capacityStepPrefix: 'concert_calendar',
+  },
+  {
+    service: 'concert-service',
+    key: 'concert-date-performances',
+    scenario: 'capacity-baseline-concert-date-performances',
+    exec: 'measureConcertDatePerformances',
+    step: 'capacity_baseline.concert.date_performances',
+    capacityStepPrefix: 'concert_date_performances',
+  },
+  {
+    service: 'concert-service',
+    key: 'concert-seat-map',
+    scenario: 'capacity-baseline-concert-seat-map',
+    exec: 'measureConcertSeatMap',
+    step: 'capacity_baseline.concert.seat_map',
+    capacityStepPrefix: 'concert_seat_map',
+  },
+];
+const ACTIVE_MEASUREMENTS = ACTIVE_SERVICE_ORDER.flatMap((service) => {
+  if (service === 'concert-service') {
+    return CONCERT_MEASUREMENTS;
+  }
+  return [{
+    service,
+    key: service,
+    scenario: SERVICE_SCENARIOS[service],
+    exec: SERVICE_FUNCTIONS[service],
+    steps: SERVICE_STEPS[service],
+    capacityStepPrefix: service.replace(/-service$/, ''),
+  }];
+});
+const MEASUREMENT_BY_KEY = Object.fromEntries(ACTIVE_MEASUREMENTS.map((measurement) => [measurement.key, measurement]));
 const STEP_API = {
   'capacity_baseline.auth.login': { method: 'POST', route: 'POST /auth/login' },
   'capacity_baseline.concert.recommended': { method: 'GET', route: 'GET /concerts/recommended?sort=latest&cursor={cursor}' },
@@ -77,8 +131,8 @@ const kubernetesApi = (__ENV.KUBERNETES_SERVICE_HOST && __ENV.KUBERNETES_SERVICE
   ? `https://${__ENV.KUBERNETES_SERVICE_HOST}:${__ENV.KUBERNETES_SERVICE_PORT}`
   : 'https://kubernetes.default.svc';
 
-function stageId(service, stage) {
-  return `${service.replace(/-service$/, '')}_rps_${String(stage.target).replace(/\./g, '_')}`;
+function stageIdForMeasurement(measurement, stage) {
+  return `${measurement.capacityStepPrefix}_rps_${String(stage.target).replace(/\./g, '_')}`;
 }
 
 function stagesForService(service) {
@@ -89,47 +143,63 @@ function serviceDurationSeconds(service) {
   return stagesForService(service).reduce((total, stage) => total + durationSeconds(stage.duration), 0);
 }
 
-function serviceOffsetSeconds(service) {
+function measurementDurationSeconds(measurement) {
+  return serviceDurationSeconds(measurement.service);
+}
+
+function measurementOffsetSeconds(measurementKey) {
   let offset = 0;
-  for (const activeService of ACTIVE_SERVICE_ORDER) {
-    if (activeService === service) {
+  for (const measurement of ACTIVE_MEASUREMENTS) {
+    if (measurement.key === measurementKey) {
       return offset;
     }
-    offset += serviceDurationSeconds(activeService) + durationSeconds(config.gracefulStop);
+    offset += measurementDurationSeconds(measurement) + durationSeconds(config.gracefulStop);
   }
   return offset;
 }
 
-function serviceStartTime(service) {
-  return `${serviceOffsetSeconds(service)}s`;
+function measurementStartTime(measurement) {
+  return `${measurementOffsetSeconds(measurement.key)}s`;
 }
 
-function scenarioForService(service) {
+function scenarioForMeasurement(measurement) {
   return {
     executor: 'ramping-arrival-rate',
-    exec: SERVICE_FUNCTIONS[service],
-    startTime: serviceStartTime(service),
+    exec: measurement.exec,
+    startTime: measurementStartTime(measurement),
     timeUnit: config.timeUnit,
     preAllocatedVUs: config.preAllocatedVUs,
     maxVUs: config.maxVUs,
-    stages: stagesForService(service),
+    stages: stagesForService(measurement.service),
     gracefulStop: config.gracefulStop,
     tags: {
       environment: config.environment,
       profile: config.dataset.profile,
       test_type: config.testType,
-      measured_service: service,
+      measured_service: measurement.service,
+      measurement: measurement.key,
       target: config.target,
     },
   };
 }
 
 function thresholdTags(service, step, stage) {
-  return `capacity_step:${stageId(service, stage)},measured_service:${service},step:${step}`;
+  const measurement = measurementForStep(service, step);
+  return `capacity_step:${stageIdForMeasurement(measurement, stage)},measured_service:${service},step:${step}`;
 }
 
-function serviceThresholdTags(service, stage) {
-  return `capacity_step:${stageId(service, stage)},measured_service:${service}`;
+function serviceThresholdTags(service, stage, step = null) {
+  const measurement = step === null
+    ? ACTIVE_MEASUREMENTS.find((candidate) => candidate.service === service)
+    : measurementForStep(service, step);
+  return `capacity_step:${stageIdForMeasurement(measurement, stage)},measured_service:${service}`;
+}
+
+function measurementForStep(service, step) {
+  if (service === 'concert-service') {
+    return CONCERT_MEASUREMENTS.find((measurement) => measurement.step === step);
+  }
+  return MEASUREMENT_BY_KEY[service];
 }
 
 function capacityThresholds() {
@@ -152,8 +222,10 @@ function capacityThresholds() {
         thresholds[`checks{${tags}}`] = [`rate>${config.thresholds.checksRate}`];
       }
       if (config.resourceObservation.enabled) {
-        thresholds[`loadtest_capacity_cpu_usage_m{${serviceThresholdTags(service, stage)}}`] = ['avg>=0'];
-        thresholds[`loadtest_capacity_cpu_throttling_ratio{${serviceThresholdTags(service, stage)}}`] = ['avg>=0'];
+        for (const step of SERVICE_STEPS[service]) {
+          thresholds[`loadtest_capacity_cpu_usage_m{${serviceThresholdTags(service, stage, step)}}`] = ['avg>=0'];
+          thresholds[`loadtest_capacity_cpu_throttling_ratio{${serviceThresholdTags(service, stage, step)}}`] = ['avg>=0'];
+        }
       }
     }
   }
@@ -162,7 +234,7 @@ function capacityThresholds() {
 
 export const options = {
   setupTimeout: config.setupTimeout,
-  scenarios: Object.fromEntries(ACTIVE_SERVICE_ORDER.map((service) => [SERVICE_SCENARIOS[service], scenarioForService(service)])),
+  scenarios: Object.fromEntries(ACTIVE_MEASUREMENTS.map((measurement) => [measurement.scenario, scenarioForMeasurement(measurement)])),
   thresholds: capacityThresholds(),
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   tags: {
@@ -237,10 +309,10 @@ export function setup() {
   };
 }
 
-function stageForService(setupData, service) {
-  const stages = stagesForService(service);
+function stageForMeasurement(setupData, measurement) {
+  const stages = stagesForService(measurement.service);
   const elapsedSeconds = Math.max(0, (Date.now() - setupData.measurementStartedAtMs) / 1000);
-  const serviceElapsed = elapsedSeconds - serviceOffsetSeconds(service);
+  const serviceElapsed = elapsedSeconds - measurementOffsetSeconds(measurement.key);
   let upperBound = 0;
   for (let index = 0; index < stages.length; index += 1) {
     upperBound += durationSeconds(stages[index].duration);
@@ -248,23 +320,25 @@ function stageForService(setupData, service) {
       return {
         ...stages[index],
         index,
-        id: stageId(service, stages[index]),
+        id: stageIdForMeasurement(measurement, stages[index]),
       };
     }
   }
   return {
     ...stages[0],
     index: 0,
-    id: stageId(service, stages[0]),
+    id: stageIdForMeasurement(measurement, stages[0]),
   };
 }
 
-function iterationConfig(setupData, service) {
+function iterationConfig(setupData, measurementKey) {
+  const measurement = MEASUREMENT_BY_KEY[measurementKey];
   const iterationId = `${Date.now()}-${exec.scenario.name}-${exec.scenario.iterationInTest}`;
-  const stage = stageForService(setupData, service);
+  const stage = stageForMeasurement(setupData, measurement);
   return {
     ...config,
-    measuredService: service,
+    measuredService: measurement.service,
+    measurementKey: measurement.key,
     capacityStage: stage,
     iterationId,
     requestIdBase: `${config.requestPrefix}-${config.scenario}-${iterationId}`,
@@ -349,16 +423,6 @@ function firstFrom(body, field, step) {
     fail(`${step} returned no ${field} array`);
   }
   return values[exec.scenario.iterationInTest % values.length] || values[0];
-}
-
-function valueFrom(body, fields, step) {
-  for (const field of fields) {
-    if (body && body[field] !== undefined && body[field] !== null && body[field] !== '') {
-      return body[field];
-    }
-  }
-  fail(`${step} returned none of ${fields.join(', ')}`);
-  return null;
 }
 
 function datasetUuid(...parts) {
@@ -516,8 +580,8 @@ export function measureAuth(setupData) {
   }
 }
 
-export function measureConcert(setupData) {
-  const runConfig = iterationConfig(setupData, 'concert-service');
+export function measureConcertRecommended(setupData) {
+  const runConfig = iterationConfig(setupData, 'concert-recommended');
   try {
     const concertsBody = requestJson(
       runConfig,
@@ -529,33 +593,63 @@ export function measureConcert(setupData) {
       { sort: 'latest', cursor: setupData.recommendedCursor, limit: runConfig.concertLimit },
     );
     itemsFrom(concertsBody, 'capacity_baseline.concert.recommended');
-    const concertId = setupData.concertId;
-    requestJson(runConfig, 'capacity_baseline.concert.detail', 'GET', `/concerts/${encodeURIComponent(concertId)}`);
+  } finally {
+    observeResources(runConfig);
+  }
+}
+
+export function measureConcertDetail(setupData) {
+  const runConfig = iterationConfig(setupData, 'concert-detail');
+  try {
+    requestJson(runConfig, 'capacity_baseline.concert.detail', 'GET', `/concerts/${encodeURIComponent(setupData.concertId)}`);
+  } finally {
+    observeResources(runConfig);
+  }
+}
+
+export function measureConcertCalendar(setupData) {
+  const runConfig = iterationConfig(setupData, 'concert-calendar');
+  try {
     requestJson(
       runConfig,
       'capacity_baseline.concert.calendar',
       'GET',
-      `/concerts/${encodeURIComponent(concertId)}/calendar`,
+      `/concerts/${encodeURIComponent(setupData.concertId)}/calendar`,
       null,
       {},
       { yearMonth: runConfig.calendarYearMonth },
     );
+  } finally {
+    observeResources(runConfig);
+  }
+}
+
+export function measureConcertDatePerformances(setupData) {
+  const runConfig = iterationConfig(setupData, 'concert-date-performances');
+  try {
     const performancesBody = requestJson(
       runConfig,
       'capacity_baseline.concert.date_performances',
       'GET',
-      `/concerts/${encodeURIComponent(concertId)}/dates/${encodeURIComponent(runConfig.performanceDate)}/performances`,
+      `/concerts/${encodeURIComponent(setupData.concertId)}/dates/${encodeURIComponent(runConfig.performanceDate)}/performances`,
       null,
       {},
       { limit: runConfig.performanceLimit },
     );
-    const performance = firstFrom(performancesBody, 'performances', 'capacity_baseline.concert.date_performances');
-    const performanceId = valueFrom(performance, ['performanceId', 'id'], 'capacity_baseline.concert.date_performances');
+    firstFrom(performancesBody, 'performances', 'capacity_baseline.concert.date_performances');
+  } finally {
+    observeResources(runConfig);
+  }
+}
+
+export function measureConcertSeatMap(setupData) {
+  const runConfig = iterationConfig(setupData, 'concert-seat-map');
+  try {
     requestJson(
       runConfig,
       'capacity_baseline.concert.seat_map',
       'GET',
-      `/performances/${encodeURIComponent(performanceId)}/seat-map`,
+      `/performances/${encodeURIComponent(setupData.performanceId)}/seat-map`,
       null,
       {},
       { limit: runConfig.seatLimit },
