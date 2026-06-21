@@ -3,7 +3,7 @@ loadtest:
   credentialsSecretName: read-api-loadtest-credentials
 
 trafficModel:
-  preset: reservation-140rps
+  preset: ticket-110rps
 
 scaleOutReport:
   enabled: true
@@ -11,8 +11,8 @@ scaleOutReport:
   rbac:
     create: true
   targets:
-    - service: reservation-service
-      namespace: ticketing-reservation
+    - service: ticket-service
+      namespace: ticketing-ticket
 
 dataset:
   scenario: setup-capacity-baseline-dataset
@@ -50,25 +50,25 @@ resources:
 
 scenarios:
   serviceHpaSpike:
-    requestPrefix: loadtest-service-hpa-spike-reservation
-    preAllocatedVUs: 400
-    maxVUs: 1000
-    activeCustomerCount: 200
+    requestPrefix: loadtest-service-hpa-spike-ticket
+    preAllocatedVUs: 250
+    maxVUs: 700
+    activeCustomerCount: 400
     serviceSteps:
-      - reservation
+      - ticket
     stages:
       - duration: 30s
-        target: 20
+        target: 30
         stageRole: warmup
-      - duration: 60s
-        target: 80
+      - duration: 90s
+        target: 60
         stageRole: baseline
-      - duration: 60s
-        target: 120
+      - duration: 90s
+        target: 90
         stageRole: spike
-      - duration: 60s
-        target: 140
+      - duration: 90s
+        target: 110
         stageRole: overload
-      - duration: 60s
-        target: 80
+      - duration: 90s
+        target: 60
         stageRole: cooldown

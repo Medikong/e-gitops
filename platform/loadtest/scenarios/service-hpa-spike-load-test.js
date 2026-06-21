@@ -172,7 +172,10 @@ function scenarioForMeasurement(measurement) {
     timeUnit: config.timeUnit,
     preAllocatedVUs: config.preAllocatedVUs,
     maxVUs: config.maxVUs,
-    stages: stagesForService(measurement.service),
+    stages: stagesForService(measurement.service).map((stage) => ({
+      duration: stage.duration,
+      target: stage.target,
+    })),
     gracefulStop: config.gracefulStop,
     tags: {
       environment: config.environment,

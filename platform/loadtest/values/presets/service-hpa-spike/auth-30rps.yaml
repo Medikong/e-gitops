@@ -40,6 +40,14 @@ reportArchive:
   enabled: true
   size: 2Gi
 
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
 scenarios:
   serviceHpaSpike:
     requestPrefix: loadtest-service-hpa-spike-auth

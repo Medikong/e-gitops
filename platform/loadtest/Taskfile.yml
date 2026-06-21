@@ -341,7 +341,8 @@ tasks:
           --set-string manualRuns.dataset.runId="" \
           --set manualRuns.read.enabled=true \
           --set-string manualRuns.read.runId="${run_id}"
-        deadline=$(( $(date +%s) + 1200 ))
+        wait_seconds="${LOADTEST_READ_JOB_WAIT_SECONDS:-2400}"
+        deadline=$(( $(date +%s) + wait_seconds ))
         while true; do
           complete="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)"
           failed="$({{.KUBECTL}} -n {{.NAMESPACE}} get job "${job_name}" -o jsonpath='{.status.failed}' 2>/dev/null || true)"
