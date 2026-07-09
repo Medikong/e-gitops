@@ -6,15 +6,12 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/TicketMong/gitops.git
       targetRevision: HEAD
       path: argo/applications/private-dev/platform
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/TicketMong/gitops.git
       targetRevision: HEAD
       path: argo/applications/private-dev/services
-    - repoURL: https://github.com/Medikong/gitops.git
-      targetRevision: HEAD
-      path: argo/applications/private-dev/monitoring
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

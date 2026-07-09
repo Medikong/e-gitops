@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/TicketMong/gitops.git
       targetRevision: HEAD
       path: charts/medikong-service
       helm:
@@ -17,7 +17,7 @@ spec:
           - $values/values/services/concert.yaml
           - $values/values/services/private-dev/concert.yaml
           - $values/values/overrides/private-dev-ha-stable.yaml
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/TicketMong/gitops.git
       targetRevision: HEAD
       ref: values
   destination:

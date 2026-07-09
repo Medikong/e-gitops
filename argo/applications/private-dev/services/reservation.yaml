@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/TicketMong/gitops.git
       targetRevision: HEAD
       path: charts/medikong-service
       helm:
@@ -18,7 +18,7 @@ spec:
           - $values/values/services/private-dev/reservation.yaml
           - $values/values/overrides/private-dev-ha-stable.yaml
           - $values/values/scenarios/istio/reservation-canary-v2.yaml
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/TicketMong/gitops.git
       targetRevision: HEAD
       ref: values
   destination:

@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/Medikong/gitops.git
+    repoURL: https://github.com/TicketMong/gitops.git
     targetRevision: HEAD
     path: platform/data-private-dev
   destination:

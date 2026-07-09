@@ -15,7 +15,7 @@ spec:
         releaseName: loki
         valueFiles:
           - $values/platform/observability/loki/values/private-dev.yaml
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/TicketMong/gitops.git
       targetRevision: HEAD
       ref: values
   destination:
