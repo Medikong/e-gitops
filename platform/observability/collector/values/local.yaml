@@ -290,6 +290,18 @@ extraManifests:
         - from:
             - namespaceSelector:
                 matchLabels:
+                  app.kubernetes.io/part-of: medikong
+              podSelector:
+                matchLabels:
+                  dropmong.io/tier: api
+          ports:
+            - protocol: TCP
+              port: 4317
+            - protocol: TCP
+              port: 4318
+        - from:
+            - namespaceSelector:
+                matchLabels:
                   kubernetes.io/metadata.name: monitoring
           ports:
             - protocol: TCP

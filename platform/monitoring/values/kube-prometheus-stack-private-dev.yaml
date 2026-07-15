@@ -140,11 +140,14 @@ prometheus:
             - monitoring
             - observability
             - ticketing-auth
+            - ticketing-backoffice
             - ticketing-concert
+            - ticketing-coupon
             - ticketing-notification
             - ticketing-payment
             - ticketing-reservation
             - ticketing-ticket
+            - ticketing-user
     podMonitorSelector:
       matchLabels:
         release: kube-prometheus-stack
@@ -156,11 +159,14 @@ prometheus:
             - monitoring
             - observability
             - ticketing-auth
+            - ticketing-backoffice
             - ticketing-concert
+            - ticketing-coupon
             - ticketing-notification
             - ticketing-payment
             - ticketing-reservation
             - ticketing-ticket
+            - ticketing-user
     ruleSelector:
       matchLabels:
         release: kube-prometheus-stack
@@ -171,11 +177,14 @@ prometheus:
           values:
             - monitoring
             - ticketing-auth
+            - ticketing-backoffice
             - ticketing-concert
+            - ticketing-coupon
             - ticketing-notification
             - ticketing-payment
             - ticketing-reservation
             - ticketing-ticket
+            - ticketing-user
     image:
       registry: quay.io
       repository: prometheus/prometheus
