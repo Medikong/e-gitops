@@ -1,0 +1,72 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: ticketing-user-trusted-header-sanitizer
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    app.kubernetes.io/part-of: medikong
+plugin: pre-function
+config:
+  access:
+    - |
+      kong.service.request.clear_header("X-Principal")
+      kong.service.request.clear_header("X-Csrf-Verified")
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: ticketing-user-principal
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    app.kubernetes.io/part-of: medikong
+plugin: post-function
+config:
+  access:
+    - |
+      if not kong.client.get_credential() then
+        return kong.response.exit(401, { message = "verified JWT required" })
+      end
+
+      local auth = kong.request.get_header("authorization")
+      local token = auth and auth:match("[Bb]earer%s+(.+)")
+      local payload_b64 = token and token:match("^[^.]+%.([^.]+)%.")
+      if not payload_b64 then
+        return kong.response.exit(401, { message = "valid bearer token required" })
+      end
+
+      payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+      local padding = #payload_b64 % 4
+      if padding > 0 then
+        payload_b64 = payload_b64 .. string.rep("=", 4 - padding)
+      end
+
+      local payload_json = ngx.decode_base64(payload_b64)
+      if not payload_json then
+        return kong.response.exit(401, { message = "valid JWT payload required" })
+      end
+
+      local cjson = require "cjson.safe"
+      local payload = cjson.decode(payload_json)
+      if type(payload) ~= "table" then
+        return kong.response.exit(401, { message = "valid JWT payload required" })
+      end
+
+      local sub = payload.sub
+      local role = payload.role
+      if type(sub) ~= "string" or type(role) ~= "string" then
+        return kong.response.exit(401, { message = "JWT subject and role required" })
+      end
+      if not sub:match("^[A-Za-z0-9._:@%-]+$") then
+        return kong.response.exit(401, { message = "invalid JWT subject" })
+      end
+
+      role = string.upper(role)
+      if not role:match("^[A-Z][A-Z0-9_%-]*$") then
+        return kong.response.exit(401, { message = "invalid JWT role" })
+      end
+
+      local principal_json = '{"type":"user","userId":"' .. sub .. '","roles":["' .. role .. '"]}'
+      local principal = ngx.encode_base64(principal_json):gsub("%+", "-"):gsub("/", "_"):gsub("=", "")
+      kong.service.request.set_header("X-Principal", principal)

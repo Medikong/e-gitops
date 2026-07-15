@@ -86,3 +86,10 @@ curl -fsS http://localhost/notifications -H "Authorization: Bearer ${TOKEN}"
 | 서비스별 `Ingress` | `values/services/*.yaml` + `charts/medikong-service` | service release |
 
 `service` repo는 Dockerfile과 image build/push만 소유한다. Kubernetes/Helm/Kong/Ingress 선언은 이 `gitops` repo가 소유한다.
+
+## 유저 서비스 인증 경계
+
+- `POST /api/v1/users`는 공개 회원 등록이므로 Exact 경로에 trusted header 제거만 적용한다.
+- `/api/v1/users/me` 하위 경로는 JWT 검증 뒤 `sub`와 `role`만 사용해 `X-Principal`을 만든다. `sessionId`, `authLevel`, 세부 permission, `X-Csrf-Verified`는 만들지 않는다.
+- 외부 요청의 `X-Principal`, `X-Csrf-Verified`는 유저 서비스로 전달하기 전에 항상 제거한다.
+- `/api/v1/operator/users`는 Ingress를 만들지 않는다. Auth가 strong 인증 수준, Session ID, canonical permission을 제공하고 CSRF를 검증하는 신뢰 계약이 생긴 뒤 별도 경로로 공개한다.

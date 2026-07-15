@@ -8,3 +8,4 @@ resources:
   - prometheus.yaml
   - rate-limiting.yaml
   - role-guard.yaml
+  - user-trusted-headers.yaml
