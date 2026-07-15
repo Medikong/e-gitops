@@ -1,27 +1,27 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: frontend-private-dev
+  name: interest-private-dev
   namespace: argocd
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/TicketMong/gitops.git
+    - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       path: charts/medikong-service
       helm:
-        releaseName: frontend-private-dev
+        releaseName: interest-private-dev
         valueFiles:
           - $values/values/base.yaml
           - $values/values/env/private-dev.yaml
-          - $values/values/services/frontend.yaml
+          - $values/values/services/interest.yaml
           - $values/values/overrides/private-dev-ha-stable.yaml
-    - repoURL: https://github.com/TicketMong/gitops.git
+    - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: ticketing-dashboard
+    namespace: dropmong-interest
   syncPolicy:
     automated:
       prune: true

@@ -1,21 +1,14 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ticketing-auth
+  name: dropmong-auth
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ticketing-user
-  labels:
-    app.kubernetes.io/part-of: medikong
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ticketing-coupon
+  name: dropmong-coupon
   labels:
     app.kubernetes.io/part-of: medikong
 ---
@@ -29,42 +22,35 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ticketing-concert
+  name: dropmong-payment
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ticketing-reservation
+  name: dropmong-notification
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ticketing-payment
+  name: dropmong-web
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ticketing-ticket
+  name: dropmong-order
   labels:
     app.kubernetes.io/part-of: medikong
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ticketing-notification
-  labels:
-    app.kubernetes.io/part-of: medikong
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ticketing-dashboard
+  name: dropmong-interest
   labels:
     app.kubernetes.io/part-of: medikong
 ---

@@ -2,5 +2,5 @@ postgresql:
   databases:
     payment:
       name: payment-db
-      namespace: ticketing-payment
+      namespace: dropmong-payment
       database: payment_db

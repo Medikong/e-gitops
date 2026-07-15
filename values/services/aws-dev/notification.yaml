@@ -18,26 +18,6 @@ container:
       cpu: "1"
       memory: 768Mi
 
-database:
-  sqlalchemy:
-    poolSize: 10
-    maxOverflow: 0
-    poolTimeoutSeconds: 15
-    poolRecycleSeconds: 1800
-
-workers:
-  - name: background
-    replicas: 1
-    command: ["python"]
-    args: ["cmd/worker/main.py"]
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
-
 pdb:
   enabled: false
 

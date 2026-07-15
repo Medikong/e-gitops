@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: auth-db
-  namespace: ticketing-auth
+  namespace: dropmong-auth
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: auth-db
@@ -19,7 +19,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: auth-db
-  namespace: ticketing-auth
+  namespace: dropmong-auth
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: auth-db
@@ -91,278 +91,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: user-db
-  namespace: ticketing-user
-  labels:
-    app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: user-db
-spec:
-  type: ClusterIP
-  selector:
-    app.kubernetes.io/name: user-db
-  ports:
-    - name: postgres
-      port: 5432
-      targetPort: postgres
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: user-db
-  namespace: ticketing-user
-  labels:
-    app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: user-db
-spec:
-  serviceName: user-db
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: user-db
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/part-of: medikong
-        app.kubernetes.io/name: user-db
-    spec:
-      nodeSelector:
-        medikong.io/workload: data
-      containers:
-        - name: postgres
-          image: postgres:15
-          args:
-            - -c
-            - max_connections=30
-          ports:
-            - name: postgres
-              containerPort: 5432
-          readinessProbe:
-            exec:
-              command:
-                - pg_isready
-                - -U
-                - user
-                - -d
-                - user_service
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          env:
-            - name: POSTGRES_USER
-              value: user
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-user-credentials
-                  key: password
-            - name: POSTGRES_DB
-              value: user_service
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              memory: 256Mi
-          volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        storageClassName: medikong-local-path
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 1Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: concert-db
-  namespace: ticketing-concert
-  labels:
-    app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: concert-db
-spec:
-  type: ClusterIP
-  selector:
-    app.kubernetes.io/name: concert-db
-  ports:
-    - name: postgres
-      port: 5432
-      targetPort: postgres
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: concert-db
-  namespace: ticketing-concert
-  labels:
-    app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: concert-db
-spec:
-  serviceName: concert-db
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: concert-db
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/part-of: medikong
-        app.kubernetes.io/name: concert-db
-    spec:
-      nodeSelector:
-        medikong.io/workload: data
-      containers:
-        - name: postgres
-          image: postgres:15
-          args:
-            - -c
-            - max_connections=30
-          ports:
-            - name: postgres
-              containerPort: 5432
-          readinessProbe:
-            exec:
-              command:
-                - pg_isready
-                - -U
-                - user
-                - -d
-                - concert_db
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          env:
-            - name: POSTGRES_USER
-              value: user
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-concert-credentials
-                  key: password
-            - name: POSTGRES_DB
-              value: concert_db
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              memory: 256Mi
-          volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        storageClassName: medikong-local-path
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 1Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: reservation-db
-  namespace: ticketing-reservation
-  labels:
-    app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: reservation-db
-spec:
-  type: ClusterIP
-  selector:
-    app.kubernetes.io/name: reservation-db
-  ports:
-    - name: postgres
-      port: 5432
-      targetPort: postgres
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: reservation-db
-  namespace: ticketing-reservation
-  labels:
-    app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: reservation-db
-spec:
-  serviceName: reservation-db
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: reservation-db
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/part-of: medikong
-        app.kubernetes.io/name: reservation-db
-    spec:
-      nodeSelector:
-        medikong.io/workload: data
-      containers:
-        - name: postgres
-          image: postgres:15
-          args:
-            - -c
-            - max_connections=30
-          ports:
-            - name: postgres
-              containerPort: 5432
-          readinessProbe:
-            exec:
-              command:
-                - pg_isready
-                - -U
-                - user
-                - -d
-                - reservation_db
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          env:
-            - name: POSTGRES_USER
-              value: user
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-reservation-credentials
-                  key: password
-            - name: POSTGRES_DB
-              value: reservation_db
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              memory: 256Mi
-          volumeMounts:
-            - name: data
-              mountPath: /var/lib/postgresql/data
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        storageClassName: medikong-local-path
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 1Gi
----
-apiVersion: v1
-kind: Service
-metadata:
   name: payment-db
-  namespace: ticketing-payment
+  namespace: dropmong-payment
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: payment-db
@@ -379,7 +109,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: payment-db
-  namespace: ticketing-payment
+  namespace: dropmong-payment
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: payment-db
@@ -451,15 +181,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ticket-db
-  namespace: ticketing-ticket
+  name: coupon-db
+  namespace: dropmong-coupon
   labels:
     app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: ticket-db
+    app.kubernetes.io/name: coupon-db
 spec:
   type: ClusterIP
   selector:
-    app.kubernetes.io/name: ticket-db
+    app.kubernetes.io/name: coupon-db
   ports:
     - name: postgres
       port: 5432
@@ -468,22 +198,22 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: ticket-db
-  namespace: ticketing-ticket
+  name: coupon-db
+  namespace: dropmong-coupon
   labels:
     app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: ticket-db
+    app.kubernetes.io/name: coupon-db
 spec:
-  serviceName: ticket-db
+  serviceName: coupon-db
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: ticket-db
+      app.kubernetes.io/name: coupon-db
   template:
     metadata:
       labels:
         app.kubernetes.io/part-of: medikong
-        app.kubernetes.io/name: ticket-db
+        app.kubernetes.io/name: coupon-db
     spec:
       nodeSelector:
         medikong.io/workload: data
@@ -503,7 +233,7 @@ spec:
                 - -U
                 - user
                 - -d
-                - ticket_db
+                - coupon_db
             initialDelaySeconds: 5
             periodSeconds: 5
           env:
@@ -512,10 +242,190 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-ticket-credentials
+                  name: postgres-coupon-credentials
                   key: password
             - name: POSTGRES_DB
-              value: ticket_db
+              value: coupon_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        storageClassName: medikong-local-path
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-db
+  namespace: dropmong-order
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: order-db
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: order-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: order-db
+  namespace: dropmong-order
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: order-db
+spec:
+  serviceName: order-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: order-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: medikong
+        app.kubernetes.io/name: order-db
+    spec:
+      nodeSelector:
+        medikong.io/workload: data
+      containers:
+        - name: postgres
+          image: postgres:15
+          args:
+            - -c
+            - max_connections=30
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - user
+                - -d
+                - order_db
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          env:
+            - name: POSTGRES_USER
+              value: user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-order-credentials
+                  key: password
+            - name: POSTGRES_DB
+              value: order_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        storageClassName: medikong-local-path
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: interest-db
+  namespace: dropmong-interest
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: interest-db
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: interest-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: interest-db
+  namespace: dropmong-interest
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: interest-db
+spec:
+  serviceName: interest-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: interest-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: medikong
+        app.kubernetes.io/name: interest-db
+    spec:
+      nodeSelector:
+        medikong.io/workload: data
+      containers:
+        - name: postgres
+          image: postgres:15
+          args:
+            - -c
+            - max_connections=30
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - user
+                - -d
+                - interest_db
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          env:
+            - name: POSTGRES_USER
+              value: user
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-interest-credentials
+                  key: password
+            - name: POSTGRES_DB
+              value: interest_db
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           resources:

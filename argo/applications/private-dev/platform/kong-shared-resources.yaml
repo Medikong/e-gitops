@@ -8,12 +8,12 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/TicketMong/gitops.git
+    repoURL: https://github.com/Medikong/gitops.git
     targetRevision: HEAD
     path: platform/kong
   destination:
     server: https://kubernetes.default.svc
-    namespace: ticketing-auth
+    namespace: dropmong-auth
   syncPolicy:
     automated:
       prune: true

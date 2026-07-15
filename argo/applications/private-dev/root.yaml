@@ -6,10 +6,10 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/TicketMong/gitops.git
+    - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       path: argo/applications/private-dev/platform
-    - repoURL: https://github.com/TicketMong/gitops.git
+    - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       path: argo/applications/private-dev/services
   destination:

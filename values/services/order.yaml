@@ -1,74 +1,52 @@
 app:
-  name: coupon-service
-  namespace: dropmong-coupon
+  name: order-service
+  namespace: dropmong-order
   labels:
-    dropmong.io/service: coupon
+    dropmong.io/service: order
     dropmong.io/tier: api
 
 image:
-  repository: coupon-service
+  repository: order-service
   tag: dev
-
-database:
-  sqlalchemy:
-    enabled: false
 
 deployment:
   replicas: 1
 
 container:
-  ports:
-    - name: http
-      containerPort: 8080
-    - name: admin
-      containerPort: 9090
+  port: 8082
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@order-db:5432/order_db
+    - name: KAFKA_BOOTSTRAP_SERVERS
+      value: kafka.ticketing-messaging.svc.cluster.local:9092
   readinessProbe:
     httpGet:
       path: /readyz
-      port: admin
+      port: http
     initialDelaySeconds: 3
     periodSeconds: 5
   livenessProbe:
     httpGet:
       path: /healthz
-      port: admin
+      port: http
     initialDelaySeconds: 10
     periodSeconds: 10
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
-  env:
-    - name: DATABASE_URL
-      value: postgres://user:password@coupon-db:5432/coupon_db?sslmode=disable
-    - name: COUPON_ALLOWED_ORIGINS
-      value: http://localhost:3000
-    - name: COUPON_CODE_HASH_KEY
-      value: dropmong-dev-coupon-code-hash-key-change-before-shared-use
-
-workers:
-  - name: worker
-    replicas: 1
-    command: ["/app/worker"]
 
 service:
-  port: 8080
+  port: 8082
   targetPort: http
 
 ingress:
   enabled: true
   className: kong
   objects:
-    - name: coupon-api
+    - name: order-customer-api
       annotations:
-        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-customer,ticketing-rate-limit-orders,ticketing-correlation-id,ticketing-prometheus
       hosts:
         - host: ""
           paths:
-            - path: /coupons
+            - path: /orders
               pathType: Prefix
 
 networkPolicy:
@@ -83,7 +61,7 @@ networkPolicy:
               kubernetes.io/metadata.name: kong
       ports:
         - protocol: TCP
-          port: 8080
+          port: 8082
   egress:
     - to:
         - namespaceSelector:
@@ -100,10 +78,20 @@ networkPolicy:
     - to:
         - podSelector:
             matchLabels:
-              app.kubernetes.io/name: coupon-db
+              app.kubernetes.io/name: order-db
       ports:
         - protocol: TCP
           port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ticketing-messaging
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
     - to:
         - namespaceSelector:
             matchLabels:

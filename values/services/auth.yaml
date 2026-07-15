@@ -1,19 +1,27 @@
 app:
   name: auth-service
-  namespace: ticketing-auth
+  namespace: dropmong-auth
   labels:
-    ticketing.io/service: auth
-    ticketing.io/tier: api
+    dropmong.io/service: auth
+    dropmong.io/tier: api
 
 image:
   repository: auth-service
   tag: dev
 
+database:
+  sqlalchemy:
+    enabled: false
+
 deployment:
   replicas: 3
 
 container:
-  port: 8080
+  ports:
+    - name: http
+      containerPort: 8080
+    - name: admin
+      containerPort: 9090
   resources:
     requests:
       cpu: 1000m
@@ -24,28 +32,33 @@ container:
   env:
     - name: DATABASE_URL
       value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
-    - name: AUTH_TOKEN_TTL_SECONDS
-      value: "900"
-    - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
-      value: "604800"
-    - name: JWT_SECRET
-      value: ticketing-dev-secret
-    - name: JWT_ISSUER
+    - name: AUDIT_SINK_DATABASE_URL
+      value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
+    - name: AUTH_JWT_SECRET
+      value: dropmong-dev-jwt-secret-change-before-shared-use
+    - name: AUTH_JWT_ISSUER
       value: auth-service
-    - name: AUTH_DEV_TEST_TOKEN_ENABLED
-      value: "false"
+    - name: AUTH_CREDENTIAL_HMAC_KEY
+      value: dropmong-dev-credential-hmac-key-change-before-shared-use
+    - name: AUTH_REPLAY_ENCRYPTION_KEY
+      value: dropmong-dev-replay-key-32-bytes!
   readinessProbe:
     httpGet:
       path: /readyz
-      port: http
+      port: admin
     initialDelaySeconds: 3
     periodSeconds: 5
   livenessProbe:
     httpGet:
       path: /healthz
-      port: http
+      port: admin
     initialDelaySeconds: 10
     periodSeconds: 10
+
+workers:
+  - name: worker
+    replicas: 1
+    command: ["/app/worker"]
 
 service:
   port: 8080
@@ -118,7 +131,7 @@ networkPolicy:
         - protocol: TCP
           port: 4318
 nodeSelector:
-  role: app
+  medikong.io/workload: app
 observability:
   profiling:
     serverAddress: http://pyroscope.observability.svc.cluster.local:4040

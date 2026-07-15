@@ -1,0 +1,88 @@
+app:
+  name: dropmong-web
+  namespace: dropmong-web
+  labels:
+    dropmong.io/service: dropmong-web
+    dropmong.io/tier: frontend
+
+image:
+  repository: dropmong-web
+  tag: dev
+
+deployment:
+  replicas: 1
+
+container:
+  port: 3000
+  securityContext:
+    runAsNonRoot: true
+  env:
+    - name: APP_ORIGIN
+      value: http://dropmong-web
+    - name: APP_VERSION
+      value: dev
+    - name: DEV_MOCK_MODE
+      value: "false"
+    - name: SELLER_PORTAL_ENABLED
+      value: "false"
+    - name: SESSION_COOKIE_SECRET
+      value: dropmong-dev-session-cookie-secret-32chars-min
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  livenessProbe:
+    httpGet:
+      path: /readyz
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+service:
+  port: 80
+  targetPort: http
+
+ingress:
+  enabled: true
+  className: kong
+  objects:
+    - name: dropmong-web
+      annotations:
+        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+      hosts:
+        - host: ""
+          paths:
+            - path: /
+              pathType: Prefix
+
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+nodeSelector:
+  medikong.io/workload: app

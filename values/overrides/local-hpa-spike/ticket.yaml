@@ -1,8 +1,0 @@
-container:
-  resources:
-    requests:
-      cpu: 1000m
-      memory: 256Mi
-    limits:
-      cpu: null
-      memory: null

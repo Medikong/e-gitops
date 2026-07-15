@@ -1,6 +1,0 @@
-postgresql:
-  databases:
-    reservation:
-      name: reservation-db
-      namespace: ticketing-reservation
-      database: reservation_db

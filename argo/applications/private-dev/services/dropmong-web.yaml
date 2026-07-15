@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: dashboard-aws-dev
+  name: dropmong-web-private-dev
   namespace: argocd
 spec:
   project: default
@@ -10,17 +10,21 @@ spec:
       targetRevision: HEAD
       path: charts/medikong-service
       helm:
-        releaseName: dashboard-aws-dev
+        releaseName: dropmong-web-private-dev
         valueFiles:
           - $values/values/base.yaml
-          - $values/values/env/aws-dev.yaml
-          - $values/values/services/dashboard.yaml
+          - $values/values/env/private-dev.yaml
+          - $values/values/services/dropmong-web.yaml
+          - $values/values/overrides/private-dev-ha-stable.yaml
     - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: ticketing-dashboard
+    namespace: dropmong-web
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=false

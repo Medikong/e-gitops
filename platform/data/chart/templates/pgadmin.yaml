@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: pgadmin-local-credentials
-  namespace: ticketing-payment
+  namespace: dropmong-payment
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: pgadmin
@@ -15,7 +15,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: pgadmin-local-servers
-  namespace: ticketing-payment
+  namespace: dropmong-payment
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: pgadmin
@@ -26,45 +26,18 @@ data:
         "1": {
           "Name": "auth-db",
           "Group": "Medikong Local",
-          "Host": "auth-db.ticketing-auth.svc.cluster.local",
+          "Host": "auth-db.dropmong-auth.svc.cluster.local",
           "Port": 5432,
           "MaintenanceDB": "auth_db",
           "Username": "user",
           "SSLMode": "prefer"
         },
         "2": {
-          "Name": "concert-db",
-          "Group": "Medikong Local",
-          "Host": "concert-db.ticketing-concert.svc.cluster.local",
-          "Port": 5432,
-          "MaintenanceDB": "concert_db",
-          "Username": "user",
-          "SSLMode": "prefer"
-        },
-        "3": {
-          "Name": "reservation-db",
-          "Group": "Medikong Local",
-          "Host": "reservation-db.ticketing-reservation.svc.cluster.local",
-          "Port": 5432,
-          "MaintenanceDB": "reservation_db",
-          "Username": "user",
-          "SSLMode": "prefer"
-        },
-        "4": {
           "Name": "payment-db",
           "Group": "Medikong Local",
-          "Host": "payment-db.ticketing-payment.svc.cluster.local",
+          "Host": "payment-db.dropmong-payment.svc.cluster.local",
           "Port": 5432,
           "MaintenanceDB": "payment_db",
-          "Username": "user",
-          "SSLMode": "prefer"
-        },
-        "5": {
-          "Name": "ticket-db",
-          "Group": "Medikong Local",
-          "Host": "ticket-db.ticketing-ticket.svc.cluster.local",
-          "Port": 5432,
-          "MaintenanceDB": "ticket_db",
           "Username": "user",
           "SSLMode": "prefer"
         }
@@ -75,7 +48,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pgadmin
-  namespace: ticketing-payment
+  namespace: dropmong-payment
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: pgadmin
@@ -144,7 +117,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: pgadmin
-  namespace: ticketing-payment
+  namespace: dropmong-payment
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: pgadmin
@@ -161,7 +134,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: pgadmin
-  namespace: ticketing-payment
+  namespace: dropmong-payment
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: pgadmin

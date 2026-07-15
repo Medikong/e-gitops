@@ -15,7 +15,7 @@ spec:
         releaseName: kong
         valueFiles:
           - $values/platform/kong/values-private-dev.yaml
-    - repoURL: https://github.com/TicketMong/gitops.git
+    - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
   destination:

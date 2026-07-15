@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: concert-aws-dev
+  name: order-private-dev
   namespace: argocd
 spec:
   project: default
@@ -10,18 +10,18 @@ spec:
       targetRevision: HEAD
       path: charts/medikong-service
       helm:
-        releaseName: concert-aws-dev
+        releaseName: order-private-dev
         valueFiles:
           - $values/values/base.yaml
-          - $values/values/env/aws-dev.yaml
-          - $values/values/services/concert.yaml
-          - $values/values/services/aws-dev/concert.yaml
+          - $values/values/env/private-dev.yaml
+          - $values/values/services/order.yaml
+          - $values/values/overrides/private-dev-ha-stable.yaml
     - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: ticketing-concert
+    namespace: dropmong-order
   syncPolicy:
     automated:
       prune: true

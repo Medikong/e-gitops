@@ -13,7 +13,7 @@ spec:
     path: platform/kong-overlays/aws-dev
   destination:
     server: https://kubernetes.default.svc
-    namespace: ticketing-auth
+    namespace: dropmong-auth
   syncPolicy:
     automated:
       prune: true

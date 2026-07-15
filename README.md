@@ -15,9 +15,6 @@
 | `Taskfile.yml` | `dev`, `aws`, `scenario` 중심의 기본 명령 표면 |
 | `Makefile` | 기존 사용자를 위한 Taskfile wrapper |
 | `archive/k8s-kustomize/` | 기존 Kustomize 구조 reference와 이식 근거 |
-| `cluster/ansible/` | 준비된 서버 위에서 Kubernetes cluster와 운영 add-on을 확인하거나 bootstrap하는 선별 playbook |
-| `cluster/scripts/` | MetalLB, registry CA, image tag 갱신, Kubernetes 상태 확인용 legacy 보조 스크립트 |
-| `cluster/stacks/observability/` | Prometheus, Grafana, Loki, Alloy, Tempo values, manifest reference |
 | `.github/workflows/` | GitOps manifest 렌더링과 Kubernetes 보안 스캔 |
 
 ## 제외 범위
@@ -200,7 +197,6 @@ gitops/
     policies/
   archive/
     k8s-kustomize/
-  cluster/
 ```
 
 ## 운영 메모
@@ -213,5 +209,5 @@ gitops/
 - `platform/observability`는 `observability` namespace 기준 Tempo/Loki backend 운영 경로다.
 - `task aws:bootstrap`은 서비스 Helm release를 직접 올리지 않고 Argo CD Application 진입점을 적용한다.
 - Kong, policy, data 리소스의 이식 후보는 `docs/architecture/k8s-kustomize-archive-inventory.md`에 정리한다.
-- `cluster/ansible`에는 inventory를 포함하지 않는다. inventory와 VM topology는 infra repo에서 준비한 값을 사용한다.
+- 클러스터 자체의 프로비저닝(서버 준비, Kubernetes 부트스트랩, Argo CD 설치)은 이 repo가 아니라 infra repo(`environments/{aws-dev,private-dev}`)가 전담한다.
 - live cluster에 직접 적용하는 명령은 명시적으로 실행할 때만 사용한다.

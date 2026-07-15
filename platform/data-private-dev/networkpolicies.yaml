@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-auth-db-ingress
-  namespace: ticketing-auth
+  namespace: dropmong-auth
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: auth-db
@@ -19,88 +19,7 @@ spec:
               app: auth-service
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: ticketing-payment
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/name: pgadmin
-      ports:
-        - protocol: TCP
-          port: 5432
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-user-db-ingress
-  namespace: ticketing-user
-  labels:
-    app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: user-db
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: user-db
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app: user-service
-      ports:
-        - protocol: TCP
-          port: 5432
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-concert-db-ingress
-  namespace: ticketing-concert
-  labels:
-    app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: concert-db
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: concert-db
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app: concert-service
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ticketing-payment
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/name: pgadmin
-      ports:
-        - protocol: TCP
-          port: 5432
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-reservation-db-ingress
-  namespace: ticketing-reservation
-  labels:
-    app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: reservation-db
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: reservation-db
-  policyTypes:
-    - Ingress
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app: reservation-service
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ticketing-payment
+              kubernetes.io/metadata.name: dropmong-payment
           podSelector:
             matchLabels:
               app.kubernetes.io/name: pgadmin
@@ -112,7 +31,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-payment-db-ingress
-  namespace: ticketing-payment
+  namespace: dropmong-payment
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: payment-db
@@ -137,28 +56,22 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-ticket-db-ingress
-  namespace: ticketing-ticket
+  name: allow-coupon-db-ingress
+  namespace: dropmong-coupon
   labels:
     app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: ticket-db
+    app.kubernetes.io/name: coupon-db
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: ticket-db
+      app.kubernetes.io/name: coupon-db
   policyTypes:
     - Ingress
   ingress:
     - from:
         - podSelector:
             matchLabels:
-              app: ticket-service
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ticketing-payment
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/name: pgadmin
+              app: coupon-service
       ports:
         - protocol: TCP
           port: 5432
@@ -166,25 +79,48 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-notification-db-ingress
-  namespace: ticketing-notification
+  name: allow-order-db-ingress
+  namespace: dropmong-order
   labels:
     app.kubernetes.io/part-of: medikong
-    app.kubernetes.io/name: notification-db
+    app.kubernetes.io/name: order-db
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: notification-db
+      app.kubernetes.io/name: order-db
   policyTypes:
     - Ingress
   ingress:
     - from:
         - podSelector:
             matchLabels:
-              app: notification-service
+              app: order-service
       ports:
         - protocol: TCP
-          port: 27017
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-interest-db-ingress
+  namespace: dropmong-interest
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: interest-db
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: interest-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: interest-service
+      ports:
+        - protocol: TCP
+          port: 5432
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -207,19 +143,19 @@ spec:
               - key: kubernetes.io/metadata.name
                 operator: In
                 values:
-                  - ticketing-reservation
-                  - ticketing-payment
-                  - ticketing-ticket
-                  - ticketing-notification
+                  - dropmong-payment
+                  - dropmong-notification
+                  - dropmong-order
+                  - dropmong-interest
           podSelector:
             matchExpressions:
-              - key: ticketing.io/service
+              - key: dropmong.io/service
                 operator: In
                 values:
-                  - reservation
                   - payment
-                  - ticket
                   - notification
+                  - order
+                  - interest
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: kafka
@@ -236,7 +172,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-pgadmin-runtime
-  namespace: ticketing-payment
+  namespace: dropmong-payment
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: pgadmin
@@ -274,21 +210,21 @@ spec:
               - key: kubernetes.io/metadata.name
                 operator: In
                 values:
-                  - ticketing-auth
-                  - ticketing-concert
-                  - ticketing-reservation
-                  - ticketing-payment
-                  - ticketing-ticket
+                  - dropmong-auth
+                  - dropmong-payment
+                  - dropmong-coupon
+                  - dropmong-order
+                  - dropmong-interest
           podSelector:
             matchExpressions:
               - key: app.kubernetes.io/name
                 operator: In
                 values:
                   - auth-db
-                  - concert-db
-                  - reservation-db
                   - payment-db
-                  - ticket-db
+                  - coupon-db
+                  - order-db
+                  - interest-db
       ports:
         - protocol: TCP
           port: 5432

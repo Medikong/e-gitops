@@ -1,55 +1,36 @@
 app:
-  name: ticket-service
-  namespace: ticketing-ticket
+  name: interest-service
+  namespace: dropmong-interest
   labels:
-    ticketing.io/service: ticket
-    ticketing.io/tier: api
+    dropmong.io/service: interest
+    dropmong.io/tier: api
 
 image:
-  repository: ticket-service
-  tag: v0.2.2
+  repository: interest-service
+  tag: dev
 
 deployment:
   replicas: 1
-  podLabels:
-    sidecar.istio.io/inject: "true"
-  podAnnotations:
-    sidecar.istio.io/inject: "true"
-    sidecar.istio.io/proxyCPU: 5m
-    sidecar.istio.io/proxyMemory: 32Mi
-    sidecar.istio.io/proxyCPULimit: 100m
-    sidecar.istio.io/proxyMemoryLimit: 128Mi
 
 container:
   port: 8085
   env:
     - name: DATABASE_URL
-      value: postgresql+psycopg://user:password@ticket-db:5432/ticket_db
+      value: postgresql+psycopg://user:password@interest-db:5432/interest_db
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: kafka.ticketing-messaging.svc.cluster.local:9092
-    - name: KAFKA_GROUP_ID
-      value: ticket-service
-    - name: PAYMENT_APPROVED_TOPIC
-      value: payment-approved
-    - name: TICKET_ISSUED_TOPIC
-      value: ticket-issued
-    - name: AWS_REGION
-      value: ap-northeast-2
-    - name: S3_BUCKET
-      value: ticketing-tickets
-    - name: AWS_ACCESS_KEY_ID
-      value: ""
-    - name: AWS_SECRET_ACCESS_KEY
-      value: ""
-  apiEnv:
-    - name: UVICORN_WORKERS
-      value: "2"
-
-workers:
-  - name: background
-    replicas: 1
-    command: ["python"]
-    args: ["cmd/worker/main.py"]
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: http
+    initialDelaySeconds: 3
+    periodSeconds: 5
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
 
 service:
   port: 8085
@@ -59,21 +40,31 @@ ingress:
   enabled: true
   className: kong
   objects:
-    - name: ticket-customer-api
+    - name: interest-customer-api
       annotations:
-        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-customer,ticketing-rate-limit-tickets,ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-customer,ticketing-correlation-id,ticketing-prometheus
       hosts:
         - host: ""
           paths:
-            - path: /tickets
+            - path: /v1/users
               pathType: Prefix
-    - name: ticket-debug-api
+            - path: /v1/drops
+              pathType: Prefix
+    - name: interest-public-api
       annotations:
         konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
       hosts:
         - host: ""
           paths:
-            - path: /__debug/ticket/status
+            - path: /v1/rankings
+              pathType: Prefix
+    - name: interest-operator-api
+      annotations:
+        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-correlation-id,ticketing-prometheus
+      hosts:
+        - host: ""
+          paths:
+            - path: /v1/operator
               pathType: Prefix
 
 networkPolicy:
@@ -105,7 +96,7 @@ networkPolicy:
     - to:
         - podSelector:
             matchLabels:
-              app.kubernetes.io/name: ticket-db
+              app.kubernetes.io/name: interest-db
       ports:
         - protocol: TCP
           port: 5432
@@ -131,19 +122,6 @@ networkPolicy:
           port: 4317
         - protocol: TCP
           port: 4318
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: istio-system
-          podSelector:
-            matchLabels:
-              app: istiod
-      ports:
-        - protocol: TCP
-          port: 15012
-        - protocol: TCP
-          port: 15010
-        - protocol: TCP
-          port: 443
+
 nodeSelector:
-  role: app
+  medikong.io/workload: app

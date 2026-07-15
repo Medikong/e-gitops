@@ -1,13 +1,17 @@
 app:
   name: notification-service
-  namespace: ticketing-notification
+  namespace: dropmong-notification
   labels:
-    ticketing.io/service: notification
-    ticketing.io/tier: api
+    dropmong.io/service: notification
+    dropmong.io/tier: api
 
 image:
   repository: notification-service
-  tag: v0.2.2
+  tag: dev
+
+database:
+  sqlalchemy:
+    enabled: false
 
 deployment:
   replicas: 1
@@ -23,33 +27,23 @@ deployment:
 container:
   port: 8084
   env:
-    - name: MONGODB_URL
-      value: mongodb://notification-db:27017
-    - name: MONGODB_DB_NAME
-      value: notification_db
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: kafka.ticketing-messaging.svc.cluster.local:9092
-    - name: KAFKA_GROUP_ID
-      value: notification-service
-    - name: RESERVATION_CREATED_TOPIC
-      value: reservation-created
-    - name: RESERVATION_EXPIRED_TOPIC
-      value: reservation-expired
-    - name: PAYMENT_APPROVED_TOPIC
-      value: payment-approved
-    - name: PAYMENT_FAILED_TOPIC
-      value: payment-failed
-    - name: TICKET_ISSUED_TOPIC
-      value: ticket-issued
   apiEnv:
     - name: UVICORN_WORKERS
       value: "2"
-
-workers:
-  - name: background
-    replicas: 1
-    command: ["python"]
-    args: ["cmd/worker/main.py"]
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: http
+    initialDelaySeconds: 3
+    periodSeconds: 5
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
 
 service:
   port: 8084
@@ -103,13 +97,6 @@ networkPolicy:
         - protocol: TCP
           port: 53
     - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: notification-db
-      ports:
-        - protocol: TCP
-          port: 27017
-    - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: ticketing-messaging
@@ -146,4 +133,4 @@ networkPolicy:
         - protocol: TCP
           port: 443
 nodeSelector:
-  role: app
+  medikong.io/workload: app

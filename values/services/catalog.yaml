@@ -1,12 +1,12 @@
 app:
-  name: coupon-service
-  namespace: dropmong-coupon
+  name: catalog-service
+  namespace: dropmong-catalog
   labels:
-    dropmong.io/service: coupon
+    dropmong.io/service: catalog
     dropmong.io/tier: api
 
 image:
-  repository: coupon-service
+  repository: catalog-service
   tag: dev
 
 database:
@@ -14,62 +14,37 @@ database:
     enabled: false
 
 deployment:
-  replicas: 1
+  replicas: 2
 
 container:
-  ports:
-    - name: http
-      containerPort: 8080
-    - name: admin
-      containerPort: 9090
-  readinessProbe:
-    httpGet:
-      path: /readyz
-      port: admin
-    initialDelaySeconds: 3
-    periodSeconds: 5
-  livenessProbe:
-    httpGet:
-      path: /healthz
-      port: admin
-    initialDelaySeconds: 10
-    periodSeconds: 10
+  port: 8081
   resources:
     requests:
       cpu: 100m
       memory: 128Mi
     limits:
       cpu: 500m
-      memory: 512Mi
-  env:
-    - name: DATABASE_URL
-      value: postgres://user:password@coupon-db:5432/coupon_db?sslmode=disable
-    - name: COUPON_ALLOWED_ORIGINS
-      value: http://localhost:3000
-    - name: COUPON_CODE_HASH_KEY
-      value: dropmong-dev-coupon-code-hash-key-change-before-shared-use
-
-workers:
-  - name: worker
-    replicas: 1
-    command: ["/app/worker"]
+      memory: 256Mi
+  env: []
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: http
+    initialDelaySeconds: 3
+    periodSeconds: 5
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
 
 service:
-  port: 8080
+  port: 8081
   targetPort: http
 
 ingress:
-  enabled: true
-  className: kong
-  objects:
-    - name: coupon-api
-      annotations:
-        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
-      hosts:
-        - host: ""
-          paths:
-            - path: /coupons
-              pathType: Prefix
+  enabled: false
 
 networkPolicy:
   enabled: true
@@ -83,7 +58,7 @@ networkPolicy:
               kubernetes.io/metadata.name: kong
       ports:
         - protocol: TCP
-          port: 8080
+          port: 8081
   egress:
     - to:
         - namespaceSelector:
@@ -97,13 +72,6 @@ networkPolicy:
           port: 53
         - protocol: TCP
           port: 53
-    - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: coupon-db
-      ports:
-        - protocol: TCP
-          port: 5432
     - to:
         - namespaceSelector:
             matchLabels:
@@ -119,3 +87,7 @@ networkPolicy:
 
 nodeSelector:
   medikong.io/workload: app
+
+observability:
+  profiling:
+    serverAddress: http://pyroscope.observability.svc.cluster.local:4040

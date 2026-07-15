@@ -62,3 +62,16 @@ plugin: rate-limiting
 config:
   minute: 120
   policy: local
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongClusterPlugin
+metadata:
+  name: ticketing-rate-limit-orders
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    app.kubernetes.io/part-of: medikong
+plugin: rate-limiting
+config:
+  minute: 120
+  policy: local

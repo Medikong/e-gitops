@@ -2,13 +2,13 @@ apiVersion: networking.istio.io/v1
 kind: DestinationRule
 metadata:
   name: notification-service
-  namespace: ticketing-notification
+  namespace: dropmong-notification
   labels:
     app.kubernetes.io/name: notification-service
     app.kubernetes.io/part-of: medikong
     medikong.io/traffic-policy: failure-isolation
 spec:
-  host: notification-service.ticketing-notification.svc.cluster.local
+  host: notification-service.dropmong-notification.svc.cluster.local
   trafficPolicy:
     connectionPool:
       tcp:

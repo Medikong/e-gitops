@@ -1,6 +1,0 @@
-postgresql:
-  databases:
-    concert:
-      name: concert-db
-      namespace: ticketing-concert
-      database: concert_db

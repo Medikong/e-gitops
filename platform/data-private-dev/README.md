@@ -9,39 +9,22 @@ This path does not commit database or pgAdmin passwords. Prepare the referenced 
 The infra repo has a bootstrap playbook for this:
 
 ```bash
-cd ../infra/infra/cluster/provision/ansible-lab
-ansible-playbook -i inventories/lab/dev.ini playbooks/bootstrap-private-dev-secrets.yml
+cd ../infra/infra/cluster/provision/ansible/environments/private-dev
+task private-dev:bootstrap
 ```
 
 It reads passwords from environment variables and applies Kubernetes Secrets without writing plaintext values to Git.
 
 ```bash
-kubectl -n ticketing-auth create secret generic postgres-auth-credentials --from-literal=password='<value>'
-kubectl -n ticketing-user create secret generic postgres-user-credentials --from-literal=password='<value>' --from-literal=database-url='<postgres-url>'
-kubectl -n ticketing-concert create secret generic postgres-concert-credentials --from-literal=password='<value>'
-kubectl -n ticketing-reservation create secret generic postgres-reservation-credentials --from-literal=password='<value>'
-kubectl -n ticketing-payment create secret generic postgres-payment-credentials --from-literal=password='<value>'
-kubectl -n ticketing-ticket create secret generic postgres-ticket-credentials --from-literal=password='<value>'
-kubectl -n ticketing-payment create secret generic pgadmin-private-dev-credentials --from-literal=email='<admin-email>' --from-literal=password='<value>'
+kubectl -n dropmong-auth create secret generic postgres-auth-credentials --from-literal=password='<value>'
+kubectl -n dropmong-payment create secret generic postgres-payment-credentials --from-literal=password='<value>'
+kubectl -n dropmong-payment create secret generic pgadmin-private-dev-credentials --from-literal=email='<admin-email>' --from-literal=password='<value>'
 ```
-
-The `user-service` Application also expects a `user-service-runtime-secrets` Secret in `ticketing-user`. External secret bootstrap must provide these keys before Argo syncs the service:
-
-- `user-signing-private-key`
-- `user-signing-key-id`
-- `auth-proof-public-key`
-- `auth-proof-key-id`
-- `media-proof-public-key`
-- `media-proof-key-id`
-- `private-name-encryption-key`
-- `allowed-origins`
-
-`postgres-user-credentials.database-url` must point to `user-db:5432/user_service`. `allowed-origins` must contain one or more HTTPS origins because private-dev disables local development defaults.
 
 Use SSH to node1 or an admin workstation with the private-dev kubeconfig when the pgAdmin password is needed.
 
 ```bash
-kubectl -n ticketing-payment get secret pgadmin-private-dev-credentials -o jsonpath='{.data.password}' | base64 -d
+kubectl -n dropmong-payment get secret pgadmin-private-dev-credentials -o jsonpath='{.data.password}' | base64 -d
 ```
 
 All StatefulSet and PVC resources in this path use `storageClassName: medikong-local-path`.

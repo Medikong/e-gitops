@@ -1,13 +1,13 @@
 app:
   name: payment-service
-  namespace: ticketing-payment
+  namespace: dropmong-payment
   labels:
-    ticketing.io/service: payment
-    ticketing.io/tier: api
+    dropmong.io/service: payment
+    dropmong.io/tier: api
 
 image:
   repository: payment-service
-  tag: v0.2.2
+  tag: dev
 
 deployment:
   replicas: 1
@@ -21,28 +21,30 @@ deployment:
     sidecar.istio.io/proxyMemoryLimit: 256Mi
 
 container:
-  port: 8080
+  port: 8083
   env:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@payment-db:5432/payment_db
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: kafka.ticketing-messaging.svc.cluster.local:9092
-    - name: PAYMENT_APPROVED_TOPIC
-      value: payment-approved
-    - name: PAYMENT_FAILED_TOPIC
-      value: payment-failed
   apiEnv:
     - name: UVICORN_WORKERS
       value: "2"
-
-workers:
-  - name: background
-    replicas: 1
-    command: ["python"]
-    args: ["cmd/worker/main.py"]
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: http
+    initialDelaySeconds: 3
+    periodSeconds: 5
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
 
 service:
-  port: 8080
+  port: 8083
   targetPort: http
 
 ingress:
@@ -65,24 +67,6 @@ ingress:
           paths:
             - path: /__debug/payment/status
               pathType: Prefix
-    - name: payment-provider-api
-      annotations:
-        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-provider,ticketing-rate-limit-payments,ticketing-correlation-id,ticketing-prometheus
-        konghq.com/regex-priority: "100"
-      hosts:
-        - host: ""
-          paths:
-            - path: /~/provider/concerts/[^/]+/settlement-basis$
-              pathType: ImplementationSpecific
-    - name: payment-admin-api
-      annotations:
-        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-admin,ticketing-rate-limit-payments,ticketing-correlation-id,ticketing-prometheus
-        konghq.com/regex-priority: "100"
-      hosts:
-        - host: ""
-          paths:
-            - path: /~/admin/concerts/[^/]+/settlement-basis$
-              pathType: ImplementationSpecific
 
 networkPolicy:
   enabled: true
@@ -96,7 +80,7 @@ networkPolicy:
               kubernetes.io/metadata.name: kong
       ports:
         - protocol: TCP
-          port: 8080
+          port: 8083
   egress:
     - to:
         - namespaceSelector:
@@ -154,4 +138,4 @@ networkPolicy:
         - protocol: TCP
           port: 443
 nodeSelector:
-  role: app
+  medikong.io/workload: app

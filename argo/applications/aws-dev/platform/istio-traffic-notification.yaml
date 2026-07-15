@@ -13,7 +13,7 @@ spec:
     path: platform/istio/traffic/notification
   destination:
     server: https://kubernetes.default.svc
-    namespace: ticketing-notification
+    namespace: dropmong-notification
   syncPolicy:
     automated:
       prune: true

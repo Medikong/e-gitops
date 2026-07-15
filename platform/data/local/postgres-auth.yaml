@@ -2,5 +2,5 @@ postgresql:
   databases:
     auth:
       name: auth-db
-      namespace: ticketing-auth
+      namespace: dropmong-auth
       database: auth_db

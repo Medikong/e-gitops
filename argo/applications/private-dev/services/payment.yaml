@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/TicketMong/gitops.git
+    - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       path: charts/medikong-service
       helm:
@@ -17,12 +17,12 @@ spec:
           - $values/values/services/payment.yaml
           - $values/values/services/private-dev/payment.yaml
           - $values/values/overrides/private-dev-ha-stable.yaml
-    - repoURL: https://github.com/TicketMong/gitops.git
+    - repoURL: https://github.com/Medikong/gitops.git
       targetRevision: HEAD
       ref: values
   destination:
     server: https://kubernetes.default.svc
-    namespace: ticketing-payment
+    namespace: dropmong-payment
   syncPolicy:
     automated:
       prune: true
