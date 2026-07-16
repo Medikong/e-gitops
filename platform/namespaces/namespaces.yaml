@@ -57,6 +57,13 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
+  name: dropmong-catalog
+  labels:
+    app.kubernetes.io/part-of: medikong
+---
+apiVersion: v1
+kind: Namespace
+metadata:
   name: ticketing-messaging
   labels:
     app.kubernetes.io/part-of: medikong
