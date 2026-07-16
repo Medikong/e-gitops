@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       path: platform/monitoring
     - repoURL: https://prometheus-community.github.io/helm-charts
@@ -19,7 +19,7 @@ spec:
         valueFiles:
           - $values/platform/monitoring/values/kube-prometheus-stack-private-dev.yaml
         skipCrds: false
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       ref: values
   destination:

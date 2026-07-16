@@ -15,7 +15,7 @@ spec:
         releaseName: kong
         valueFiles:
           - $values/platform/kong/values-aws-dev.yaml
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       ref: values
   destination:

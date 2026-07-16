@@ -15,7 +15,7 @@ spec:
         releaseName: opentelemetry-collector
         valueFiles:
           - $values/platform/observability/collector/values/private-dev.yaml
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       ref: values
   destination:

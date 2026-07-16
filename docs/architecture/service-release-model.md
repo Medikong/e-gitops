@@ -189,7 +189,7 @@ argo/applications/aws-dev/services/reservation.yaml
 
 ```yaml
 sources:
-  - repoURL: https://github.com/Medikong/gitops.git
+  - repoURL: https://github.com/Medikong/e-gitops.git
     targetRevision: HEAD
     path: charts/medikong-service
     helm:
@@ -198,7 +198,7 @@ sources:
         - $values/values/base.yaml
         - $values/values/env/aws-dev.yaml
         - $values/values/services/reservation.yaml
-  - repoURL: https://github.com/Medikong/gitops.git
+  - repoURL: https://github.com/Medikong/e-gitops.git
     targetRevision: HEAD
     ref: values
 ```

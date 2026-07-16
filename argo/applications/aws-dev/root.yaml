@@ -6,10 +6,10 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       path: argo/applications/aws-dev/platform
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       path: argo/applications/aws-dev/services
   destination:

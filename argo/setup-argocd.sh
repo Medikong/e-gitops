@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-GITOPS_REPO_RAW_URL="${GITOPS_REPO_RAW_URL:-https://raw.githubusercontent.com/Medikong/gitops/main}"
+GITOPS_REPO_RAW_URL="${GITOPS_REPO_RAW_URL:-https://raw.githubusercontent.com/Medikong/e-gitops/main}"
 
 echo "=== ArgoCD 설치 시작 ==="
 

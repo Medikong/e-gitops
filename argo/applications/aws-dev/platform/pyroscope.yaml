@@ -15,7 +15,7 @@ spec:
         releaseName: pyroscope
         valueFiles:
           - $values/platform/observability/pyroscope/values/aws-dev.yaml
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       ref: values
   destination:

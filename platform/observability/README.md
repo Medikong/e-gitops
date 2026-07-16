@@ -170,7 +170,7 @@ AWS 인증은 GitHub OIDC를 사용한다. 장기 access key를 GitHub secret에
 ```text
 1. AWS IAM에 GitHub Actions OIDC provider를 구성한다.
 2. 관측성 이미지 미러링용 IAM Role을 만든다.
-3. Role trust policy에서 Medikong/gitops repository의 OIDC subject만 허용한다.
+3. Role trust policy에서 Medikong/e-gitops repository의 OIDC subject만 허용한다.
 4. Role에 ECR pull/push 권한을 부여한다.
 5. GitHub Repository 또는 Organization variable에 OBSERVABILITY_IMAGE_MIRROR_ROLE_ARN을 등록한다.
 ```

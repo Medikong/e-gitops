@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       path: charts/medikong-service
       helm:
@@ -16,7 +16,7 @@ spec:
           - $values/values/env/private-dev.yaml
           - $values/values/services/interest.yaml
           - $values/values/overrides/private-dev-ha-stable.yaml
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       ref: values
   destination:

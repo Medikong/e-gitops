@@ -1,6 +1,6 @@
 # Operating log collection policy
 
-이 문서는 `Medikong/workspace#32`, `Medikong/service#17`, `Medikong/gitops#25`의 운영 로그 수집/보존 기준이다.
+이 문서는 `Medikong/workspace#32`, `Medikong/service#17`, `Medikong/e-gitops#25`의 운영 로그 수집/보존 기준이다.
 
 ## 원칙
 

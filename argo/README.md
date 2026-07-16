@@ -1,12 +1,12 @@
 # Argo CD
 
-이 디렉터리는 `Medikong/gitops` repo를 감시하는 Argo CD Application 초안을 관리한다.
+이 디렉터리는 `Medikong/e-gitops` repo를 감시하는 Argo CD Application 초안을 관리한다.
 
 ## 현재 초안
 
 | 항목 | 값 |
 | --- | --- |
-| Git repo | `https://github.com/Medikong/gitops.git` |
+| Git repo | `https://github.com/Medikong/e-gitops.git` |
 | Revision | `HEAD` |
 | Bootstrap Application | `argo/application.yaml` |
 | Root path | `argo/applications/aws-dev/platform` + `argo/applications/aws-dev/services` |
@@ -67,7 +67,7 @@ Argo CD 설치까지 한 번에 확인하려면 다음 스크립트를 사용한
 원격 raw URL에서 실행해야 한다면 repo owner나 branch가 바뀌었을 때만 `GITOPS_REPO_RAW_URL`을 덮어쓴다.
 
 ```bash
-GITOPS_REPO_RAW_URL=https://raw.githubusercontent.com/Medikong/gitops/main ./argo/setup-argocd.sh
+GITOPS_REPO_RAW_URL=https://raw.githubusercontent.com/Medikong/e-gitops/main ./argo/setup-argocd.sh
 ```
 
 ## 확인

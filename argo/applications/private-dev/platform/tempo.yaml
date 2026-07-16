@@ -15,7 +15,7 @@ spec:
         releaseName: tempo
         valueFiles:
           - $values/platform/observability/tempo/values/private-dev.yaml
-    - repoURL: https://github.com/Medikong/gitops.git
+    - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       ref: values
   destination:
