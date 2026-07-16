@@ -56,10 +56,10 @@ concurrency:
 
 env:
   AWS_REGION: ap-northeast-2
-  IMAGE_REGISTRY: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+  IMAGE_REGISTRY: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
   IMAGE_REPOSITORY: synthetic-traffic
   VALUES_FILE: platform/synthetic/values/aws-dev.yaml
-  DEFAULT_AWS_ROLE_ARN: arn:aws:iam::941141115079:role/github-actions-ecr-role
+  DEFAULT_AWS_ROLE_ARN: arn:aws:iam::205623789422:role/github-actions-ecr-role
   DEFAULT_PLATFORMS: linux/arm64,linux/amd64
 
 jobs:

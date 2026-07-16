@@ -3,13 +3,13 @@ imageMirror:
     - name: loki
       description: Loki log backend
       source: docker.io/grafana/loki:3.6.7
-      targetRegistry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+      targetRegistry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
       targetRepository: grafana/loki
       tag: 3.6.7
     - name: loki-sidecar
       description: Loki chart rules sidecar image
       source: docker.io/kiwigrid/k8s-sidecar:2.5.0
-      targetRegistry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+      targetRegistry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
       targetRepository: kiwigrid/k8s-sidecar
       tag: 2.5.0
 
@@ -27,7 +27,7 @@ imagePullSecrets:
 loki:
   auth_enabled: false
   image:
-    registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+    registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
     repository: grafana/loki
     tag: 3.6.7
   commonConfig:
@@ -85,7 +85,7 @@ singleBinary:
 
 sidecar:
   image:
-    registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+    registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
     repository: kiwigrid/k8s-sidecar
     tag: 2.5.0
 

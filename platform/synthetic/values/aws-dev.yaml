@@ -1,7 +1,7 @@
 environment: aws-dev
 
 image:
-  registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+  registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
   repository: synthetic-traffic
   tag: e5b2755f2495e635bb13577708f3e3df584bc12d
   pullPolicy: Always

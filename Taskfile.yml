@@ -933,7 +933,6 @@ tasks:
           -f platform/data/local/postgres-auth.yaml \
           -f platform/data/local/postgres-user.yaml \
           -f platform/data/local/postgres-coupon.yaml \
-          -f platform/data/local/postgres-backoffice.yaml \
           -f platform/data/local/postgres-concert.yaml \
           -f platform/data/local/postgres-reservation.yaml \
           -f platform/data/local/postgres-payment.yaml \
@@ -1546,7 +1545,6 @@ tasks:
         -f platform/data/local/postgres-auth.yaml
         -f platform/data/local/postgres-user.yaml
         -f platform/data/local/postgres-coupon.yaml
-        -f platform/data/local/postgres-backoffice.yaml
         -f platform/data/local/postgres-concert.yaml
         -f platform/data/local/postgres-reservation.yaml
         -f platform/data/local/postgres-payment.yaml

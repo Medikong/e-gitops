@@ -140,7 +140,6 @@ prometheus:
             - monitoring
             - observability
             - ticketing-auth
-            - ticketing-backoffice
             - ticketing-concert
             - ticketing-coupon
             - ticketing-notification
@@ -159,7 +158,6 @@ prometheus:
             - monitoring
             - observability
             - ticketing-auth
-            - ticketing-backoffice
             - ticketing-concert
             - ticketing-coupon
             - ticketing-notification
@@ -177,7 +175,6 @@ prometheus:
           values:
             - monitoring
             - ticketing-auth
-            - ticketing-backoffice
             - ticketing-concert
             - ticketing-coupon
             - ticketing-notification

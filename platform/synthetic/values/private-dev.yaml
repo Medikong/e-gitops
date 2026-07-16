@@ -1,7 +1,7 @@
 environment: private-dev
 
 image:
-  registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+  registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
   repository: synthetic-traffic
   tag: 610f5e095ff389d90bd387e12251e1aa96dcdf8a
   pullPolicy: Always

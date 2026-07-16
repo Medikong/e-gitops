@@ -1,0 +1,158 @@
+app:
+  name: user-service
+  namespace: dropmong-user
+  labels:
+    dropmong.io/service: user
+    dropmong.io/tier: api
+
+image:
+  repository: user-service
+  tag: dev
+
+database:
+  sqlalchemy:
+    enabled: false
+
+deployment:
+  replicas: 1
+
+container:
+  ports:
+    - name: http
+      containerPort: 8080
+    - name: admin
+      containerPort: 9090
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@user-db:5432/user_db
+    - name: USER_ALLOWED_ORIGINS
+      value: http://localhost:3000
+    - name: USER_DEVELOPMENT_ENABLED
+      value: "false"
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: admin
+    initialDelaySeconds: 3
+    periodSeconds: 5
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: admin
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+migration:
+  enabled: true
+  command:
+    - /app/migrate
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@user-db:5432/user_db
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+service:
+  port: 8080
+  targetPort: http
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: admin
+      port: 9090
+      targetPort: admin
+
+ingress:
+  enabled: true
+  className: kong
+  objects:
+    - name: user-registration-api
+      annotations:
+        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+        konghq.com/strip-path: "false"
+      hosts:
+        - host: ""
+          paths:
+            - path: /api/v1/users
+              pathType: Exact
+    - name: user-self-api
+      annotations:
+        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus,ticketing-jwt
+        konghq.com/strip-path: "false"
+      hosts:
+        - host: ""
+          paths:
+            - path: /api/v1/users/me
+              pathType: Prefix
+
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: user-db
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: opentelemetry-collector
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+
+nodeSelector:
+  medikong.io/workload: app
+
+observability:
+  profiling:
+    serverAddress: http://pyroscope.observability.svc.cluster.local:4040
+
+serviceMonitor:
+  port: admin
+  path: /metrics
+  networkPolicy:
+    port: 9090

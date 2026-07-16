@@ -1,7 +1,7 @@
 environment: private-dev
 
 image:
-  registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+  registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
   pullPolicy: Always
 
 imagePullSecrets:

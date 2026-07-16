@@ -25,7 +25,9 @@ container:
     limits:
       cpu: 500m
       memory: 256Mi
-  env: []
+  env:
+    - name: DATABASE_URL
+      value: postgresql+asyncpg://user:password@catalog-db:5432/catalog_db
   readinessProbe:
     httpGet:
       path: /readyz

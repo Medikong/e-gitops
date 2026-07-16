@@ -142,19 +142,19 @@ platform/observability/pyroscope/values/aws-dev.yaml
 
 ```text
 docker.io/grafana/tempo:2.9.0
-  -> 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/grafana/tempo:2.9.0
+  -> 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com/grafana/tempo:2.9.0
 
 docker.io/otel/opentelemetry-collector-contrib:0.153.0
-  -> 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/otel/opentelemetry-collector-contrib:0.153.0
+  -> 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com/otel/opentelemetry-collector-contrib:0.153.0
 
 docker.io/grafana/loki:3.6.7
-  -> 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/grafana/loki:3.6.7
+  -> 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com/grafana/loki:3.6.7
 
 docker.io/grafana/pyroscope:2.0.3
-  -> 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/grafana/pyroscope:2.0.3
+  -> 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com/grafana/pyroscope:2.0.3
 
 docker.io/kiwigrid/k8s-sidecar:2.5.0
-  -> 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/kiwigrid/k8s-sidecar:2.5.0
+  -> 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com/kiwigrid/k8s-sidecar:2.5.0
 ```
 
 미러링 workflow는 수동으로 실행한다.

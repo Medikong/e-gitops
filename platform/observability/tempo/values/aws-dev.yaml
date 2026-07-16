@@ -3,14 +3,14 @@ imageMirror:
     - name: tempo
       description: Tempo trace backend
       source: docker.io/grafana/tempo:2.9.0
-      targetRegistry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+      targetRegistry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
       targetRepository: grafana/tempo
       tag: 2.9.0
 
 replicas: 1
 
 tempo:
-  registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+  registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
   repository: grafana/tempo
   tag: 2.9.0
   pullSecrets:

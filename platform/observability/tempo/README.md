@@ -33,7 +33,7 @@ trace path
 
 초기 aws-dev는 실제 span 양을 보기 전이므로 단일 binary와 filesystem PVC로 시작한다. S3 같은 object storage, HA 구성, prod retention은 infra/storage 기준이 정해진 뒤 별도 작업으로 올린다.
 
-aws-dev values는 `941141115079.dkr.ecr.ap-northeast-2.amazonaws.com/grafana/tempo:2.9.0`을 바라본다. 배포 전 `.github/workflows/observability-image-mirror.yml`로 `docker.io/grafana/tempo:2.9.0`을 ECR에 mirror해야 한다. 미러링 대상과 버전은 이 values 파일의 `imageMirror.images`에서 함께 관리한다.
+aws-dev values는 `205623789422.dkr.ecr.ap-northeast-2.amazonaws.com/grafana/tempo:2.9.0`을 바라본다. 배포 전 `.github/workflows/observability-image-mirror.yml`로 `docker.io/grafana/tempo:2.9.0`을 ECR에 mirror해야 한다. 미러링 대상과 버전은 이 values 파일의 `imageMirror.images`에서 함께 관리한다.
 
 ## Grafana datasource
 

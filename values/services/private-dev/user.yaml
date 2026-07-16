@@ -1,0 +1,19 @@
+container:
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-user-credentials
+          key: database-url
+    - name: USER_ALLOWED_ORIGINS
+      value: http://localhost:3000
+    - name: USER_DEVELOPMENT_ENABLED
+      value: "false"
+
+migration:
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-user-credentials
+          key: database-url

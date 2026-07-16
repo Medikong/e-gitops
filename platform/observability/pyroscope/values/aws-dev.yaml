@@ -3,7 +3,7 @@ imageMirror:
     - name: pyroscope
       description: Pyroscope profile backend
       source: docker.io/grafana/pyroscope:2.0.3
-      targetRegistry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+      targetRegistry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
       targetRepository: grafana/pyroscope
       tag: 2.0.3
 
@@ -20,7 +20,7 @@ pyroscope:
   replicaCount: 1
   disableSelfProfile: true
   image:
-    registry: 941141115079.dkr.ecr.ap-northeast-2.amazonaws.com
+    registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
     repository: grafana/pyroscope
     tag: 2.0.3
   imagePullSecrets:

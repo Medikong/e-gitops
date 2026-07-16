@@ -1,6 +1,0 @@
-postgresql:
-  databases:
-    backoffice:
-      name: backoffice-db
-      namespace: ticketing-backoffice
-      database: backoffice_service

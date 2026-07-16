@@ -15,6 +15,7 @@ spec:
           - $values/values/base.yaml
           - $values/values/env/private-dev.yaml
           - $values/values/services/order.yaml
+          - $values/values/services/private-dev/order.yaml
           - $values/values/overrides/private-dev-ha-stable.yaml
     - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD

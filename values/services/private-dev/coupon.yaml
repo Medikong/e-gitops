@@ -1,0 +1,11 @@
+container:
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-coupon-credentials
+          key: database-url
+    - name: COUPON_ALLOWED_ORIGINS
+      value: http://localhost:3000
+    - name: COUPON_CODE_HASH_KEY
+      value: dropmong-dev-coupon-code-hash-key-change-before-shared-use
