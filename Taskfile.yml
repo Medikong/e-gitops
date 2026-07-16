@@ -931,22 +931,14 @@ tasks:
           --create-namespace \
           -f platform/data/local/postgresql.yaml \
           -f platform/data/local/postgres-auth.yaml \
-          -f platform/data/local/postgres-user.yaml \
           -f platform/data/local/postgres-coupon.yaml \
-          -f platform/data/local/postgres-concert.yaml \
-          -f platform/data/local/postgres-reservation.yaml \
           -f platform/data/local/postgres-payment.yaml \
-          -f platform/data/local/postgres-ticket.yaml \
           -f platform/data/local/mongodb.yaml \
           -f platform/data/local/valkey.yaml
         pids=""
         for item in \
           ticketing-auth/auth-db \
-          ticketing-user/user-db \
-          ticketing-concert/concert-db \
-          ticketing-reservation/reservation-db \
           ticketing-payment/payment-db \
-          ticketing-ticket/ticket-db \
           ticketing-notification/notification-db \
           ticketing-messaging/kafka \
           ticketing-coupon/coupon-redis
@@ -1543,22 +1535,15 @@ tasks:
         {{.HELM}} template medikong-data platform/data/chart
         -f platform/data/local/postgresql.yaml
         -f platform/data/local/postgres-auth.yaml
-        -f platform/data/local/postgres-user.yaml
         -f platform/data/local/postgres-coupon.yaml
-        -f platform/data/local/postgres-concert.yaml
-        -f platform/data/local/postgres-reservation.yaml
         -f platform/data/local/postgres-payment.yaml
-        -f platform/data/local/postgres-ticket.yaml
         -f platform/data/local/mongodb.yaml
         -f platform/data/local/valkey.yaml >/dev/null
       - >-
         {{.HELM}} template medikong-data platform/data/chart
         -f platform/data/aws-dev/postgresql.yaml
         -f platform/data/aws-dev/postgres-auth.yaml
-        -f platform/data/aws-dev/postgres-concert.yaml
-        -f platform/data/aws-dev/postgres-reservation.yaml
         -f platform/data/aws-dev/postgres-payment.yaml
-        -f platform/data/aws-dev/postgres-ticket.yaml
         -f platform/data/aws-dev/mongodb.yaml >/dev/null
       - '{{.KUBECTL}} kustomize platform/data-private-dev >/dev/null'
       - '{{.KUBECTL}} kustomize platform/kong >/dev/null'
