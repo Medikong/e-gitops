@@ -5,13 +5,142 @@ container:
         secretKeyRef:
           name: postgres-auth-credentials
           key: database-url
-    - name: AUTH_TOKEN_TTL_SECONDS
-      value: "900"
-    - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
-      value: "604800"
-    - name: JWT_SECRET
-      value: ticketing-dev-secret
-    - name: JWT_ISSUER
-      value: auth-service
-    - name: AUTH_DEV_TEST_TOKEN_ENABLED
+    - name: AUDIT_SINK_DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-auth-credentials
+          key: database-url
+    - name: AUTH_JWT_PRIVATE_KEY_PEM
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: jwt-private-key-pem
+    - name: AUTH_JWT_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: jwt-key-id
+    - name: AUTH_JWT_ISSUER
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: jwt-issuer
+    - name: AUTH_JWT_AUDIENCES
+      value: dropmong-api
+    - name: AUTH_CREDENTIAL_HMAC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: credential-hmac-key
+    - name: AUTH_REPLAY_ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: replay-encryption-key
+    - name: AUTH_PROOF_PRIVATE_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: auth-proof-private-key
+    - name: AUTH_PROOF_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: auth-proof-key-id
+    - name: AUTH_USER_PROOF_PUBLIC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: user-proof-public-key
+    - name: AUTH_USER_PROOF_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: user-proof-key-id
+    - name: AUTH_USER_PROOF_ISSUER
+      value: user-service
+    - name: AUTH_ALLOWED_ORIGINS
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: allowed-origins
+    - name: AUTH_COOKIE_SECURE
+      value: "true"
+    - name: AUTH_DEVELOPMENT_ENABLED
       value: "false"
+    - name: AUTH_DEV_ROUTE_ENABLED
+      value: "false"
+    - name: AUTH_VIRTUAL_ADAPTERS_ENABLED
+      value: "false"
+    - name: AUTH_SESSION_STATUS_REDIS_URL
+      value: redis://auth-session-redis.dropmong-auth.svc.cluster.local:6379/0
+    - name: AUTH_SESSION_STATUS_CACHE_TTL
+      value: 5m
+    - name: AUTH_SESSION_STATUS_DB_TIMEOUT
+      value: 100ms
+    - name: AUTH_SESSION_STATUS_MAX_DB_LOOKUPS
+      value: "32"
+
+migration:
+  enabled: true
+  command:
+    - /app/migrate
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-auth-credentials
+          key: database-url
+    - name: AUDIT_SINK_DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-auth-credentials
+          key: database-url
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+networkPolicy:
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: auth-db
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: auth-session-redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: opentelemetry-collector
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318

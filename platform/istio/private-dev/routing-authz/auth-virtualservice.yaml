@@ -1,0 +1,168 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: auth-routes
+  namespace: istio-system
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - medikong-internal
+  http:
+    - name: public-auth-bootstrap
+      match:
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/intents
+      headers:
+        request:
+          remove:
+            - x-user-id
+            - x-session-id
+            - x-token-id
+            - x-user-role
+            - x-user-email
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+    - name: public-auth-pre-auth
+      match:
+        - method:
+            exact: GET
+          uri:
+            exact: /api/v1/auth/methods
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/registrations
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/registrations/[^/]+/challenges$
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/registrations/[^/]+/challenges/[^/]+/verify$
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/registrations/[^/]+/complete$
+        - method:
+            exact: GET
+          uri:
+            regex: ^/api/v1/auth/registrations/[^/]+$
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/signins/email
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/signins/phone/challenges
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/signins/phone/challenges/[^/]+/verify$
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/password-resets
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/password-resets/[^/]+/challenges$
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/password-resets/[^/]+/challenges/[^/]+/verify$
+        - method:
+            exact: PUT
+          uri:
+            regex: ^/api/v1/auth/password-resets/[^/]+/password$
+      headers:
+        request:
+          remove:
+            - x-user-id
+            - x-session-id
+            - x-token-id
+            - x-user-role
+            - x-user-email
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+    - name: public-auth-refresh
+      match:
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/sessions/refresh
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/sessions/logout
+      headers:
+        request:
+          remove:
+            - x-user-id
+            - x-session-id
+            - x-token-id
+            - x-user-role
+            - x-user-email
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+    - name: protected-auth-bearer
+      match:
+        - method:
+            exact: GET
+          uri:
+            exact: /api/v1/auth/context
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/reauthentications/email
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/method-links
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/method-links/[^/]+/challenges$
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/method-links/[^/]+/complete$
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/phone-replacements
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/phone-replacements/[^/]+/challenges$
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/phone-replacements/[^/]+/complete$
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/intents/[^/]+/action-resume$
+      headers:
+        request:
+          remove:
+            - x-user-role
+            - x-user-email
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080

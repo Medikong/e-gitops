@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: user-private-dev
   namespace: argocd
+  labels:
+    medikong.io/lifecycle: candidate
 spec:
   project: default
   sources:
@@ -24,8 +26,5 @@ spec:
     server: https://kubernetes.default.svc
     namespace: dropmong-user
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=false

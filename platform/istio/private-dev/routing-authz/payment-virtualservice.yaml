@@ -1,0 +1,31 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: payment-routes
+  namespace: istio-system
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - medikong-internal
+  http:
+    - name: protected-payment
+      match:
+        - method:
+            exact: POST
+          uri:
+            exact: /payments/mock-approvals
+        - method:
+            exact: GET
+          uri:
+            regex: ^/payments/[^/]+$
+      headers:
+        request:
+          remove:
+            - x-user-role
+            - x-user-email
+      route:
+        - destination:
+            host: payment-service.dropmong-payment.svc.cluster.local
+            port:
+              number: 8083

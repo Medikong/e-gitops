@@ -1,0 +1,34 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: catalog-routes
+  namespace: istio-system
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - medikong-internal
+  http:
+    - name: public-catalog
+      match:
+        - method:
+            exact: GET
+          uri:
+            exact: /drops
+        - method:
+            exact: GET
+          uri:
+            regex: ^/drops/[^/]+$
+      headers:
+        request:
+          remove:
+            - x-user-id
+            - x-session-id
+            - x-token-id
+            - x-user-role
+            - x-user-email
+      route:
+        - destination:
+            host: catalog-service.dropmong-catalog.svc.cluster.local
+            port:
+              number: 8081

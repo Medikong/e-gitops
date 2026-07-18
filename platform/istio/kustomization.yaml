@@ -5,4 +5,6 @@ resources:
   - namespace.yaml
   - argocd/istio-base.yaml
   - argocd/istiod.yaml
+  - argocd/istio-ingressgateway.yaml
+  - argocd/istio-gateway-config.yaml
   - argocd/kiali.yaml

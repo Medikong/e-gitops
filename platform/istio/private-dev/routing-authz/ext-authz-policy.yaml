@@ -1,0 +1,110 @@
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: medikong-protected-routes
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      app: istio-ingressgateway
+      istio: ingressgateway
+  action: CUSTOM
+  provider:
+    name: medikong-authz-http
+  rules:
+    - to:
+        - operation:
+            methods:
+              - GET
+            paths:
+              - /api/v1/auth/context
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /api/v1/auth/reauthentications/email
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /api/v1/auth/method-links
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /api/v1/auth/method-links/{*}/challenges
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /api/v1/auth/method-links/{*}/complete
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /api/v1/auth/phone-replacements
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /api/v1/auth/phone-replacements/{*}/challenges
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /api/v1/auth/phone-replacements/{*}/complete
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /api/v1/auth/intents/{*}/action-resume
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /orders
+    - to:
+        - operation:
+            methods:
+              - GET
+            paths:
+              - /orders/{*}
+    - to:
+        - operation:
+            methods:
+              - GET
+            paths:
+              - /orders/{*}/cancellations
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /orders/{*}/cancellations
+    - to:
+        - operation:
+            methods:
+              - POST
+            paths:
+              - /payments/mock-approvals
+    - to:
+        - operation:
+            methods:
+              - GET
+            paths:
+              - /payments/{*}
+    - to:
+        - operation:
+            methods:
+              - GET
+            paths:
+              - /notifications

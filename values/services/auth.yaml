@@ -31,17 +31,85 @@ container:
       memory: 768Mi
   env:
     - name: DATABASE_URL
-      value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
+      valueFrom:
+        secretKeyRef:
+          name: postgres-auth-credentials
+          key: database-url
     - name: AUDIT_SINK_DATABASE_URL
-      value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
-    - name: AUTH_JWT_SECRET
-      value: dropmong-dev-jwt-secret-change-before-shared-use
+      valueFrom:
+        secretKeyRef:
+          name: postgres-auth-credentials
+          key: database-url
+    - name: AUTH_JWT_PRIVATE_KEY_PEM
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: jwt-private-key-pem
+    - name: AUTH_JWT_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: jwt-key-id
     - name: AUTH_JWT_ISSUER
-      value: auth-service
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: jwt-issuer
+    - name: AUTH_JWT_AUDIENCES
+      value: dropmong-api
     - name: AUTH_CREDENTIAL_HMAC_KEY
-      value: dropmong-dev-credential-hmac-key-change-before-shared-use
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: credential-hmac-key
     - name: AUTH_REPLAY_ENCRYPTION_KEY
-      value: dropmong-dev-replay-key-32-bytes!
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: replay-encryption-key
+    - name: AUTH_PROOF_PRIVATE_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: auth-proof-private-key
+    - name: AUTH_PROOF_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: auth-proof-key-id
+    - name: AUTH_USER_PROOF_PUBLIC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: user-proof-public-key
+    - name: AUTH_USER_PROOF_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: user-proof-key-id
+    - name: AUTH_USER_PROOF_ISSUER
+      value: user-service
+    - name: AUTH_ALLOWED_ORIGINS
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: allowed-origins
+    - name: AUTH_COOKIE_SECURE
+      value: "true"
+    - name: AUTH_DEVELOPMENT_ENABLED
+      value: "false"
+    - name: AUTH_DEV_ROUTE_ENABLED
+      value: "false"
+    - name: AUTH_VIRTUAL_ADAPTERS_ENABLED
+      value: "false"
+    - name: AUTH_SESSION_STATUS_REDIS_URL
+      value: redis://auth-session-redis.dropmong-auth.svc.cluster.local:6379/0
+    - name: AUTH_SESSION_STATUS_CACHE_TTL
+      value: 5m
+    - name: AUTH_SESSION_STATUS_DB_TIMEOUT
+      value: 100ms
+    - name: AUTH_SESSION_STATUS_MAX_DB_LOOKUPS
+      value: "32"
   readinessProbe:
     httpGet:
       path: /readyz
@@ -95,6 +163,17 @@ networkPolicy:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: kong
+      ports:
+        - protocol: TCP
+          port: 8080
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+          podSelector:
+            matchLabels:
+              app: istio-ingressgateway
+              istio: ingressgateway
       ports:
         - protocol: TCP
           port: 8080

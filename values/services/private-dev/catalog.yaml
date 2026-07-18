@@ -5,3 +5,20 @@ container:
         secretKeyRef:
           name: postgres-catalog-credentials
           key: database-url
+
+networkPolicy:
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+          podSelector:
+            matchLabels:
+              app: istio-ingressgateway
+              istio: ingressgateway
+      ports:
+        - protocol: TCP
+          port: 8081

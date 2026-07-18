@@ -1,0 +1,53 @@
+apiVersion: medikong.io/v1alpha1
+kind: IstioRoutingContract
+metadata:
+  name: task9-private-dev
+  sourcePolicy: independent-service-contract-snapshot
+  sources:
+    auth-openapi: services/auth-service/api/openapi/openapi.bundle.yaml:35-4374
+    auth-runtime-intent: services/auth-service/internal/domain/intent/routes.go:6-8
+    auth-runtime-registration: services/auth-service/internal/domain/registration/routes.go:6-10
+    auth-runtime-authentication: services/auth-service/internal/domain/authentication/routes.go:6-8
+    auth-runtime-password-reset: services/auth-service/internal/domain/passwordreset/routes.go:6-9
+    auth-runtime-session: services/auth-service/internal/domain/session/routes.go:6-8
+    auth-runtime-identity: services/auth-service/internal/domain/identity/routes.go:6-12
+    catalog-openapi: contracts/services/catalog-service/openapi.yaml:10-29
+    order-openapi: contracts/services/order-service/openapi.yaml:12-102
+    payment-openapi: contracts/services/payment-service/openapi.yaml:12-47
+    notification-openapi: contracts/services/notification-service/openapi.yaml:12-13
+spec:
+  routes:
+    - {exposure: public, method: POST, path: /api/v1/auth/intents, source: auth-runtime-intent}
+    - {exposure: public, method: GET, path: /api/v1/auth/methods, source: auth-runtime-intent}
+    - {exposure: public, method: POST, path: /api/v1/auth/registrations, source: auth-runtime-registration}
+    - {exposure: public, method: POST, path: "/api/v1/auth/registrations/{*}/challenges", source: auth-runtime-registration}
+    - {exposure: public, method: POST, path: "/api/v1/auth/registrations/{*}/challenges/{*}/verify", source: auth-runtime-registration}
+    - {exposure: public, method: POST, path: "/api/v1/auth/registrations/{*}/complete", source: auth-runtime-registration}
+    - {exposure: public, method: GET, path: "/api/v1/auth/registrations/{*}", source: auth-runtime-registration}
+    - {exposure: public, method: POST, path: /api/v1/auth/signins/email, source: auth-runtime-authentication}
+    - {exposure: public, method: POST, path: /api/v1/auth/signins/phone/challenges, source: auth-runtime-authentication}
+    - {exposure: public, method: POST, path: "/api/v1/auth/signins/phone/challenges/{*}/verify", source: auth-runtime-authentication}
+    - {exposure: public, method: POST, path: /api/v1/auth/password-resets, source: auth-runtime-password-reset}
+    - {exposure: public, method: POST, path: "/api/v1/auth/password-resets/{*}/challenges", source: auth-runtime-password-reset}
+    - {exposure: public, method: POST, path: "/api/v1/auth/password-resets/{*}/challenges/{*}/verify", source: auth-runtime-password-reset}
+    - {exposure: public, method: PUT, path: "/api/v1/auth/password-resets/{*}/password", source: auth-runtime-password-reset}
+    - {exposure: public, method: POST, path: /api/v1/auth/sessions/refresh, source: auth-runtime-session}
+    - {exposure: public, method: POST, path: /api/v1/auth/sessions/logout, source: auth-runtime-session}
+    - {exposure: public, method: GET, path: /drops, source: catalog-openapi}
+    - {exposure: public, method: GET, path: "/drops/{*}", source: catalog-openapi}
+    - {exposure: protected, method: GET, path: /api/v1/auth/context, source: auth-runtime-session}
+    - {exposure: protected, method: POST, path: /api/v1/auth/reauthentications/email, source: auth-runtime-identity}
+    - {exposure: protected, method: POST, path: /api/v1/auth/method-links, source: auth-runtime-identity}
+    - {exposure: protected, method: POST, path: "/api/v1/auth/method-links/{*}/challenges", source: auth-runtime-identity}
+    - {exposure: protected, method: POST, path: "/api/v1/auth/method-links/{*}/complete", source: auth-runtime-identity}
+    - {exposure: protected, method: POST, path: /api/v1/auth/phone-replacements, source: auth-runtime-identity}
+    - {exposure: protected, method: POST, path: "/api/v1/auth/phone-replacements/{*}/challenges", source: auth-runtime-identity}
+    - {exposure: protected, method: POST, path: "/api/v1/auth/phone-replacements/{*}/complete", source: auth-runtime-identity}
+    - {exposure: protected, method: POST, path: "/api/v1/auth/intents/{*}/action-resume", source: auth-runtime-intent}
+    - {exposure: protected, method: POST, path: /orders, source: order-openapi}
+    - {exposure: protected, method: GET, path: "/orders/{*}", source: order-openapi}
+    - {exposure: protected, method: GET, path: "/orders/{*}/cancellations", source: order-openapi}
+    - {exposure: protected, method: POST, path: "/orders/{*}/cancellations", source: order-openapi}
+    - {exposure: protected, method: POST, path: /payments/mock-approvals, source: payment-openapi}
+    - {exposure: protected, method: GET, path: "/payments/{*}", source: payment-openapi}
+    - {exposure: protected, method: GET, path: /notifications, source: notification-openapi}
