@@ -7,8 +7,10 @@ app:
 
 image:
   repository: payment-service
-  tag: dev
+  tag: ""
 
+  digest: "sha256:57d23ef9ef95427d9f2804591425d838fc44a271263b48234ee05466a99f36fc"
+  version: "v0.2.4"
 deployment:
   replicas: 1
   podLabels:
