@@ -7,8 +7,10 @@ app:
 
 image:
   repository: catalog-service
-  tag: dev
+  tag: ""
 
+  digest: "sha256:8f6d2b86b2e1a57deef221de301fd1b14d15ce8aa22dcf8d8f5cb001d4b2c510"
+  version: "v0.1.2"
 database:
   sqlalchemy:
     enabled: false
