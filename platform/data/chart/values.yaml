@@ -34,16 +34,6 @@ postgresql:
   storage: 1Gi
   databases: {}
 
-mongodb:
-  image: mongo:7
-  name: notification-db
-  namespace: ticketing-notification
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-  storage: 1Gi
-
 valkey:
   enabled: false
   image: valkey/valkey:8-alpine

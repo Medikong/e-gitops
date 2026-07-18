@@ -39,8 +39,8 @@ istiod
   - endpoint: /metrics
   - port: http-monitoring
 
-ticketing service Envoy sidecar
-  - namespace: ticketing-concert, ticketing-reservation, ticketing-payment, ticketing-ticket, ticketing-notification
+dropmong service Envoy sidecar
+  - namespace: dropmong-payment, dropmong-notification
   - endpoint: /stats/prometheus
   - port: http-envoy-prom
 ```
@@ -184,7 +184,7 @@ Loki 로그 확인은 `Logs 10 - Overview`부터 시작한다. Overview는 서�
 ```text
 Logs 10 - Overview       큰 이상 신호와 최근 증가 흐름
 Logs 20 - Services and Requests
-                         ticketing-* 서비스별 로그량, warn/error, 5xx, slow request, route/status/latency
+                         dropmong-* 서비스별 로그량, warn/error, 5xx, slow request, route/status/latency
 Logs 25 - Service Log Search
                          최근 요청 로그, 전체 Tempo trace 목록, trace_id/user_id/request_id 검색
 Logs 30 - Service Errors 서비스별 에러 로그 수치와 서비스별 원문 에러 로그

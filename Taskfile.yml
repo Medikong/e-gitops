@@ -933,13 +933,11 @@ tasks:
           -f platform/data/local/postgres-auth.yaml \
           -f platform/data/local/postgres-coupon.yaml \
           -f platform/data/local/postgres-payment.yaml \
-          -f platform/data/local/mongodb.yaml \
           -f platform/data/local/valkey.yaml
         pids=""
         for item in \
           ticketing-auth/auth-db \
           ticketing-payment/payment-db \
-          ticketing-notification/notification-db \
           ticketing-messaging/kafka \
           ticketing-coupon/coupon-redis
         do
@@ -1537,14 +1535,12 @@ tasks:
         -f platform/data/local/postgres-auth.yaml
         -f platform/data/local/postgres-coupon.yaml
         -f platform/data/local/postgres-payment.yaml
-        -f platform/data/local/mongodb.yaml
         -f platform/data/local/valkey.yaml >/dev/null
       - >-
         {{.HELM}} template medikong-data platform/data/chart
         -f platform/data/aws-dev/postgresql.yaml
         -f platform/data/aws-dev/postgres-auth.yaml
-        -f platform/data/aws-dev/postgres-payment.yaml
-        -f platform/data/aws-dev/mongodb.yaml >/dev/null
+        -f platform/data/aws-dev/postgres-payment.yaml >/dev/null
       - '{{.KUBECTL}} kustomize platform/data-private-dev >/dev/null'
       - '{{.KUBECTL}} kustomize platform/kong >/dev/null'
       - '{{.KUBECTL}} kustomize platform/monitoring >/dev/null'

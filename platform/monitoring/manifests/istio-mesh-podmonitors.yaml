@@ -22,29 +22,23 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: ticketing-envoy-sidecars
+  name: dropmong-envoy-sidecars
   namespace: monitoring
   labels:
-    app.kubernetes.io/name: ticketing-envoy-sidecars
+    app.kubernetes.io/name: dropmong-envoy-sidecars
     app.kubernetes.io/part-of: medikong-platform
     release: kube-prometheus-stack
 spec:
   namespaceSelector:
     matchNames:
-      - ticketing-concert
-      - ticketing-reservation
-      - ticketing-payment
-      - ticketing-ticket
-      - ticketing-notification
+      - dropmong-payment
+      - dropmong-notification
   selector:
     matchExpressions:
       - key: app
         operator: In
         values:
-          - concert-service
-          - reservation-service
           - payment-service
-          - ticket-service
           - notification-service
   podMetricsEndpoints:
     - port: http-envoy-prom

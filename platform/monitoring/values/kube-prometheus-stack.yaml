@@ -151,14 +151,15 @@ prometheus:
           values:
             - monitoring
             - observability
-            - ticketing-auth
-            - ticketing-concert
-            - ticketing-coupon
-            - ticketing-notification
-            - ticketing-payment
-            - ticketing-reservation
-            - ticketing-ticket
-            - ticketing-user
+            - dropmong-auth
+            - dropmong-catalog
+            - dropmong-coupon
+            - dropmong-interest
+            - dropmong-notification
+            - dropmong-order
+            - dropmong-payment
+            - dropmong-user
+            - dropmong-web
     podMonitorSelector:
       matchLabels:
         release: kube-prometheus-stack
@@ -169,14 +170,15 @@ prometheus:
           values:
             - monitoring
             - observability
-            - ticketing-auth
-            - ticketing-concert
-            - ticketing-coupon
-            - ticketing-notification
-            - ticketing-payment
-            - ticketing-reservation
-            - ticketing-ticket
-            - ticketing-user
+            - dropmong-auth
+            - dropmong-catalog
+            - dropmong-coupon
+            - dropmong-interest
+            - dropmong-notification
+            - dropmong-order
+            - dropmong-payment
+            - dropmong-user
+            - dropmong-web
     ruleSelector:
       matchLabels:
         release: kube-prometheus-stack
@@ -186,14 +188,15 @@ prometheus:
           operator: In
           values:
             - monitoring
-            - ticketing-auth
-            - ticketing-concert
-            - ticketing-coupon
-            - ticketing-notification
-            - ticketing-payment
-            - ticketing-reservation
-            - ticketing-ticket
-            - ticketing-user
+            - dropmong-auth
+            - dropmong-catalog
+            - dropmong-coupon
+            - dropmong-interest
+            - dropmong-notification
+            - dropmong-order
+            - dropmong-payment
+            - dropmong-user
+            - dropmong-web
     image:
       registry: quay.io
       repository: prometheus/prometheus
