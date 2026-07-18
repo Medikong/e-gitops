@@ -7,8 +7,10 @@ app:
 
 image:
   repository: interest-service
-  tag: dev
+  tag: ""
 
+  digest: "sha256:cbc7ea2145827a358eeaac7fa585d01b34bb482034a975c81c84dae26c6add65"
+  version: "v0.1.1"
 deployment:
   replicas: 1
 
