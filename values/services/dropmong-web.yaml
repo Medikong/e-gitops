@@ -7,8 +7,10 @@ app:
 
 image:
   repository: dropmong-web
-  tag: dev
+  tag: ""
 
+  digest: "sha256:a6e539209f0570b6c30be8b2f29dcac255785331fc2f0c18c422f95dd7aa83a8"
+  version: "v0.1.1"
 deployment:
   replicas: 1
 
