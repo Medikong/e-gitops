@@ -57,11 +57,7 @@ spec:
 {{- end }}
       containers:
         - name: {{ default .Values.app.name .Values.container.name | quote }}
-{{- if .Values.image.registry }}
-          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-{{- else }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-{{- end }}
+          image: {{ include "medikong-service.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
           ports:
 {{- if .Values.container.ports }}
@@ -72,7 +68,7 @@ spec:
               protocol: TCP
 {{- end }}
 {{- $observabilityEnv := list
-  (dict "name" "SERVICE_VERSION" "value" .Values.image.tag)
+  (dict "name" "SERVICE_VERSION" "value" (include "medikong-service.imageVersion" .))
   (dict "name" "SERVICE_ENVIRONMENT" "value" .Values.environment)
 }}
 {{- $sqlalchemy := .Values.database.sqlalchemy }}

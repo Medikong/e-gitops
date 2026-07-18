@@ -19,6 +19,7 @@ spec:
 {{- $monitoringNamespace := default "monitoring" $serviceMonitorNetworkPolicy.namespace }}
 {{- $prometheusScrapePort := default .Values.serviceMonitor.port $serviceMonitorNetworkPolicy.port }}
 {{- $extraPrometheusScrapePorts := default (list) $serviceMonitorNetworkPolicy.extraPorts }}
+{{- $prometheusPodSelector := default dict $serviceMonitorNetworkPolicy.podSelector }}
 {{- if or .Values.networkPolicy.ingress $allowPrometheusScrape }}
   ingress:
 {{- with .Values.networkPolicy.ingress }}
@@ -29,6 +30,11 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ $monitoringNamespace | quote }}
+{{- with $prometheusPodSelector }}
+          podSelector:
+            matchLabels:
+{{ toYaml . | nindent 14 }}
+{{- end }}
       ports:
         - protocol: TCP
           port: {{ if kindIs "string" $prometheusScrapePort }}{{ $prometheusScrapePort | quote }}{{ else }}{{ $prometheusScrapePort }}{{ end }}

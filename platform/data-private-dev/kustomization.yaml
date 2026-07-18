@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - postgres.yaml
+  - redis-auth-session.yaml
   - mongo.yaml
   - kafka.yaml
   - pgadmin.yaml

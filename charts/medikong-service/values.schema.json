@@ -44,13 +44,31 @@
     },
     "image": {
       "type": "object",
-      "required": ["repository", "tag"],
+      "required": ["repository"],
       "properties": {
         "registry": { "type": "string" },
         "repository": { "type": "string", "minLength": 1 },
-        "tag": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "pattern": "^(?:|\\S(?:.*\\S)?)$" },
+        "digest": { "type": "string" },
+        "version": { "type": "string" },
         "pullPolicy": { "type": "string" }
-      }
+      },
+      "oneOf": [
+        {
+          "required": ["tag"],
+          "properties": {
+            "tag": { "minLength": 1 },
+            "digest": { "maxLength": 0 }
+          }
+        },
+        {
+          "required": ["digest"],
+          "properties": {
+            "tag": { "maxLength": 0 },
+            "digest": { "pattern": "^sha256:[0-9a-f]{64}$" }
+          }
+        }
+      ]
     },
     "imagePullSecrets": {
       "type": "array",
@@ -266,6 +284,10 @@
           "properties": {
             "enabled": { "type": "boolean" },
             "namespace": { "type": "string", "minLength": 1 },
+            "podSelector": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
             "port": { "type": ["string", "integer", "null"] },
             "extraPorts": {
               "type": "array",

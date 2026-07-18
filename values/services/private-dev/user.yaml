@@ -10,6 +10,9 @@ container:
     - name: USER_DEVELOPMENT_ENABLED
       value: "false"
 
+ingress:
+  enabled: false
+
 migration:
   env:
     - name: DATABASE_URL

@@ -1,0 +1,39 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: order-routes
+  namespace: istio-system
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - medikong-internal
+  http:
+    - name: protected-order
+      match:
+        - method:
+            exact: POST
+          uri:
+            exact: /orders
+        - method:
+            exact: GET
+          uri:
+            regex: ^/orders/[^/]+$
+        - method:
+            exact: GET
+          uri:
+            regex: ^/orders/[^/]+/cancellations$
+        - method:
+            exact: POST
+          uri:
+            regex: ^/orders/[^/]+/cancellations$
+      headers:
+        request:
+          remove:
+            - x-user-role
+            - x-user-email
+      route:
+        - destination:
+            host: order-service.dropmong-order.svc.cluster.local
+            port:
+              number: 8082

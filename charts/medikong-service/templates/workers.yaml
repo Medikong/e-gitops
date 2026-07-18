@@ -67,11 +67,7 @@ spec:
 {{- end }}
       containers:
         - name: {{ default $worker.name $worker.containerName | quote }}
-{{- if $root.Values.image.registry }}
-          image: "{{ $root.Values.image.registry }}/{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
-{{- else }}
-          image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
-{{- end }}
+          image: {{ include "medikong-service.image" $root | quote }}
           imagePullPolicy: {{ $root.Values.image.pullPolicy | quote }}
 {{- with $worker.command }}
           command:
@@ -82,7 +78,7 @@ spec:
 {{ toYaml . | nindent 12 }}
 {{- end }}
 {{- $observabilityEnv := list
-  (dict "name" "SERVICE_VERSION" "value" $root.Values.image.tag)
+  (dict "name" "SERVICE_VERSION" "value" (include "medikong-service.imageVersion" $root))
   (dict "name" "SERVICE_ENVIRONMENT" "value" $root.Values.environment)
 }}
 {{- $sqlalchemy := $root.Values.database.sqlalchemy }}

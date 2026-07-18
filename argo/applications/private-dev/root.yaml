@@ -8,6 +8,9 @@ spec:
   sources:
     - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
+      path: argo/applications/private-dev/quarantine
+    - repoURL: https://github.com/Medikong/e-gitops.git
+      targetRevision: HEAD
       path: argo/applications/private-dev/platform
     - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
@@ -17,5 +20,5 @@ spec:
     namespace: argocd
   syncPolicy:
     automated:
-      prune: true
+      prune: false
       selfHeal: true

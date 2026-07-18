@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backoffice-private-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+  finalizers: []
+  labels:
+    medikong.io/quarantine: backoffice-retention
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Medikong/e-gitops.git
+    targetRevision: HEAD
+    path: argo/quarantine/private-dev/backoffice-retention
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ticketing-backoffice
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false

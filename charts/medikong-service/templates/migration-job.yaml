@@ -52,11 +52,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-{{- if .Values.image.registry }}
-          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-{{- else }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-{{- end }}
+          image: {{ include "medikong-service.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
 {{- with .Values.migration.command }}
           command:

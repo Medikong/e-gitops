@@ -2,7 +2,7 @@
 {{- if default false $canary.enabled }}
 {{- $canaryImage := default dict $canary.image }}
 {{- $canaryVersion := default "v2" $canary.version }}
-{{- $serviceVersion := default .Values.image.tag $canaryImage.tag }}
+{{- $serviceVersion := default (include "medikong-service.imageVersion" .) $canaryImage.tag }}
 {{- $canaryName := printf "%s-%s" .Values.app.name (default $canaryVersion $canary.nameSuffix) }}
 apiVersion: apps/v1
 kind: Deployment
@@ -61,10 +61,14 @@ spec:
 {{- end }}
       containers:
         - name: {{ default .Values.app.name .Values.container.name | quote }}
+{{- if $canaryImage.tag }}
 {{- if .Values.image.registry }}
           image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ $serviceVersion }}"
 {{- else }}
           image: "{{ .Values.image.repository }}:{{ $serviceVersion }}"
+{{- end }}
+{{- else }}
+          image: {{ include "medikong-service.image" . | quote }}
 {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
           ports:

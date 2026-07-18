@@ -32,6 +32,8 @@ image:
   registry: ""
   repository: zexpand/sample-service
   tag: latest
+  digest: ""
+  version: ""
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []

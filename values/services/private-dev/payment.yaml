@@ -11,3 +11,20 @@ container:
       value: payment-approved
     - name: PAYMENT_FAILED_TOPIC
       value: payment-failed
+
+networkPolicy:
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kong
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+          podSelector:
+            matchLabels:
+              app: istio-ingressgateway
+              istio: ingressgateway
+      ports:
+        - protocol: TCP
+          port: 8083

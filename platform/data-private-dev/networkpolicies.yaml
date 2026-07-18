@@ -1,6 +1,29 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: allow-auth-session-redis-ingress
+  namespace: dropmong-auth
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: auth-session-redis
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: auth-session-redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              dropmong.io/service: auth
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: allow-auth-db-ingress
   namespace: dropmong-auth
   labels:

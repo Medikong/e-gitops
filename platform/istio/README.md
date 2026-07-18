@@ -10,17 +10,25 @@ Included:
 - `istio-system` namespace
 - Istio CRDs through the official `istio/base` Helm chart
 - Istio control plane through the official `istiod` Helm chart
+- Internal-only ingress gateway through the official `istio/gateway` Helm chart
+- Passive HTTP external authorization provider named `medikong-authz-http`
+- A port 80 `Gateway` listener with no attached routes
 - Kiali server through the official `kiali-server` Helm chart
 
-Excluded for the first rollout:
+Still excluded:
 
-- `istio-ingressgateway`
+- `VirtualService` routes through `istio-ingressgateway`
+- external `NodePort`, `LoadBalancer`, or public IP exposure
 - namespace-wide mTLS `STRICT`
 - AuthorizationPolicy
+- RequestAuthentication
 - global sidecar injection
 
-Kong remains the external API Gateway. Istio starts as the internal service
-mesh for service-to-service traffic.
+Kong remains the active external API Gateway until a later cutover task. The
+Istio gateway Service is `ClusterIP` only, so creating it does not change any
+external route. The `medikong-authz-http` provider points to Auth
+`/internal/ext-authz`, but remains passive until a later task adds an explicit
+AuthorizationPolicy that references it.
 
 ## Apply order
 
@@ -28,10 +36,13 @@ The resources are ordered with Argo CD sync waves:
 
 1. `istio-base` (`-20`)
 2. `istiod` (`-10`)
-3. `kiali` (`0`)
+3. `istio-ingressgateway` (`-5`)
+4. `istio-gateway-config` (`-4`)
+5. `kiali` (`0`)
 
 This follows the official Istio Helm installation order: install `base` first,
-then `istiod`.
+then `istiod`, then the gateway workload. The Gateway custom resource is kept
+in its own child Application and syncs only after the gateway chart.
 
 ## Local validation
 
@@ -41,7 +52,16 @@ After sync, verify:
 kubectl get ns istio-system
 kubectl get pods -n istio-system
 kubectl get crd virtualservices.networking.istio.io
+kubectl get svc -n istio-system istio-ingressgateway
+kubectl get gateway.networking.istio.io -n istio-system medikong-internal
 kubectl get svc -n istio-system kiali
+```
+
+Expected gateway exposure before cutover:
+
+```text
+istio-ingressgateway Service type = ClusterIP
+VirtualService routes attached to medikong-internal = 0
 ```
 
 Then follow `sidecar-injection/README.md` before enabling sidecar injection for

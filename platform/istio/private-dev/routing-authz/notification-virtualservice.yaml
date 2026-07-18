@@ -1,0 +1,27 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: notification-routes
+  namespace: istio-system
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - medikong-internal
+  http:
+    - name: protected-notification
+      match:
+        - method:
+            exact: GET
+          uri:
+            exact: /notifications
+      headers:
+        request:
+          remove:
+            - x-user-role
+            - x-user-email
+      route:
+        - destination:
+            host: notification-service.dropmong-notification.svc.cluster.local
+            port:
+              number: 8084

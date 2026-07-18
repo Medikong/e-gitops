@@ -28,6 +28,22 @@ spec:
               memory: 512Mi
         meshConfig:
           accessLogFile: /dev/stdout
+          extensionProviders:
+            - name: medikong-authz-http
+              envoyExtAuthzHttp:
+                service: auth-service.dropmong-auth.svc.cluster.local
+                port: 8080
+                pathPrefix: /internal/ext-authz
+                timeout: 200ms
+                failOpen: false
+                statusOnError: "503"
+                includeRequestHeadersInCheck:
+                  - authorization
+                  - x-request-id
+                headersToUpstreamOnAllow:
+                  - x-user-id
+                  - x-session-id
+                  - x-token-id
   destination:
     server: https://kubernetes.default.svc
     namespace: istio-system
