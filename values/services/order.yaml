@@ -7,8 +7,10 @@ app:
 
 image:
   repository: order-service
-  tag: dev
+  tag: ""
 
+  digest: "sha256:d94da49ce13a3829d95c7c429ab57448d5f90515d145e664f6b8c546049472d3"
+  version: "v0.1.1"
 deployment:
   replicas: 1
 
