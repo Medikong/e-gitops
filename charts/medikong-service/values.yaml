@@ -30,8 +30,8 @@ canary:
 
 image:
   registry: ""
-  repository: zexpand/sample-service
-  tag: latest
+  repository: ""
+  tag: ""
   digest: ""
   version: ""
   pullPolicy: IfNotPresent
