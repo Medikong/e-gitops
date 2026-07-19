@@ -1375,7 +1375,7 @@ tasks:
 
   helm:lint:
     cmds:
-      - '{{.HELM}} lint {{.SERVICE_CHART}}'
+      - '{{.HELM}} lint {{.SERVICE_CHART}} -f values/base.yaml -f values/env/private-dev.yaml -f values/services/payment.yaml'
 
   helm:template:all:
     cmds:
