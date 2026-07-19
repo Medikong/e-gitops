@@ -6,6 +6,27 @@ container:
           name: postgres-catalog-credentials
           key: database-url
 
+migration:
+  enabled: true
+  command:
+    - python
+    - -m
+    - app.migrations
+    - upgrade
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-catalog-credentials
+          key: database-url
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
 networkPolicy:
   ingress:
     - from:

@@ -9,3 +9,21 @@ container:
       value: http://localhost:3000
     - name: COUPON_CODE_HASH_KEY
       value: dropmong-dev-coupon-code-hash-key-change-before-shared-use
+
+migration:
+  enabled: true
+  command:
+    - /app/migrate
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-coupon-credentials
+          key: database-url
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

@@ -12,6 +12,26 @@ container:
     - name: PAYMENT_FAILED_TOPIC
       value: payment-failed
 
+migration:
+  enabled: true
+  command:
+    - alembic
+    - upgrade
+    - head
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-payment-credentials
+          key: database-url
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
 networkPolicy:
   ingress:
     - from:

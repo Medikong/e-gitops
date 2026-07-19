@@ -8,6 +8,27 @@ container:
     - name: KAFKA_BOOTSTRAP_SERVERS
       value: kafka.ticketing-messaging.svc.cluster.local:9092
 
+migration:
+  enabled: true
+  command:
+    - python
+    - -m
+    - app.migrate
+    - upgrade
+  env:
+    - name: DATABASE_URL
+      valueFrom:
+        secretKeyRef:
+          name: postgres-order-credentials
+          key: database-url
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
 networkPolicy:
   ingress:
     - from:
