@@ -1,0 +1,6 @@
+postgresql:
+  databases:
+    user:
+      name: user-db
+      namespace: dropmong-user
+      database: user_db

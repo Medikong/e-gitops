@@ -18,23 +18,6 @@ container:
       cpu: "1"
       memory: 768Mi
 
-migration:
-  enabled: true
-  command:
-    - alembic
-    - upgrade
-    - head
-  env:
-    - name: DATABASE_URL
-      value: postgresql+psycopg://user:password@payment-db:5432/payment_db
-  resources:
-    requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
-      cpu: 200m
-      memory: 128Mi
-
 database:
   sqlalchemy:
     poolSize: 10
@@ -44,9 +27,3 @@ database:
 
 pdb:
   enabled: false
-
-hpa:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 70

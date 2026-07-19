@@ -31,6 +31,21 @@ container:
       cpu: "1"
       memory: 768Mi
 
+migration:
+  enabled: true
+  command:
+    - /app/migrate
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@auth-db:5432/auth_db
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
 database:
   sqlalchemy:
     poolSize: 10

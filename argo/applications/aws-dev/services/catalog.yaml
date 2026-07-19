@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: catalog-aws-dev
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/Medikong/e-gitops.git
+      targetRevision: HEAD
+      path: charts/medikong-service
+      helm:
+        releaseName: catalog-aws-dev
+        valueFiles:
+          - $values/values/base.yaml
+          - $values/values/env/aws-dev.yaml
+          - $values/values/services/catalog.yaml
+          - $values/values/services/aws-dev/catalog.yaml
+    - repoURL: https://github.com/Medikong/e-gitops.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dropmong-catalog
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

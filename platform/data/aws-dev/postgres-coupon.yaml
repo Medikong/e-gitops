@@ -1,0 +1,6 @@
+postgresql:
+  databases:
+    coupon:
+      name: coupon-db
+      namespace: dropmong-coupon
+      database: coupon_db

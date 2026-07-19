@@ -12,21 +12,19 @@ canary:
 container:
   resources:
     requests:
-      cpu: 400m
+      cpu: 200m
       memory: 256Mi
     limits:
-      cpu: "1"
-      memory: 768Mi
+      cpu: 750m
+      memory: 512Mi
 
 migration:
   enabled: true
   command:
-    - alembic
-    - upgrade
-    - head
+    - /app/migrate
   env:
     - name: DATABASE_URL
-      value: postgresql+psycopg://user:password@payment-db:5432/payment_db
+      value: postgres://user:password@coupon-db:5432/coupon_db?sslmode=disable
   resources:
     requests:
       cpu: 50m
@@ -35,18 +33,5 @@ migration:
       cpu: 200m
       memory: 128Mi
 
-database:
-  sqlalchemy:
-    poolSize: 10
-    maxOverflow: 0
-    poolTimeoutSeconds: 15
-    poolRecycleSeconds: 1800
-
 pdb:
   enabled: false
-
-hpa:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 70

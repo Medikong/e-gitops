@@ -21,12 +21,13 @@ container:
 migration:
   enabled: true
   command:
-    - alembic
+    - python
+    - -m
+    - app.migrate
     - upgrade
-    - head
   env:
     - name: DATABASE_URL
-      value: postgresql+psycopg://user:password@payment-db:5432/payment_db
+      value: postgresql+psycopg://user:password@order-db:5432/order_db
   resources:
     requests:
       cpu: 50m
@@ -44,9 +45,3 @@ database:
 
 pdb:
   enabled: false
-
-hpa:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 70

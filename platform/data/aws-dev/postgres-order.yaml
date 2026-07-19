@@ -1,0 +1,6 @@
+postgresql:
+  databases:
+    order:
+      name: order-db
+      namespace: dropmong-order
+      database: order_db

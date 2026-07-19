@@ -17,7 +17,11 @@ spec:
           - $values/platform/data/aws-dev/postgresql.yaml
           - $values/platform/data/aws-dev/postgres-auth.yaml
           - $values/platform/data/aws-dev/postgres-payment.yaml
-          - $values/platform/data/aws-dev/mongodb.yaml
+          - $values/platform/data/aws-dev/postgres-catalog.yaml
+          - $values/platform/data/aws-dev/postgres-coupon.yaml
+          - $values/platform/data/aws-dev/postgres-order.yaml
+          - $values/platform/data/aws-dev/postgres-user.yaml
+          - $values/platform/data/aws-dev/postgres-interest.yaml
     - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       ref: values
