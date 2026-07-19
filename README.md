@@ -17,6 +17,17 @@
 | `archive/k8s-kustomize/` | 기존 Kustomize 구조 reference와 이식 근거 |
 | `.github/workflows/` | GitOps manifest 렌더링과 Kubernetes 보안 스캔 |
 
+## Architecture documents
+
+| 문서 | 설명 |
+| --- | --- |
+| [`docs/architecture/service-release-model.md`](docs/architecture/service-release-model.md) | 서비스 단위 Helm release와 values layering 구조 |
+| [`docs/architecture/service-traffic-contracts.md`](docs/architecture/service-traffic-contracts.md) | 서비스 route, port, probe, 인증·네트워크 경계 |
+| [`docs/architecture/environment-release-matrix.md`](docs/architecture/environment-release-matrix.md) | aws-dev/private-dev의 Application, values, data, Secret, migration 매핑 |
+| [`docs/architecture/secret-data-migration-execution.md`](docs/architecture/secret-data-migration-execution.md) | Wave 1 Secret·데이터·migration 감사 결과와 auth-service pilot 실행 순서 |
+| [`docs/architecture/istio-migration-plan.md`](docs/architecture/istio-migration-plan.md) | Kong과 Istio 병행 구축, cutover, rollback, Kong 제거, chaos 검증 순서 |
+| [`docs/adr/0002-istio-gateway-and-backoffice-boundary.md`](docs/adr/0002-istio-gateway-and-backoffice-boundary.md) | Istio 전환과 운영자용 backoffice 경계 결정 |
+
 ## 제외 범위
 
 | 제외 | 담당 repo |
