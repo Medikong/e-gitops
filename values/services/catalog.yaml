@@ -77,6 +77,13 @@ networkPolicy:
         - protocol: TCP
           port: 53
     - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: catalog-db
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: observability
