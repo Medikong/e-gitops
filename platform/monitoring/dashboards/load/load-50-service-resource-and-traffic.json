@@ -10,17 +10,25 @@
   "id": null,
   "links": [
     {
-      "title": "Next",
+      "title": "Previous",
       "type": "link",
-      "url": "/d/dropmong-ops-01-service-runtime-health/dropmong-ops-01-service-runtime-health",
+      "url": "/d/dropmong-load-40-candidates/dropmong-load-40-candidates",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false
     },
     {
-      "title": "Open Logs",
+      "title": "Next",
       "type": "link",
-      "url": "/d/dropmong-logs-25-service-search/dropmong-logs-25-service-search",
+      "url": "/d/dropmong-load-60-runner/dropmong-load-60-runner",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Open Slow Request Logs",
+      "type": "link",
+      "url": "/d/dropmong-logs-80-service-trace-detail/dropmong-logs-80-service-trace-detail",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false
@@ -29,7 +37,7 @@
   "liveNow": false,
   "panels": [
     {
-      "title": "Investigation Start",
+      "title": "Scope",
       "type": "text",
       "description": null,
       "targets": [
@@ -48,7 +56,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Start with traffic, errors, latency and active requests. Continue to Ops 01 only after the affected service and time range are known."
+        "content": "Compare application traffic with current service, PostgreSQL and Kafka Pod resources. No MongoDB or Kong metric is assumed."
       },
       "id": 1,
       "gridPos": {
@@ -59,7 +67,7 @@
       }
     },
     {
-      "title": "Request Rate by Service",
+      "title": "Service Request Rate",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -99,7 +107,7 @@
       }
     },
     {
-      "title": "5xx Error Ratio by Service",
+      "title": "Service CPU",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -109,178 +117,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])), 0.001)",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 3,
-      "gridPos": {
-        "x": 12,
-        "y": 3,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "p95 / p99 Latency by Service",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p95 {{service_name}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p99 {{service_name}}",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 4,
-      "gridPos": {
-        "x": 0,
-        "y": 10,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "Active Requests",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (service_name) (http_server_active_requests{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 5,
-      "gridPos": {
-        "x": 12,
-        "y": 10,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "Service Readiness",
-      "type": "stat",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "min by (service_name) (service_ready{service_name=~\"${service:regex}\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 6,
-      "gridPos": {
-        "x": 0,
-        "y": 17,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "CPU Usage by Namespace",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]))",
+          "expr": "sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]))",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -301,16 +138,16 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 7,
+      "id": 3,
       "gridPos": {
         "x": 12,
-        "y": 17,
+        "y": 3,
         "w": 12,
         "h": 7
       }
     },
     {
-      "title": "Memory Working Set by Namespace",
+      "title": "Service Memory",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -320,7 +157,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"})",
+          "expr": "sum by (namespace, pod) (container_memory_working_set_bytes{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"})",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -341,10 +178,250 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Service Network RX",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (rate(container_network_receive_bytes_total{namespace=~\"${namespace:regex}\",pod!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "PostgreSQL CPU",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace=~\"dropmong-(auth|user|catalog|coupon|interest|order|payment)\",pod=~\".*-db-.*\",container!=\"\",container!=\"POD\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "PostgreSQL Memory",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (container_memory_working_set_bytes{namespace=~\"dropmong-(auth|user|catalog|coupon|interest|order|payment)\",pod=~\".*-db-.*\",container!=\"\",container!=\"POD\"})",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "PostgreSQL Connections",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, state) (pg_stat_activity_count{namespace=~\"dropmong-(auth|user|catalog|coupon|interest|order|payment)\",datname!~\"template.*|postgres\"})",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "id": 8,
       "gridPos": {
         "x": 0,
         "y": 24,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Kafka CPU",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace=\"dropmong-messaging\",pod=~\"kafka-.*\",container!=\"\",container!=\"POD\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 9,
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Kafka Memory",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (container_memory_working_set_bytes{namespace=\"dropmong-messaging\",pod=~\"kafka-.*\",container!=\"\",container!=\"POD\"})",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 10,
+      "gridPos": {
+        "x": 0,
+        "y": 31,
         "w": 12,
         "h": 7
       }
@@ -354,7 +431,7 @@
   "schemaVersion": 41,
   "tags": [
     "dropmong",
-    "ops",
+    "load",
     "top-down"
   ],
   "templating": {
@@ -522,6 +599,39 @@
         "allValue": ".*",
         "multi": true,
         "refresh": 1
+      },
+      {
+        "name": "min_duration_ms",
+        "label": "Min Duration Ms",
+        "type": "textbox",
+        "query": "1000",
+        "current": {
+          "selected": true,
+          "text": "1000",
+          "value": "1000"
+        }
+      },
+      {
+        "name": "trace_id",
+        "label": "Trace Id",
+        "type": "textbox",
+        "query": "a^",
+        "current": {
+          "selected": true,
+          "text": "a^",
+          "value": "a^"
+        }
+      },
+      {
+        "name": "run_id",
+        "label": "Run Id",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "selected": true,
+          "text": ".*",
+          "value": ".*"
+        }
       }
     ]
   },
@@ -545,8 +655,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "Ops 00 - Service Impact Overview",
-  "uid": "dropmong-ops-00-service-overview",
+  "title": "Load 50 - Service, DB and Kafka Resources",
+  "uid": "dropmong-load-50-resources",
   "version": 1,
   "weekStart": ""
 }

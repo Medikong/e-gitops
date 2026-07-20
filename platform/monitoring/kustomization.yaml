@@ -20,26 +20,46 @@ configMapGenerator:
         k8s-sidecar-target-directory: Ops
     files:
       - dashboards/ops/00-service-overview.json
-      - dashboards/ops/10-runtime-and-telemetry.json
+      - dashboards/ops/01-service-runtime-health.json
+      - dashboards/ops/03-gateway-mesh-metrics.json
+      - dashboards/ops/04-business-kpi-overview.json
+      - dashboards/ops/04-pod-logs-and-waiting-reasons.json
+      - dashboards/ops/10-system-kubernetes-overview.json
+      - dashboards/ops/11-pod-container-resources.json
+      - dashboards/ops/12-node-pressure-overview.json
+      - dashboards/ops/payment-service-metrics.json
   - name: dropmong-logs-dashboards
     options:
       annotations:
         k8s-sidecar-target-directory: Logs
     files:
-      - dashboards/logs/10-request-investigation.json
-      - dashboards/logs/20-service-errors.json
-      - dashboards/logs/30-kafka-correlation.json
+      - dashboards/logs/logs-10-overview.json
+      - dashboards/logs/logs-20-services.json
+      - dashboards/logs/logs-25-service-log-search.json
+      - dashboards/logs/logs-30-service-errors.json
+      - dashboards/logs/logs-30-kafka-correlation.json
+      - dashboards/logs/logs-40-drilldown.json
+      - dashboards/logs/logs-50-trace-correlation.json
+      - dashboards/logs/logs-70-platform.json
+      - dashboards/logs/logs-80-service-trace-detail.json
   - name: dropmong-db-dashboards
     options:
       annotations:
         k8s-sidecar-target-directory: DB
     files:
-      - dashboards/db/10-postgresql-overview.json
-      - dashboards/db/20-db-trace-correlation.json
+      - dashboards/db/db-10-operations-overview.json
+      - dashboards/db/db-20-instance-resources.json
+      - dashboards/db/db-30-workload-and-slow-queries.json
+      - dashboards/db/db-40-trace-and-log-correlation.json
   - name: dropmong-load-dashboards
     options:
       annotations:
         k8s-sidecar-target-directory: Load
     files:
-      - dashboards/load/10-api-load-overview.json
-      - dashboards/load/20-slow-request-traces.json
+      - dashboards/load/load-10-api-load-overview.json
+      - dashboards/load/load-20-latency-and-errors.json
+      - dashboards/load/load-30-service-saturation.json
+      - dashboards/load/load-40-cause-candidates.json
+      - dashboards/load/load-50-service-resource-and-traffic.json
+      - dashboards/load/load-60-runner-execution.json
+      - dashboards/load/load-70-slow-trace-discovery.json

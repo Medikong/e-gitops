@@ -10,17 +10,25 @@
   "id": null,
   "links": [
     {
-      "title": "Next",
+      "title": "Previous",
       "type": "link",
-      "url": "/d/dropmong-ops-01-service-runtime-health/dropmong-ops-01-service-runtime-health",
+      "url": "/d/dropmong-logs-50-trace-correlation/dropmong-logs-50-trace-correlation",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false
     },
     {
-      "title": "Open Logs",
+      "title": "Next",
       "type": "link",
-      "url": "/d/dropmong-logs-25-service-search/dropmong-logs-25-service-search",
+      "url": "/d/dropmong-logs-80-service-trace-detail/dropmong-logs-80-service-trace-detail",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Open Service Impact",
+      "type": "link",
+      "url": "/d/dropmong-ops-00-service-overview/dropmong-ops-00-service-overview",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false
@@ -29,7 +37,7 @@
   "liveNow": false,
   "panels": [
     {
-      "title": "Investigation Start",
+      "title": "Scope",
       "type": "text",
       "description": null,
       "targets": [
@@ -48,7 +56,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Start with traffic, errors, latency and active requests. Continue to Ops 01 only after the affected service and time range are known."
+        "content": "Inspect Collector, observability backends, PostgreSQL and Kafka only after application evidence points to a platform dependency."
       },
       "id": 1,
       "gridPos": {
@@ -59,19 +67,18 @@
       }
     },
     {
-      "title": "Request Rate by Service",
-      "type": "timeseries",
+      "title": "Collector and Backend Warnings",
+      "type": "logs",
       "description": null,
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
+            "type": "loki",
+            "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval]))",
-          "legendFormat": "{{service_name}}",
-          "range": true,
+          "expr": "{k8s_namespace_name=~\"observability|monitoring\"} |~ \"(?i)(warn|error|failed|timeout)\"",
+          "queryType": "range",
           "refId": "A"
         }
       ],
@@ -80,15 +87,15 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps"
+          "unit": "short"
         },
         "overrides": [
 
         ]
       },
       "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+        "type": "loki",
+        "uid": "loki"
       },
       "id": 2,
       "gridPos": {
@@ -99,7 +106,85 @@
       }
     },
     {
-      "title": "5xx Error Ratio by Service",
+      "title": "PostgreSQL Warnings",
+      "type": "logs",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"dropmong-(auth|user|catalog|coupon|interest|order|payment)\",k8s_pod_name=~\".*-db-.*\"} |~ \"(?i)(error|fatal|deadlock|too many connections)\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Kafka Warnings",
+      "type": "logs",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=\"dropmong-messaging\"} |~ \"(?i)(warn|error|failed|timeout)\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Collector Queue Utilization",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -109,7 +194,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])), 0.001)",
+          "expr": "100 * sum by (exporter, data_type) (otelcol_exporter_queue_size) / clamp_min(sum by (exporter, data_type) (otelcol_exporter_queue_capacity), 1)",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -130,97 +215,6 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 3,
-      "gridPos": {
-        "x": 12,
-        "y": 3,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "p95 / p99 Latency by Service",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p95 {{service_name}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p99 {{service_name}}",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 4,
-      "gridPos": {
-        "x": 0,
-        "y": 10,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "Active Requests",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (service_name) (http_server_active_requests{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
       "id": 5,
       "gridPos": {
         "x": 12,
@@ -230,7 +224,7 @@
       }
     },
     {
-      "title": "Service Readiness",
+      "title": "PostgreSQL Up",
       "type": "stat",
       "description": null,
       "targets": [
@@ -240,7 +234,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "min by (service_name) (service_ready{service_name=~\"${service:regex}\"})",
+          "expr": "min by (namespace, pod) (pg_up{namespace=~\"dropmong-(auth|user|catalog|coupon|interest|order|payment)\"})",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -268,93 +262,13 @@
         "w": 12,
         "h": 7
       }
-    },
-    {
-      "title": "CPU Usage by Namespace",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]))",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "cores"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 7,
-      "gridPos": {
-        "x": 12,
-        "y": 17,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "Memory Working Set by Namespace",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 8,
-      "gridPos": {
-        "x": 0,
-        "y": 24,
-        "w": 12,
-        "h": 7
-      }
     }
   ],
   "refresh": "30s",
   "schemaVersion": 41,
   "tags": [
     "dropmong",
-    "ops",
+    "logs",
     "top-down"
   ],
   "templating": {
@@ -522,6 +436,160 @@
         "allValue": ".*",
         "multi": true,
         "refresh": 1
+      },
+      {
+        "name": "request_id",
+        "label": "Request Id",
+        "type": "textbox",
+        "query": "a^",
+        "current": {
+          "selected": true,
+          "text": "a^",
+          "value": "a^"
+        }
+      },
+      {
+        "name": "trace_id",
+        "label": "Trace Id",
+        "type": "textbox",
+        "query": "a^",
+        "current": {
+          "selected": true,
+          "text": "a^",
+          "value": "a^"
+        }
+      },
+      {
+        "name": "span_id",
+        "label": "Span Id",
+        "type": "textbox",
+        "query": "a^",
+        "current": {
+          "selected": true,
+          "text": "a^",
+          "value": "a^"
+        }
+      },
+      {
+        "name": "correlation_id",
+        "label": "Correlation Id",
+        "type": "textbox",
+        "query": "a^",
+        "current": {
+          "selected": true,
+          "text": "a^",
+          "value": "a^"
+        }
+      },
+      {
+        "name": "min_duration_ms",
+        "label": "Min Duration Ms",
+        "type": "textbox",
+        "query": "1000",
+        "current": {
+          "selected": true,
+          "text": "1000",
+          "value": "1000"
+        }
+      },
+      {
+        "name": "topic",
+        "label": "Topic",
+        "type": "custom",
+        "query": "interest.added,interest.removed,inventory.changed,order.created,order.expired,notification.requested,refund.requested,refund.completed,refund.failed,payment.approved,payment.failed",
+        "options": [
+          {
+            "selected": false,
+            "text": "interest.added",
+            "value": "interest.added"
+          },
+          {
+            "selected": false,
+            "text": "interest.removed",
+            "value": "interest.removed"
+          },
+          {
+            "selected": false,
+            "text": "inventory.changed",
+            "value": "inventory.changed"
+          },
+          {
+            "selected": false,
+            "text": "order.created",
+            "value": "order.created"
+          },
+          {
+            "selected": false,
+            "text": "order.expired",
+            "value": "order.expired"
+          },
+          {
+            "selected": false,
+            "text": "notification.requested",
+            "value": "notification.requested"
+          },
+          {
+            "selected": false,
+            "text": "refund.requested",
+            "value": "refund.requested"
+          },
+          {
+            "selected": false,
+            "text": "refund.completed",
+            "value": "refund.completed"
+          },
+          {
+            "selected": false,
+            "text": "refund.failed",
+            "value": "refund.failed"
+          },
+          {
+            "selected": false,
+            "text": "payment.approved",
+            "value": "payment.approved"
+          },
+          {
+            "selected": false,
+            "text": "payment.failed",
+            "value": "payment.failed"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": "(interest\\.added|interest\\.removed|inventory\\.changed|order\\.created|order\\.expired|notification\\.requested|refund\\.requested|refund\\.completed|refund\\.failed|payment\\.approved|payment\\.failed)",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "outcome",
+        "label": "Outcome",
+        "type": "custom",
+        "query": "success,failure",
+        "options": [
+          {
+            "selected": false,
+            "text": "success",
+            "value": "success"
+          },
+          {
+            "selected": false,
+            "text": "failure",
+            "value": "failure"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 0
       }
     ]
   },
@@ -545,8 +613,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "Ops 00 - Service Impact Overview",
-  "uid": "dropmong-ops-00-service-overview",
+  "title": "Logs 70 - Platform",
+  "uid": "dropmong-logs-70-platform",
   "version": 1,
   "weekStart": ""
 }

@@ -10,9 +10,9 @@
   "id": null,
   "links": [
     {
-      "title": "Next",
+      "title": "Previous",
       "type": "link",
-      "url": "/d/dropmong-ops-01-service-runtime-health/dropmong-ops-01-service-runtime-health",
+      "url": "/d/dropmong-ops-12-node-pressure/dropmong-ops-12-node-pressure",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false
@@ -29,7 +29,7 @@
   "liveNow": false,
   "panels": [
     {
-      "title": "Investigation Start",
+      "title": "Scope",
       "type": "text",
       "description": null,
       "targets": [
@@ -48,7 +48,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Start with traffic, errors, latency and active requests. Continue to Ops 01 only after the affected service and time range are known."
+        "content": "Payment detail uses only the current /payments route templates, PostgreSQL exporter signals and structured Kafka/HTTP logs."
       },
       "id": 1,
       "gridPos": {
@@ -59,7 +59,7 @@
       }
     },
     {
-      "title": "Request Rate by Service",
+      "title": "Payment Request Rate",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -69,7 +69,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval]))",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"payment-service\",http_route=~\"/payments.*\"}[$__rate_interval]))",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -99,7 +99,7 @@
       }
     },
     {
-      "title": "5xx Error Ratio by Service",
+      "title": "Payment p95 / p99 Latency",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -109,48 +109,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])), 0.001)",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 3,
-      "gridPos": {
-        "x": 12,
-        "y": 3,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "p95 / p99 Latency by Service",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p95 {{service_name}}",
+          "expr": "histogram_quantile(0.95, sum by (http_route, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"payment-service\",http_route=~\"/payments.*\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{http_route}}",
           "range": true,
           "refId": "A"
         },
@@ -160,8 +120,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p99 {{service_name}}",
+          "expr": "histogram_quantile(0.99, sum by (http_route, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"payment-service\",http_route=~\"/payments.*\"}[$__rate_interval])))",
+          "legendFormat": "p99 {{http_route}}",
           "range": true,
           "refId": "B"
         }
@@ -181,16 +141,16 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 4,
+      "id": 3,
       "gridPos": {
-        "x": 0,
-        "y": 10,
+        "x": 12,
+        "y": 3,
         "w": 12,
         "h": 7
       }
     },
     {
-      "title": "Active Requests",
+      "title": "Payment 4xx / 5xx Ratio",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -200,7 +160,58 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (service_name) (http_server_active_requests{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"})",
+          "expr": "100 * sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"payment-service\",http_route=~\"/payments.*\",http_response_status_code=~\"4..\"}[$__rate_interval])) / clamp_min(sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"payment-service\",http_route=~\"/payments.*\"}[$__rate_interval])), 0.001)",
+          "legendFormat": "4xx {{http_route}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"payment-service\",http_route=~\"/payments.*\",http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"payment-service\",http_route=~\"/payments.*\"}[$__rate_interval])), 0.001)",
+          "legendFormat": "5xx {{http_route}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Active Payment Requests",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (http_route) (http_server_active_requests{service_name=\"payment-service\",http_route=~\"/payments.*\",http_route_kind=\"api\"})",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -230,8 +241,8 @@
       }
     },
     {
-      "title": "Service Readiness",
-      "type": "stat",
+      "title": "Payment DB Transactions",
+      "type": "timeseries",
       "description": null,
       "targets": [
         {
@@ -240,7 +251,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "min by (service_name) (service_ready{service_name=~\"${service:regex}\"})",
+          "expr": "sum by (datname) (rate(pg_stat_database_xact_commit{namespace=\"dropmong-payment\",datname!~\"template.*|postgres\"}[$__rate_interval]))",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -251,7 +262,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "none"
+          "unit": "ops"
         },
         "overrides": [
 
@@ -270,19 +281,18 @@
       }
     },
     {
-      "title": "CPU Usage by Namespace",
-      "type": "timeseries",
+      "title": "Payment Kafka Results",
+      "type": "logs",
       "description": null,
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
+            "type": "loki",
+            "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]))",
-          "legendFormat": "{{service_name}}",
-          "range": true,
+          "expr": "{service_name=\"payment-service\"} | json | event=~\"kafka[.]message[.](publish|process)\" | line_format \"topic={{.messaging_destination_name}} outcome={{.outcome}} correlation_id={{.correlation_id}} trace_id={{.trace_id}}\"",
+          "queryType": "range",
           "refId": "A"
         }
       ],
@@ -291,15 +301,15 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "cores"
+          "unit": "short"
         },
         "overrides": [
 
         ]
       },
       "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+        "type": "loki",
+        "uid": "loki"
       },
       "id": 7,
       "gridPos": {
@@ -310,19 +320,18 @@
       }
     },
     {
-      "title": "Memory Working Set by Namespace",
-      "type": "timeseries",
+      "title": "Payment Errors",
+      "type": "logs",
       "description": null,
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
+            "type": "loki",
+            "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
+          "expr": "{service_name=\"payment-service\"} | json | severity_text=~\"ERROR|CRITICAL\" | line_format \"event={{.event}} route={{.http_route}} code={{.http_error_code}} request_id={{.request_id}} trace_id={{.trace_id}} span_id={{.span_id}}\"",
+          "queryType": "range",
           "refId": "A"
         }
       ],
@@ -331,15 +340,15 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "bytes"
+          "unit": "short"
         },
         "overrides": [
 
         ]
       },
       "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+        "type": "loki",
+        "uid": "loki"
       },
       "id": 8,
       "gridPos": {
@@ -383,52 +392,12 @@
         "name": "namespace",
         "label": "Namespace",
         "type": "custom",
-        "query": "dropmong-auth,dropmong-user,dropmong-catalog,dropmong-coupon,dropmong-interest,dropmong-order,dropmong-payment,dropmong-notification,dropmong-web",
+        "query": "dropmong-payment",
         "options": [
-          {
-            "selected": false,
-            "text": "dropmong-auth",
-            "value": "dropmong-auth"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-user",
-            "value": "dropmong-user"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-catalog",
-            "value": "dropmong-catalog"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-coupon",
-            "value": "dropmong-coupon"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-interest",
-            "value": "dropmong-interest"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-order",
-            "value": "dropmong-order"
-          },
           {
             "selected": false,
             "text": "dropmong-payment",
             "value": "dropmong-payment"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-notification",
-            "value": "dropmong-notification"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-web",
-            "value": "dropmong-web"
           }
         ],
         "current": {
@@ -437,7 +406,7 @@
           "value": "$__all"
         },
         "includeAll": true,
-        "allValue": "(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment|dropmong-notification|dropmong-web)",
+        "allValue": "(dropmong-payment)",
         "multi": true,
         "refresh": 0
       },
@@ -445,52 +414,12 @@
         "name": "service",
         "label": "Service",
         "type": "custom",
-        "query": "auth-service,user-service,catalog-service,coupon-service,interest-service,order-service,payment-service,notification-service,dropmong-web",
+        "query": "payment-service",
         "options": [
-          {
-            "selected": false,
-            "text": "auth-service",
-            "value": "auth-service"
-          },
-          {
-            "selected": false,
-            "text": "user-service",
-            "value": "user-service"
-          },
-          {
-            "selected": false,
-            "text": "catalog-service",
-            "value": "catalog-service"
-          },
-          {
-            "selected": false,
-            "text": "coupon-service",
-            "value": "coupon-service"
-          },
-          {
-            "selected": false,
-            "text": "interest-service",
-            "value": "interest-service"
-          },
-          {
-            "selected": false,
-            "text": "order-service",
-            "value": "order-service"
-          },
           {
             "selected": false,
             "text": "payment-service",
             "value": "payment-service"
-          },
-          {
-            "selected": false,
-            "text": "notification-service",
-            "value": "notification-service"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-web",
-            "value": "dropmong-web"
           }
         ],
         "current": {
@@ -499,7 +428,7 @@
           "value": "$__all"
         },
         "includeAll": true,
-        "allValue": "(auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web)",
+        "allValue": "(payment-service)",
         "multi": true,
         "refresh": 0
       },
@@ -545,8 +474,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "Ops 00 - Service Impact Overview",
-  "uid": "dropmong-ops-00-service-overview",
+  "title": "Ops - Payment Service Detail",
+  "uid": "dropmong-ops-payment-service",
   "version": 1,
   "weekStart": ""
 }

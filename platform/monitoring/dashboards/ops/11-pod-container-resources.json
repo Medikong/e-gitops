@@ -10,9 +10,17 @@
   "id": null,
   "links": [
     {
+      "title": "Previous",
+      "type": "link",
+      "url": "/d/dropmong-ops-10-kubernetes/dropmong-ops-10-kubernetes",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
       "title": "Next",
       "type": "link",
-      "url": "/d/dropmong-ops-01-service-runtime-health/dropmong-ops-01-service-runtime-health",
+      "url": "/d/dropmong-ops-12-node-pressure/dropmong-ops-12-node-pressure",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false
@@ -29,7 +37,7 @@
   "liveNow": false,
   "panels": [
     {
-      "title": "Investigation Start",
+      "title": "Scope",
       "type": "text",
       "description": null,
       "targets": [
@@ -48,7 +56,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Start with traffic, errors, latency and active requests. Continue to Ops 01 only after the affected service and time range are known."
+        "content": "Identify the exact Pod and container responsible for CPU, memory, throttling, restart or network pressure."
       },
       "id": 1,
       "gridPos": {
@@ -59,7 +67,7 @@
       }
     },
     {
-      "title": "Request Rate by Service",
+      "title": "CPU Usage Top",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -69,7 +77,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval]))",
+          "expr": "topk(15, sum by (namespace, pod, container) (rate(container_cpu_usage_seconds_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\"}[$__rate_interval])))",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -80,7 +88,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps"
+          "unit": "cores"
         },
         "overrides": [
 
@@ -99,7 +107,7 @@
       }
     },
     {
-      "title": "5xx Error Ratio by Service",
+      "title": "CPU Throttling Top",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -109,7 +117,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])), 0.001)",
+          "expr": "topk(15, 100 * sum by (namespace, pod, container) (rate(container_cpu_cfs_throttled_periods_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\"}[$__rate_interval])) / clamp_min(sum by (namespace, pod, container) (rate(container_cpu_cfs_periods_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\"}[$__rate_interval])), 0.001))",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -139,7 +147,7 @@
       }
     },
     {
-      "title": "p95 / p99 Latency by Service",
+      "title": "Memory Working Set Top",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -149,178 +157,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p95 {{service_name}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p99 {{service_name}}",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 4,
-      "gridPos": {
-        "x": 0,
-        "y": 10,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "Active Requests",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (service_name) (http_server_active_requests{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 5,
-      "gridPos": {
-        "x": 12,
-        "y": 10,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "Service Readiness",
-      "type": "stat",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "min by (service_name) (service_ready{service_name=~\"${service:regex}\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 6,
-      "gridPos": {
-        "x": 0,
-        "y": 17,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "CPU Usage by Namespace",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]))",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "cores"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 7,
-      "gridPos": {
-        "x": 12,
-        "y": 17,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "Memory Working Set by Namespace",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"})",
+          "expr": "topk(15, sum by (namespace, pod, container) (container_memory_working_set_bytes{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\"}))",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -341,9 +178,209 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Memory Limit Usage",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (namespace, pod, container) (container_memory_working_set_bytes{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\"}) / clamp_min(sum by (namespace, pod, container) (kube_pod_container_resource_limits{namespace=~\"${namespace:regex}\",resource=\"memory\",unit=\"byte\"}), 1)",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Restart Detail",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\"}[$__range]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "OOMKilled Detail",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod, container) (max_over_time(kube_pod_container_status_last_terminated_reason{namespace=~\"${namespace:regex}\",reason=\"OOMKilled\"}[$__range]) == 1)",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Network Receive",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (rate(container_network_receive_bytes_total{namespace=~\"${namespace:regex}\",pod!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "id": 8,
       "gridPos": {
         "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Network Transmit",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (rate(container_network_transmit_bytes_total{namespace=~\"${namespace:regex}\",pod!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 9,
+      "gridPos": {
+        "x": 12,
         "y": 24,
         "w": 12,
         "h": 7
@@ -545,8 +582,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "Ops 00 - Service Impact Overview",
-  "uid": "dropmong-ops-00-service-overview",
+  "title": "Ops 11 - Pod and Container Resources",
+  "uid": "dropmong-ops-11-pod-container",
   "version": 1,
   "weekStart": ""
 }

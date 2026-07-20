@@ -1,207 +1,222 @@
 {
   "annotations": {
-    "list": []
+    "list": [
+
+    ]
   },
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "title": "Previous",
+      "type": "link",
+      "url": "/d/dropmong-db-30-workload/dropmong-db-30-workload",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Open ID Drilldown",
+      "type": "link",
+      "url": "/d/dropmong-logs-40-drilldown/dropmong-logs-40-drilldown",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
-      "id": 1,
-      "title": "Investigation Order",
+      "title": "Final DB Step",
       "type": "text",
+      "description": null,
+      "targets": [
+
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+
+        ]
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Select a slow or failed PostgreSQL span, copy its trace_id, then compare the same trace, request and span in Loki and Tempo."
+      },
+      "id": 1,
       "gridPos": {
         "x": 0,
         "y": 0,
         "w": 24,
-        "h": 4
-      },
-      "options": {
-        "mode": "markdown",
-        "content": "Use DB 10 to identify the owner namespace, search Tempo for slow or failed PostgreSQL spans, then paste `trace_id` to inspect retained service logs and the complete trace. There is no verified `db.query.slow` log contract, so this dashboard does not invent one."
+        "h": 3
       }
     },
     {
-      "id": 2,
       "title": "Slow or Failed PostgreSQL Traces",
       "type": "table",
-      "description": "SQL statement text is not required for this search; service, operation, duration and trace context are sufficient entry points.",
-      "datasource": {
-        "type": "tempo",
-        "uid": "tempo"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 4,
-        "w": 24,
-        "h": 8
-      },
+      "description": null,
       "targets": [
         {
           "datasource": {
             "type": "tempo",
             "uid": "tempo"
           },
-          "editorMode": "builder",
           "queryType": "traceql",
-          "query": "{ resource.service.name =~ \"$service\" && span.db.system = \"postgresql\" && (status = error || duration > $min_duration) }",
-          "limit": 50,
+          "query": "{ resource.service.name =~ \"${service:regex}\" && span.db.system = \"postgresql\" && (status = error || duration > $min_duration) }",
           "refId": "A"
         }
+      ],
+      "links": [
+
       ],
       "fieldConfig": {
         "defaults": {
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+
+        ]
       },
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true
-      }
-    },
-    {
-      "id": 3,
-      "title": "Selected Trace Logs",
-      "type": "logs",
-      "description": "Retained service logs for the selected trace.",
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 12,
-        "w": 8,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "expr": "{k8s_namespace_name=~\"$namespace\",service_name=~\"$service\"} | json | trace_id=~\"$trace_id\" | line_format \"event={{.event}} service={{.service_name}} route={{.http_route}} status={{.http_status_code}} request_id={{.request_id}} trace_id={{.trace_id}} span_id={{.span_id}}\"",
-          "legendFormat": "",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": true
-      }
-    },
-    {
-      "id": 4,
-      "title": "Selected Request Logs",
-      "type": "logs",
-      "description": "Use request_id when a client report does not include trace_id.",
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "gridPos": {
-        "x": 8,
-        "y": 12,
-        "w": 8,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "expr": "{k8s_namespace_name=~\"$namespace\",service_name=~\"$service\"} | json | request_id=~\"$request_id\" | line_format \"event={{.event}} service={{.service_name}} route={{.http_route}} request_id={{.request_id}} trace_id={{.trace_id}} span_id={{.span_id}}\"",
-          "legendFormat": "",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": true
-      }
-    },
-    {
-      "id": 5,
-      "title": "Selected Span Log",
-      "type": "logs",
-      "description": "span_id identifies the exact logged operation within a trace.",
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "gridPos": {
-        "x": 16,
-        "y": 12,
-        "w": 8,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "expr": "{k8s_namespace_name=~\"$namespace\",service_name=~\"$service\"} | json | trace_id=~\"$trace_id\" | span_id=~\"$span_id\"",
-          "legendFormat": "",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": true
-      }
-    },
-    {
-      "id": 6,
-      "title": "Tempo Trace by trace_id",
-      "type": "traces",
       "datasource": {
         "type": "tempo",
         "uid": "tempo"
       },
+      "id": 2,
       "gridPos": {
         "x": 0,
-        "y": 20,
-        "w": 24,
-        "h": 10
+        "y": 3,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Selected Trace Logs",
+      "type": "logs",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"${namespace:regex}\",service_name=~\"${service:regex}\"} | json | trace_id=~\"$trace_id\" | line_format \"service={{.service_name}} event={{.event}} request_id={{.request_id}} trace_id={{.trace_id}} span_id={{.span_id}}\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+
+        ]
       },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Selected Request Logs",
+      "type": "logs",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"${namespace:regex}\",service_name=~\"${service:regex}\"} | json | request_id=~\"$request_id\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Selected Span Logs",
+      "type": "logs",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"${namespace:regex}\",service_name=~\"${service:regex}\"} | json | trace_id=~\"$trace_id\" | span_id=~\"$span_id\"",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Tempo Trace by trace_id",
+      "type": "traces",
+      "description": null,
       "targets": [
         {
           "datasource": {
@@ -212,7 +227,29 @@
           "query": "$trace_id",
           "refId": "A"
         }
-      ]
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      }
     }
   ],
   "refresh": "30s",
@@ -220,15 +257,33 @@
   "tags": [
     "dropmong",
     "db",
-    "postgresql",
-    "tempo",
-    "loki"
+    "top-down"
   ],
   "templating": {
     "list": [
       {
+        "name": "environment",
+        "label": "Environment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(service_ready, service_environment)",
+        "definition": "label_values(service_ready, service_environment)",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 1
+      },
+      {
         "name": "namespace",
-        "label": "DB Owner Namespace",
+        "label": "Namespace",
         "type": "custom",
         "query": "dropmong-auth,dropmong-user,dropmong-catalog,dropmong-coupon,dropmong-interest,dropmong-order,dropmong-payment",
         "options": [
@@ -280,7 +335,7 @@
       },
       {
         "name": "service",
-        "label": "DB Owner Service",
+        "label": "Service",
         "type": "custom",
         "query": "auth-service,user-service,catalog-service,coupon-service,interest-service,order-service,payment-service",
         "options": [
@@ -331,76 +386,68 @@
         "refresh": 0
       },
       {
-        "name": "min_duration",
-        "label": "Minimum DB span duration",
-        "type": "textbox",
-        "query": "500ms",
+        "name": "route",
+        "label": "Route",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(http_server_request_duration_seconds_count{service_name=~\"${service:regex}\",http_route_kind=\"api\"}, http_route)",
+        "definition": "label_values(http_server_request_duration_seconds_count{service_name=~\"${service:regex}\",http_route_kind=\"api\"}, http_route)",
         "current": {
           "selected": true,
-          "text": "500ms",
-          "value": "500ms"
+          "text": "All",
+          "value": "$__all"
         },
-        "options": [
-          {
-            "selected": true,
-            "text": "500ms",
-            "value": "500ms"
-          }
-        ]
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 1
       },
       {
         "name": "request_id",
-        "label": "Request ID",
+        "label": "Request Id",
         "type": "textbox",
         "query": "a^",
         "current": {
           "selected": true,
           "text": "a^",
           "value": "a^"
-        },
-        "options": [
-          {
-            "selected": true,
-            "text": "a^",
-            "value": "a^"
-          }
-        ]
+        }
       },
       {
         "name": "trace_id",
-        "label": "Trace ID",
+        "label": "Trace Id",
         "type": "textbox",
-        "query": ".*",
+        "query": "a^",
         "current": {
           "selected": true,
-          "text": ".*",
-          "value": ".*"
-        },
-        "options": [
-          {
-            "selected": true,
-            "text": ".*",
-            "value": ".*"
-          }
-        ]
+          "text": "a^",
+          "value": "a^"
+        }
       },
       {
         "name": "span_id",
-        "label": "Span ID",
+        "label": "Span Id",
         "type": "textbox",
-        "query": ".*",
+        "query": "a^",
         "current": {
           "selected": true,
-          "text": ".*",
-          "value": ".*"
-        },
-        "options": [
-          {
-            "selected": true,
-            "text": ".*",
-            "value": ".*"
-          }
-        ]
+          "text": "a^",
+          "value": "a^"
+        }
+      },
+      {
+        "name": "min_duration",
+        "label": "Min Duration",
+        "type": "textbox",
+        "query": "500ms",
+        "current": {
+          "selected": true,
+          "text": "500ms",
+          "value": "500ms"
+        }
       }
     ]
   },
@@ -424,8 +471,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "DB 20 - Trace and Log Correlation",
-  "uid": "dropmong-db-trace-correlation",
+  "title": "DB 40 - Trace and Log Correlation",
+  "uid": "dropmong-db-40-trace-correlation",
   "version": 1,
   "weekStart": ""
 }

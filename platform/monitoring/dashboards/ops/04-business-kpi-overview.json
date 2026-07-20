@@ -10,9 +10,17 @@
   "id": null,
   "links": [
     {
+      "title": "Previous",
+      "type": "link",
+      "url": "/d/dropmong-ops-03-gateway-mesh/dropmong-ops-03-gateway-mesh",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
       "title": "Next",
       "type": "link",
-      "url": "/d/dropmong-ops-01-service-runtime-health/dropmong-ops-01-service-runtime-health",
+      "url": "/d/dropmong-ops-04-pod-logs/dropmong-ops-04-pod-logs",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false
@@ -29,7 +37,7 @@
   "liveNow": false,
   "panels": [
     {
-      "title": "Investigation Start",
+      "title": "Metric Contract",
       "type": "text",
       "description": null,
       "targets": [
@@ -48,7 +56,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Start with traffic, errors, latency and active requests. Continue to Ops 01 only after the affected service and time range are known."
+        "content": "These are route-based operational indicators, not claimed business outcomes. They use the common completed-request metric because no cross-service business KPI metric contract exists."
       },
       "id": 1,
       "gridPos": {
@@ -59,7 +67,7 @@
       }
     },
     {
-      "title": "Request Rate by Service",
+      "title": "Auth Intent and Session Requests",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -69,7 +77,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval]))",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"auth-service\",http_route=~\"/api/v1/auth/(intents|sessions).*\"}[$__rate_interval]))",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -99,7 +107,207 @@
       }
     },
     {
-      "title": "5xx Error Ratio by Service",
+      "title": "Coupon Claim Requests",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"coupon-service\",http_route=~\"/api/v1/coupon-campaigns/.*\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 3,
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Interest and View Requests",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"interest-service\",http_route=~\"/v1/(users/me/interests|drops/.*|rankings/.*)\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Order Requests",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"order-service\",http_route=~\"/orders.*\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Payment Requests",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"payment-service\",http_route=~\"/payments.*\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Notification Requests",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",service_name=\"notification-service\",http_route=~\"/notifications.*\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 7,
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Business Route 5xx Ratio",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -130,79 +338,27 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 3,
-      "gridPos": {
-        "x": 12,
-        "y": 3,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "p95 / p99 Latency by Service",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p95 {{service_name}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p99 {{service_name}}",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 4,
+      "id": 8,
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 24,
         "w": 12,
         "h": 7
       }
     },
     {
-      "title": "Active Requests",
-      "type": "timeseries",
+      "title": "Kafka Business Events",
+      "type": "logs",
       "description": null,
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
+            "type": "loki",
+            "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum by (service_name) (http_server_active_requests{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
+          "expr": "{service_name=~\"(interest-service|order-service|payment-service|notification-service)\"} | json | event=~\"kafka[.]message[.](publish|process)\" | line_format \"service={{.service_name}} topic={{.messaging_destination_name}} outcome={{.outcome}} correlation_id={{.correlation_id}} trace_id={{.trace_id}}\"",
+          "queryType": "range",
           "refId": "A"
         }
       ],
@@ -218,132 +374,12 @@
         ]
       },
       "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+        "type": "loki",
+        "uid": "loki"
       },
-      "id": 5,
+      "id": 9,
       "gridPos": {
         "x": 12,
-        "y": 10,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "Service Readiness",
-      "type": "stat",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "min by (service_name) (service_ready{service_name=~\"${service:regex}\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 6,
-      "gridPos": {
-        "x": 0,
-        "y": 17,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "CPU Usage by Namespace",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]))",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "cores"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 7,
-      "gridPos": {
-        "x": 12,
-        "y": 17,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "Memory Working Set by Namespace",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 8,
-      "gridPos": {
-        "x": 0,
         "y": 24,
         "w": 12,
         "h": 7
@@ -545,8 +581,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "Ops 00 - Service Impact Overview",
-  "uid": "dropmong-ops-00-service-overview",
+  "title": "Ops 04 - Business Route Signals",
+  "uid": "dropmong-ops-04-business-kpi",
   "version": 1,
   "weekStart": ""
 }

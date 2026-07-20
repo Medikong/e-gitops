@@ -12,15 +12,15 @@
     {
       "title": "Next",
       "type": "link",
-      "url": "/d/dropmong-ops-01-service-runtime-health/dropmong-ops-01-service-runtime-health",
+      "url": "/d/dropmong-db-20-instance-resources/dropmong-db-20-instance-resources",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false
     },
     {
-      "title": "Open Logs",
+      "title": "Open ID Drilldown",
       "type": "link",
-      "url": "/d/dropmong-logs-25-service-search/dropmong-logs-25-service-search",
+      "url": "/d/dropmong-logs-40-drilldown/dropmong-logs-40-drilldown",
       "includeVars": true,
       "keepTime": true,
       "targetBlank": false
@@ -29,7 +29,7 @@
   "liveNow": false,
   "panels": [
     {
-      "title": "Investigation Start",
+      "title": "DB Owners",
       "type": "text",
       "description": null,
       "targets": [
@@ -48,7 +48,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "Start with traffic, errors, latency and active requests. Continue to Ops 01 only after the affected service and time range are known."
+        "content": "Scope is limited to auth, user, catalog, coupon, interest, order and payment PostgreSQL. notification and dropmong-web are excluded from the active DB contract."
       },
       "id": 1,
       "gridPos": {
@@ -59,8 +59,8 @@
       }
     },
     {
-      "title": "Request Rate by Service",
-      "type": "timeseries",
+      "title": "PostgreSQL Up",
+      "type": "stat",
       "description": null,
       "targets": [
         {
@@ -69,7 +69,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval]))",
+          "expr": "min by (namespace, pod) (pg_up{namespace=~\"${namespace:regex}\"})",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -80,7 +80,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps"
+          "unit": "none"
         },
         "overrides": [
 
@@ -99,7 +99,7 @@
       }
     },
     {
-      "title": "5xx Error Ratio by Service",
+      "title": "Connection Usage",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -109,7 +109,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\",http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (service_name) (rate(http_server_request_duration_seconds_count{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])), 0.001)",
+          "expr": "100 * sum by (namespace) (pg_stat_activity_count{namespace=~\"${namespace:regex}\",datname!~\"template.*|postgres\"}) / clamp_min(sum by (namespace) (pg_settings_max_connections{namespace=~\"${namespace:regex}\"}), 1)",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -139,7 +139,7 @@
       }
     },
     {
-      "title": "p95 / p99 Latency by Service",
+      "title": "Transactions per Second",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -149,8 +149,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p95 {{service_name}}",
+          "expr": "sum by (namespace) (rate(pg_stat_database_xact_commit{namespace=~\"${namespace:regex}\",datname!~\"template.*|postgres\"}[$__rate_interval]))",
+          "legendFormat": "commit {{namespace}}",
           "range": true,
           "refId": "A"
         },
@@ -160,8 +160,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"}[$__rate_interval])))",
-          "legendFormat": "p99 {{service_name}}",
+          "expr": "sum by (namespace) (rate(pg_stat_database_xact_rollback{namespace=~\"${namespace:regex}\",datname!~\"template.*|postgres\"}[$__rate_interval]))",
+          "legendFormat": "rollback {{namespace}}",
           "range": true,
           "refId": "B"
         }
@@ -171,7 +171,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "s"
+          "unit": "ops"
         },
         "overrides": [
 
@@ -190,7 +190,7 @@
       }
     },
     {
-      "title": "Active Requests",
+      "title": "Rollback Ratio",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -200,7 +200,87 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (service_name) (http_server_active_requests{service_environment=~\"${environment:regex}\",service_name=~\"${service:regex}\",http_route=~\"${route:regex}\",http_route_kind=\"api\"})",
+          "expr": "100 * sum by (namespace) (rate(pg_stat_database_xact_rollback{namespace=~\"${namespace:regex}\",datname!~\"template.*|postgres\"}[$__rate_interval])) / clamp_min(sum by (namespace) (rate(pg_stat_database_xact_commit{namespace=~\"${namespace:regex}\",datname!~\"template.*|postgres\"}[$__rate_interval]) + rate(pg_stat_database_xact_rollback{namespace=~\"${namespace:regex}\",datname!~\"template.*|postgres\"}[$__rate_interval])), 0.001)",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Cache Hit Ratio",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (namespace) (rate(pg_stat_database_blks_hit{namespace=~\"${namespace:regex}\",datname!~\"template.*|postgres\"}[$__rate_interval])) / clamp_min(sum by (namespace) (rate(pg_stat_database_blks_hit{namespace=~\"${namespace:regex}\",datname!~\"template.*|postgres\"}[$__rate_interval]) + rate(pg_stat_database_blks_read{namespace=~\"${namespace:regex}\",datname!~\"template.*|postgres\"}[$__rate_interval])), 0.001)",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
+      "title": "Deadlock Increase",
+      "type": "timeseries",
+      "description": null,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace) (increase(pg_stat_database_deadlocks{namespace=~\"${namespace:regex}\",datname!~\"template.*|postgres\"}[$__rate_interval]))",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -221,86 +301,6 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 5,
-      "gridPos": {
-        "x": 12,
-        "y": 10,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "Service Readiness",
-      "type": "stat",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "min by (service_name) (service_ready{service_name=~\"${service:regex}\"})",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 6,
-      "gridPos": {
-        "x": 0,
-        "y": 17,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "CPU Usage by Namespace",
-      "type": "timeseries",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (namespace) (rate(container_cpu_usage_seconds_total{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]))",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "cores"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
       "id": 7,
       "gridPos": {
         "x": 12,
@@ -310,7 +310,7 @@
       }
     },
     {
-      "title": "Memory Working Set by Namespace",
+      "title": "Locks by Mode",
       "type": "timeseries",
       "description": null,
       "targets": [
@@ -320,7 +320,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace) (container_memory_working_set_bytes{namespace=~\"${namespace:regex}\",container!=\"\",container!=\"POD\",image!=\"\"})",
+          "expr": "sum by (namespace, mode) (pg_locks_count{namespace=~\"${namespace:regex}\"})",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -331,7 +331,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "bytes"
+          "unit": "short"
         },
         "overrides": [
 
@@ -354,7 +354,7 @@
   "schemaVersion": 41,
   "tags": [
     "dropmong",
-    "ops",
+    "db",
     "top-down"
   ],
   "templating": {
@@ -383,7 +383,7 @@
         "name": "namespace",
         "label": "Namespace",
         "type": "custom",
-        "query": "dropmong-auth,dropmong-user,dropmong-catalog,dropmong-coupon,dropmong-interest,dropmong-order,dropmong-payment,dropmong-notification,dropmong-web",
+        "query": "dropmong-auth,dropmong-user,dropmong-catalog,dropmong-coupon,dropmong-interest,dropmong-order,dropmong-payment",
         "options": [
           {
             "selected": false,
@@ -419,16 +419,6 @@
             "selected": false,
             "text": "dropmong-payment",
             "value": "dropmong-payment"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-notification",
-            "value": "dropmong-notification"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-web",
-            "value": "dropmong-web"
           }
         ],
         "current": {
@@ -437,7 +427,7 @@
           "value": "$__all"
         },
         "includeAll": true,
-        "allValue": "(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment|dropmong-notification|dropmong-web)",
+        "allValue": "(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment)",
         "multi": true,
         "refresh": 0
       },
@@ -445,7 +435,7 @@
         "name": "service",
         "label": "Service",
         "type": "custom",
-        "query": "auth-service,user-service,catalog-service,coupon-service,interest-service,order-service,payment-service,notification-service,dropmong-web",
+        "query": "auth-service,user-service,catalog-service,coupon-service,interest-service,order-service,payment-service",
         "options": [
           {
             "selected": false,
@@ -481,16 +471,6 @@
             "selected": false,
             "text": "payment-service",
             "value": "payment-service"
-          },
-          {
-            "selected": false,
-            "text": "notification-service",
-            "value": "notification-service"
-          },
-          {
-            "selected": false,
-            "text": "dropmong-web",
-            "value": "dropmong-web"
           }
         ],
         "current": {
@@ -499,7 +479,7 @@
           "value": "$__all"
         },
         "includeAll": true,
-        "allValue": "(auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web)",
+        "allValue": "(auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service)",
         "multi": true,
         "refresh": 0
       },
@@ -522,6 +502,50 @@
         "allValue": ".*",
         "multi": true,
         "refresh": 1
+      },
+      {
+        "name": "request_id",
+        "label": "Request Id",
+        "type": "textbox",
+        "query": "a^",
+        "current": {
+          "selected": true,
+          "text": "a^",
+          "value": "a^"
+        }
+      },
+      {
+        "name": "trace_id",
+        "label": "Trace Id",
+        "type": "textbox",
+        "query": "a^",
+        "current": {
+          "selected": true,
+          "text": "a^",
+          "value": "a^"
+        }
+      },
+      {
+        "name": "span_id",
+        "label": "Span Id",
+        "type": "textbox",
+        "query": "a^",
+        "current": {
+          "selected": true,
+          "text": "a^",
+          "value": "a^"
+        }
+      },
+      {
+        "name": "min_duration",
+        "label": "Min Duration",
+        "type": "textbox",
+        "query": "500ms",
+        "current": {
+          "selected": true,
+          "text": "500ms",
+          "value": "500ms"
+        }
       }
     ]
   },
@@ -545,8 +569,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "Ops 00 - Service Impact Overview",
-  "uid": "dropmong-ops-00-service-overview",
+  "title": "DB 10 - PostgreSQL Operations Overview",
+  "uid": "dropmong-db-10-operations",
   "version": 1,
   "weekStart": ""
 }

@@ -61,7 +61,8 @@ payment-service
 
 ## 미검증 및 결정 항목
 
-- live cluster에서 9개 ServiceMonitor target과 signal ingestion을 확인하지 않았다.
+- 2026-07-20 Docker Desktop 검증에서 Grafana에는 Ops 9, Logs 9, DB 4, Load 7 화면이 반영됐다. Loki `service_name` label에서는 9개 서비스가 모두 확인됐고 Tempo 검색은 최근 trace를 반환했다.
+- 같은 검증에서 Prometheus `service_ready`는 `user`, `catalog`, `interest`, `order`, `payment`, `notification`, `dropmong-web` 7개가 확인됐으며 `auth`, `coupon`은 보이지 않았다. HTTP 완료 metric은 실제 요청이 있었던 `catalog`, `interest`, `order`, `payment`, `notification`, `dropmong-web` 6개만 확인됐다. 따라서 화면 배포 성공을 9개 ServiceMonitor와 실제 요청 metric 전체 수집 성공으로 표현하지 않는다.
 - Istio sidecar와 `http-envoy-prom` 계약은 현재 `payment-service`, `notification-service`에만 있다. 다른 7개에 Envoy metric이 있다고 가정하지 않는다.
 - Kong 리소스가 일부 active values에 남아 있지만 교체할 Ingress Controller의 요청 metric 계약이 확정되지 않았다. 따라서 신규 대표 대시보드와 SLO는 Kong metric을 사용하지 않는다.
 - SLO 달성률, Error Budget 잔여량과 burn rate 실측값은 요청 데이터가 쌓인 뒤에만 판정한다.
