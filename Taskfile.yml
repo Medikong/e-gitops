@@ -10,7 +10,6 @@ vars:
   LOCAL_DOCKER_DESKTOP_ENV: dev
   LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX: local-docker-desktop
   SERVICE_REPO: '{{default "../service" .SERVICE_REPO}}'
-  SERVICE_PYTHON_BIN: '{{default "python3" .SERVICE_PYTHON_BIN}}'
   DEV_REGISTRY: '{{default "localhost:5001" .DEV_REGISTRY}}'
   DEV_REGISTRY_CONTAINER: '{{default "medikong-registry" .DEV_REGISTRY_CONTAINER}}'
   DEV_IMAGE_NAMESPACE: '{{default "" .DEV_IMAGE_NAMESPACE}}'
@@ -323,21 +322,23 @@ tasks:
           exit 2
         fi
         if [ -z "${service}" ] || [ "${service}" = "all" ]; then
-          if ! PYTHON_BIN="{{.SERVICE_PYTHON_BIN}}" DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
+          if ! DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
             task --dir "${service_repo}" --dry app-images-push \
+            IMAGE_SERVICES="${image_services}" \
             IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
             IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
             IMAGE_TAG="{{.DEV_IMAGE_TAG}}" >/dev/null 2>&1; then
             printf '%s\n' 'SERVICE_REPO Taskfile is missing required target: app-images-push' >&2
             exit 2
           fi
-          PYTHON_BIN="{{.SERVICE_PYTHON_BIN}}" DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
+          DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
             task --dir "${service_repo}" app-images-push \
+            IMAGE_SERVICES="${image_services}" \
             IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
             IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
             IMAGE_TAG="{{.DEV_IMAGE_TAG}}"
         else
-          if ! PYTHON_BIN="{{.SERVICE_PYTHON_BIN}}" DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
+          if ! DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
             task --dir "${service_repo}" --dry app-image-push \
             SERVICE="${image_services}" \
             IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
@@ -346,7 +347,7 @@ tasks:
             printf '%s\n' 'SERVICE_REPO Taskfile is missing required target: app-image-push' >&2
             exit 2
           fi
-          PYTHON_BIN="{{.SERVICE_PYTHON_BIN}}" DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
+          DOCKER_BUILD_PLATFORMS="${dev_build_platform}" \
             task --dir "${service_repo}" app-image-push \
             SERVICE="${image_services}" \
             IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
@@ -656,12 +657,8 @@ tasks:
           printf '%s\n' 'DEV_SERVICES did not select any image repositories.' >&2
           exit 2
         fi
-        dashboard_service="${image_services%% *}"
-        app_image_services="${image_services#${dashboard_service}}"
-        app_image_services="$(printf '%s\n' "${app_image_services}" | sed 's/^[[:space:]]*//')"
         if ! task --dir "${service_repo}" --dry app-images-push \
-          APP_IMAGE_SERVICES="${app_image_services}" \
-          DASHBOARD_SERVICE="${dashboard_service}" \
+          IMAGE_SERVICES="${image_services}" \
           IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
           IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
           IMAGE_TAG="{{.DEV_IMAGE_TAG}}" \
@@ -670,8 +667,7 @@ tasks:
           exit 2
         fi
         task --dir "${service_repo}" app-images-push \
-          APP_IMAGE_SERVICES="${app_image_services}" \
-          DASHBOARD_SERVICE="${dashboard_service}" \
+          IMAGE_SERVICES="${image_services}" \
           IMAGE_REGISTRY="{{.DEV_REGISTRY}}" \
           IMAGE_NAMESPACE="{{.DEV_IMAGE_NAMESPACE}}" \
           IMAGE_TAG="{{.DEV_IMAGE_TAG}}" \
