@@ -20,7 +20,12 @@ alertmanager:
   alertmanagerSpec:
     replicas: 1
     nodeSelector:
-      role: platform
+      medikong.io/workload: observability
+    tolerations:
+      - key: medikong.io/workload
+        operator: Equal
+        value: observability
+        effect: NoSchedule
     resources:
       requests:
         cpu: 50m
@@ -134,7 +139,12 @@ grafana:
       cpu: 300m
       memory: 1Gi
   nodeSelector:
-    role: platform
+    medikong.io/workload: observability
+  tolerations:
+    - key: medikong.io/workload
+      operator: Equal
+      value: observability
+      effect: NoSchedule
 
 prometheus:
   prometheusSpec:
@@ -217,8 +227,13 @@ prometheus:
           resources:
             requests:
               storage: 30Gi
-  nodeSelector:
-    role: platform
+    nodeSelector:
+      medikong.io/workload: observability
+    tolerations:
+      - key: medikong.io/workload
+        operator: Equal
+        value: observability
+        effect: NoSchedule
 
 prometheusOperator:
   image:
@@ -244,7 +259,12 @@ prometheusOperator:
       cpu: 200m
       memory: 256Mi
   nodeSelector:
-    role: platform
+    medikong.io/workload: observability
+  tolerations:
+    - key: medikong.io/workload
+      operator: Equal
+      value: observability
+      effect: NoSchedule
 
 kube-state-metrics:
   image:
@@ -261,7 +281,12 @@ kube-state-metrics:
       cpu: 100m
       memory: 128Mi
   nodeSelector:
-    role: platform
+    medikong.io/workload: observability
+  tolerations:
+    - key: medikong.io/workload
+      operator: Equal
+      value: observability
+      effect: NoSchedule
 
 prometheus-node-exporter:
   image:

@@ -81,7 +81,12 @@ singleBinary:
       cpu: 500m
       memory: 768Mi
   nodeSelector:
-    role: platform
+    medikong.io/workload: observability
+  tolerations:
+    - key: medikong.io/workload
+      operator: Equal
+      value: observability
+      effect: NoSchedule
 
 sidecar:
   image:

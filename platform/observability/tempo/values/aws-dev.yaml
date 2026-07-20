@@ -39,7 +39,13 @@ persistence:
   size: 10Gi
 
 nodeSelector:
-  role: platform
+  medikong.io/workload: observability
+
+tolerations:
+  - key: medikong.io/workload
+    operator: Equal
+    value: observability
+    effect: NoSchedule
 
 serviceMonitor:
   enabled: false
