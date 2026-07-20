@@ -34,6 +34,46 @@ container:
       value: postgresql+psycopg://user:password@user-db:5432/user_db
     - name: USER_ALLOWED_ORIGINS
       value: https://user.dropmong.internal
+    # USER_SIGNING_PRIVATE_KEY through USER_PRIVATE_NAME_ENCRYPTION_KEY:
+    # sourced from the user-runtime-credentials Secret (openssl-generated
+    # placeholder keys via `task aws-dev:secrets`, see infra repo). Real
+    # keys/rotation still owned by user-service - replace before this is
+    # used for anything beyond internal dev testing.
+    - name: USER_SIGNING_PRIVATE_KEY
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: user-signing-private-key
+    - name: USER_SIGNING_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: user-signing-key-id
+    - name: AUTH_PROOF_PUBLIC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: auth-proof-public-key
+    - name: AUTH_PROOF_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: auth-proof-key-id
+    - name: MEDIA_PROOF_PUBLIC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: media-proof-public-key
+    - name: MEDIA_PROOF_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: media-proof-key-id
+    - name: USER_PRIVATE_NAME_ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: private-name-encryption-key
   readinessProbe:
     httpGet:
       path: /readyz
