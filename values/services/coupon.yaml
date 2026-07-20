@@ -48,6 +48,8 @@ container:
       value: http://localhost:3000
     - name: COUPON_CODE_HASH_KEY
       value: dropmong-dev-coupon-code-hash-key-change-before-shared-use
+    - name: COUPON_REDEMPTION_RESERVATION_TTL
+      value: 15m
 
 workers:
   - name: worker
