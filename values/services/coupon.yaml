@@ -50,6 +50,12 @@ container:
       value: dropmong-dev-coupon-code-hash-key-change-before-shared-use
     - name: COUPON_REDEMPTION_RESERVATION_TTL
       value: 15m
+    - name: COUPON_CODE_RESERVATION_TTL
+      value: 15m
+    - name: COUPON_COMMAND_LEASE
+      value: 30s
+    - name: COUPON_IDEMPOTENCY_TTL
+      value: 24h
 
 workers:
   - name: worker
