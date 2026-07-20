@@ -51,7 +51,7 @@ log path
 로그는 환경별로 다르게 다룬다.
 
 - `local`: parsed JSON log를 Loki로 보내되 성공 probe 로그는 drop하고, 일반 2xx/3xx access log는 샘플링하지 않는다.
-- `aws-dev`: 성공 probe는 drop, 일반 2xx/3xx access log는 10% sampling, 5xx/slow/warn/error/synthetic 로그는 keep 경로로 보낸다.
+- `aws-dev`: 성공 probe는 drop, 일반 2xx/3xx access log는 10% sampling, 5xx/slow/warn/error 로그는 keep 경로로 보낸다.
 - `prod`: 현재 prod Collector values가 없으므로 `platform/observability/log-policy.md`의 기준만 둔다.
 
 `filelog` receiver와 log sampling processor를 쓰기 때문에 core image가 아니라 contrib image를 사용한다. Collector는 DaemonSet으로 실행해 각 노드의 `/var/log/pods`를 읽는다.

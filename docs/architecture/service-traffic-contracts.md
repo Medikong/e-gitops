@@ -14,7 +14,7 @@
 | `platform/kong/consumers/demo-users.yaml` | concrete HS256 JWT credential 선언 | RS256/JWKS와 identity-only 경계가 아님 | 후속 Gateway migration |
 | private-dev/aws-dev Auth Applications | 공통 values와 해당 환경 overlay를 순서대로 참조 | Helm list replacement 뒤 환경별 `JWT_SECRET` 하나가 실제 effective desired input | 후속 Argo/GitOps migration |
 | private-dev/aws-dev Kong shared resources | `platform/kong` 또는 그 overlay를 active source로 참조 | HS256 credential이 render됨 | 후속 Gateway/GitOps migration |
-| Kong identity/role plugin | `ticketing-identity-headers`가 JWT `email`/`role`을 읽어 `X-User-Email`/`X-User-Role`을 만들고 `ticketing-role-*`가 role claim으로 `403`을 결정 | 세 identity header만 신뢰하는 목표와 충돌 | 후속 Gateway/GitOps migration |
+| Kong identity/role plugin | `dropmong-identity-headers`가 JWT `email`/`role`을 읽어 `X-User-Email`/`X-User-Role`을 만들고 `dropmong-role-*`가 role claim으로 `403`을 결정 | 세 identity header만 신뢰하는 목표와 충돌 | 후속 Gateway/GitOps migration |
 | Active plugin attachments | Notification, Interest, Order, Payment ingress가 identity-header 또는 customer-role plugin을 참조 | role/email 생성과 role 기반 Gateway 인가가 active path에 남음 | 후속 서비스별 Gateway values migration |
 | Notification/Interest runtime | 두 서비스가 `X-User-Role`을 입력으로 받아 role 기반 접근과 `403`을 결정 | role/email header를 신뢰하지 않는 목표와 충돌 | 후속 Notification/Interest 서비스 migration |
 | Auth issuer config | 현재 코드가 미설정 시 `ServiceName`으로 fallback | 목표 운영 정책은 issuer 명시와 fallback 거부 | 후속 Auth runtime/config 작업 |

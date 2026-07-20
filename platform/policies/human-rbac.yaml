@@ -737,7 +737,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: medikong-developer-readonly
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
 rules:
   - apiGroups: [""]
     resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "events", "serviceaccounts"]
@@ -765,7 +765,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: medikong-operator-deployment-manager
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
 rules:
   - apiGroups: [""]
     resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "events"]
@@ -790,7 +790,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: medikong-sre-namespace-admin
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
 rules:
   - apiGroups: ["*"]
     resources: ["*"]
@@ -800,7 +800,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: medikong-developers-readonly
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
 subjects:
   - kind: Group
     name: medikong:developers
@@ -814,7 +814,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: medikong-operators-deployment-manager
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
 subjects:
   - kind: Group
     name: medikong:operators
@@ -828,7 +828,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: medikong-sres-namespace-admin
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
 subjects:
   - kind: Group
     name: medikong:sres

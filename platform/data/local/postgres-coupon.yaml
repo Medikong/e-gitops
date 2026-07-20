@@ -2,5 +2,5 @@ postgresql:
   databases:
     coupon:
       name: coupon-db
-      namespace: ticketing-coupon
-      database: coupon_service
+      namespace: dropmong-coupon
+      database: coupon_db

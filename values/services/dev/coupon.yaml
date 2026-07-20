@@ -1,7 +1,7 @@
 container:
   env:
     - name: DATABASE_URL
-      value: postgres://user:password@coupon-db:5432/coupon_service?sslmode=disable
+      value: postgres://user:password@coupon-db:5432/coupon_db?sslmode=disable
     - name: COUPON_REDIS_GATE_ENABLED
       value: "true"
     - name: COUPON_REDIS_GATE_FAILURE_MODE
@@ -11,7 +11,7 @@ container:
     - name: COUPON_REDIS_GATE_IDEMPOTENCY_TTL
       value: 24h
     - name: REDIS_URL
-      value: redis://coupon-redis.ticketing-coupon.svc.cluster.local:6379
+      value: redis://coupon-redis.dropmong-coupon.svc.cluster.local:6379
   resources:
     requests:
       cpu: 50m

@@ -28,7 +28,7 @@ container:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@payment-db:5432/payment_db
     - name: KAFKA_BOOTSTRAP_SERVERS
-      value: kafka.ticketing-messaging.svc.cluster.local:9092
+      value: kafka.dropmong-messaging.svc.cluster.local:9092
   apiEnv:
     - name: UVICORN_WORKERS
       value: "2"
@@ -55,7 +55,7 @@ ingress:
   objects:
     - name: payment-customer-api
       annotations:
-        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-customer,ticketing-rate-limit-payments,ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: dropmong-jwt,dropmong-identity-headers,dropmong-role-customer,dropmong-rate-limit-payments,dropmong-correlation-id,dropmong-prometheus
       hosts:
         - host: ""
           paths:
@@ -63,7 +63,7 @@ ingress:
               pathType: Prefix
     - name: payment-debug-api
       annotations:
-        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: dropmong-correlation-id,dropmong-prometheus
       hosts:
         - host: ""
           paths:
@@ -106,7 +106,7 @@ networkPolicy:
     - to:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: ticketing-messaging
+              kubernetes.io/metadata.name: dropmong-messaging
           podSelector:
             matchLabels:
               app.kubernetes.io/name: kafka

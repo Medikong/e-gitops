@@ -1,7 +1,7 @@
 valkey:
   enabled: true
   name: coupon-redis
-  namespace: ticketing-coupon
+  namespace: dropmong-coupon
   resources:
     requests:
       cpu: 50m

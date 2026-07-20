@@ -7,7 +7,7 @@ container:
     - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
       value: "604800"
     - name: JWT_SECRET
-      value: ticketing-dev-secret
+      value: dropmong-dev-secret
     - name: JWT_ISSUER
       value: auth-service
     - name: AUTH_DEV_TEST_TOKEN_ENABLED

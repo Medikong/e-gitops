@@ -1,95 +1,53 @@
-# Kong platform resources
+# DropMong Kong gateway
 
-Kong Gateway와 Kong Ingress Controller는 서비스 Helm release보다 먼저 준비하는 platform 레이어다. 서비스별 `Ingress` 객체는 `charts/medikong-service` release가 계속 관리하지만, `Ingress`만 있어서는 외부 요청이 서비스로 전달되지 않는다. Kong controller/gateway, `IngressClass/kong`, 공통 `KongClusterPlugin`, demo `KongConsumer`가 함께 준비되어야 한다.
+Kong은 DropMong 로컬·개발 환경의 HTTP ingress와 공통 요청 계약을 담당한다.
 
-## Environment values
+## 공통 플러그인
 
-| 환경 | values 파일 | proxy Service 타입 | 용도 |
-| --- | --- | --- | --- |
-| Docker Desktop local | `platform/kong/values-local.yaml` | `LoadBalancer` | 로컬 개발. 외부 IP가 pending이면 port-forward fallback 사용 |
-| AWS dev | `platform/kong/values-aws-dev.yaml` | `NodePort` | EC2 self-managed Kubernetes에서 smoke test, JWT, Istio 연동 검증 |
-| AWS prod 후보 | `platform/kong/values-aws-prod.yaml` | `LoadBalancer` | AWS Load Balancer Controller 또는 cloud provider 연동 후 NLB/ELB 외부 진입점 사용 |
-
-현재 AWS dev 클러스터는 EKS가 아니라 EC2 기반 self-managed Kubernetes이므로 `LoadBalancer` Service를 생성해도 외부 AWS LB가 자동 생성되지 않는다. 따라서 dev에서는 Kong Proxy를 `NodePort`로 노출하고, 운영형 환경에서는 `LoadBalancer`로 전환한다.
-
-aws-dev shared Kong resources는 `platform/kong-overlays/aws-dev` overlay로 배포한다. 이 환경에서는 `ticketing-rate-limit-*` 한도를 크게 올려 rate limit이 smoke/loadtest 실험 결과를 가로막지 않게 한다.
-
-## Docker Desktop dev
-
-`task dev`는 Docker Desktop local loop에서 다음 순서로 동작한다.
-
-1. Helm/Kustomize render 검증
-2. Prometheus stack 배포
-3. Medikong namespace 생성
-4. `platform/data` DB/Kafka 배포
-5. Kong Helm release와 shared gateway resource 배포
-6. `service` repo backend image build/push
-7. 백엔드 서비스별 Helm release 배포
-
-Kong chart는 `platform/kong/values-local.yaml`을 사용한다. Docker Desktop 클러스터 설정에 따라 proxy Service `EXTERNAL-IP`가 `<pending>`이면 `task dev`는 계속 진행하고 `kubectl -n kong port-forward svc/kong-kong-proxy 8080:80` fallback을 안내한다.
-
-## AWS dev access
-
-AWS dev에서는 Kong Proxy Service가 `NodePort`로 배포된다.
-
-```bash
-kubectl get svc -n kong kong-kong-proxy
-curl -i http://127.0.0.1:32407/concerts
-```
-
-EC2 외부에서 직접 접근하려면 보안 그룹에서 해당 NodePort를 열어야 한다. 기본 검증은 control-plane 노드에 SSH 접속한 뒤 `127.0.0.1:32407` 또는 노드 IP의 `32407` 포트로 수행한다.
-
-## Local URLs
-
-`task dev SERVICE_REPO=../service DEV_REGISTRY=localhost:5001 DEV_IMAGE_TAG=dev` 후 기본 접속 주소는 다음과 같다.
-
-| 대상 | URL |
+| 리소스 | 책임 |
 | --- | --- |
-| Auth API | `http://localhost/auth` |
-| Concert API | `http://localhost/concerts` |
-| Performance seats API | `http://localhost/performances` |
-| Reservation API | `http://localhost/reservations` |
-| Payment API | `http://localhost/payments` |
-| Ticket API | `http://localhost/tickets` |
-| Notification API | `http://localhost/notifications` |
+| `dropmong-correlation-id` | `X-Request-Id` 생성과 응답 반환 |
+| `dropmong-prometheus` | Kong 요청·상태 코드·latency metric |
+| `dropmong-jwt` | JWT 서명과 만료 확인 |
+| `dropmong-identity-headers` | 외부 identity header 제거 후 검증된 claim만 재생성 |
+| `dropmong-role-customer` | customer 전용 route 인가 |
+| `dropmong-rate-limit-{orders,payments,notifications}` | 쓰기·조회 route 호출량 제한 |
 
-## Smoke
+Auth bootstrap과 공개 조회 route에는 JWT를 붙이지 않는다. 보호 route만 JWT·identity·role 플러그인을 명시적으로 연결한다.
 
-Auth route는 JWT plugin을 붙이지 않는다. 나머지 API route는 `ticketing-jwt`와 `ticketing-identity-headers`를 통해 demo token을 검증하고 `X-User-*` header를 upstream service에 전달한다.
+## 로컬 주소
+
+`task dev`가 성공하고 Kong LoadBalancer가 localhost에 연결되면 다음 주소를 사용한다.
+
+| 대상 | 주소 |
+| --- | --- |
+| DropMong Web | `http://localhost/` |
+| Auth | `http://localhost/auth` |
+| User | `http://localhost/api/v1/users` |
+| Coupon | `http://localhost/coupons` |
+| Interest | `http://localhost/v1/drops`, `http://localhost/v1/users`, `http://localhost/v1/rankings` |
+| Order | `http://localhost/orders` |
+| Payment | `http://localhost/payments` |
+| Notification | `http://localhost/notifications` |
+| Grafana | `http://localhost/grafana/` |
+
+Catalog는 현재 Kong Ingress가 없으며 내부 서비스 DNS와 Istio private-dev route를 사용한다. 실제 ingress 계약이 추가되기 전에는 임의 URL을 만들지 않는다.
+
+LoadBalancer가 localhost에 열리지 않으면 다음 포트 포워딩을 사용한다.
 
 ```bash
-curl -fsS http://localhost/auth/demo-accounts
-
-TOKEN="$(
-  curl -fsS -X POST http://localhost/auth/login \
-    -H 'content-type: application/json' \
-    -d '{"email":"admin@example.com","password":"admin1234"}' \
-  | ruby -rjson -e 'puts JSON.parse(STDIN.read).fetch("accessToken")'
-)"
-
-curl -fsS http://localhost/concerts -H "Authorization: Bearer ${TOKEN}"
-curl -fsS http://localhost/reservations -H "Authorization: Bearer ${TOKEN}"
-curl -fsS http://localhost/payments -H "Authorization: Bearer ${TOKEN}"
-curl -fsS http://localhost/tickets -H "Authorization: Bearer ${TOKEN}"
-curl -fsS http://localhost/notifications -H "Authorization: Bearer ${TOKEN}"
+kubectl -n kong port-forward svc/kong-kong-proxy 8080:80
 ```
 
-## Resource Ownership
+이 경우 기본 주소의 host와 port를 `http://127.0.0.1:8080`으로 바꾼다.
 
-| 리소스 | 위치 | 소유 |
-| --- | --- | --- |
-| Kong Helm release | `argo/applications/*/platform/kong.yaml` | platform |
-| Kong Helm values | `platform/kong/values-*.yaml` | platform |
-| `IngressClass/kong` | Kong Helm chart `ingressController.createIngressClass=true` | platform |
-| `KongClusterPlugin` | `platform/kong/plugins` | platform |
-| demo `KongConsumer`/JWT `Secret` | `platform/kong/consumers` | platform |
-| 서비스별 `Ingress` | `values/services/*.yaml` + `charts/medikong-service` | service release |
+## 검증
 
-`service` repo는 Dockerfile과 image build/push만 소유한다. Kubernetes/Helm/Kong/Ingress 선언은 이 `gitops` repo가 소유한다.
+```bash
+kubectl kustomize platform/kong
+task kong:render
+kubectl get kongclusterplugins.configuration.konghq.com
+kubectl get ingress --all-namespaces
+```
 
-## 유저 서비스 인증 경계
-
-- `POST /api/v1/users`는 공개 회원 등록이므로 Exact 경로에 trusted header 제거만 적용한다.
-- `/api/v1/users/me` 하위 경로는 JWT 검증 뒤 `sub`와 `role`만 사용해 `X-Principal`을 만든다. `sessionId`, `authLevel`, 세부 permission, `X-Csrf-Verified`는 만들지 않는다.
-- 외부 요청의 `X-Principal`, `X-Csrf-Verified`는 유저 서비스로 전달하기 전에 항상 제거한다.
-- `/api/v1/operator/users`는 Ingress를 만들지 않는다. Auth가 strong 인증 수준, Session ID, canonical permission을 제공하고 CSRF를 검증하는 신뢰 계약이 생긴 뒤 별도 경로로 공개한다.
+새 이름의 플러그인과 Ingress attachment가 함께 적용됐는지 확인한다. 이전 이름의 cluster-scoped 플러그인은 `kubectl apply`만으로 자동 삭제되지 않으므로, 새 Ingress가 정상화된 뒤 별도 정리한다.

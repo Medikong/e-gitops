@@ -234,7 +234,7 @@ helm upgrade --install auth charts/medikong-service \
   --set observability.profiling.sampleRate=100 \
   --set observability.profiling.spanProfilesEnabled=true \
   --set-string observability.profiling.tags.scenario=<low-cardinality-scenario> \
-  --set-string observability.profiling.tags.run_id=<loadtest-run-id>
+  --set-string observability.profiling.tags.run_id=<experiment-run-id>
 ```
 
 profile tag는 낮은 cardinality만 사용한다. 허용 기준은 `service`, `environment`, `version`, `scenario`, `run_id`이며 `user_id`와 요청·주문·결제 같은 업무 객체 ID는 tag로 넣지 않는다.

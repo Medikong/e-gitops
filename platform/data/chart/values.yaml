@@ -39,7 +39,7 @@ valkey:
   enabled: false
   image: valkey/valkey:8-alpine
   name: coupon-redis
-  namespace: ticketing-coupon
+  namespace: dropmong-coupon
   port: 6379
   serviceMonitor:
     enabled: true

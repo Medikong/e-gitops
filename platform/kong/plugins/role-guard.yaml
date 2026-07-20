@@ -1,7 +1,7 @@
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-role-customer
+  name: dropmong-role-customer
   annotations:
     kubernetes.io/ingress.class: kong
   labels:
@@ -47,7 +47,7 @@ config:
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-role-provider
+  name: dropmong-role-provider
   annotations:
     kubernetes.io/ingress.class: kong
   labels:
@@ -93,7 +93,7 @@ config:
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-role-admin
+  name: dropmong-role-admin
   annotations:
     kubernetes.io/ingress.class: kong
   labels:

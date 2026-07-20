@@ -1,7 +1,7 @@
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-user-trusted-header-sanitizer
+  name: dropmong-user-trusted-header-sanitizer
   annotations:
     kubernetes.io/ingress.class: kong
   labels:
@@ -16,7 +16,7 @@ config:
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-user-principal
+  name: dropmong-user-principal
   annotations:
     kubernetes.io/ingress.class: kong
   labels:

@@ -149,7 +149,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-kafka-ingress
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: kafka

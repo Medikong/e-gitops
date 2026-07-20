@@ -23,12 +23,6 @@ spec:
           podSelector:
             matchLabels:
               app.kubernetes.io/name: pgadmin
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: loadtest
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/name: read-api-loadtest
       ports:
         - protocol: TCP
           port: 5432
@@ -67,12 +61,6 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: pgadmin
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: loadtest
-          podSelector:
-            matchLabels:
-              app.kubernetes.io/name: read-api-loadtest
       ports:
         - protocol: TCP
           port: 5432
@@ -90,7 +78,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-kafka-ingress
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: kafka
@@ -109,6 +97,8 @@ spec:
                 values:
                   - dropmong-payment
                   - dropmong-notification
+                  - dropmong-order
+                  - dropmong-interest
           podSelector:
             matchExpressions:
               - key: dropmong.io/service
@@ -116,6 +106,8 @@ spec:
                 values:
                   - payment
                   - notification
+                  - order
+                  - interest
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: kafka

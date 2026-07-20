@@ -1,7 +1,7 @@
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-prometheus
+  name: dropmong-prometheus
   annotations:
     kubernetes.io/ingress.class: kong
   labels:

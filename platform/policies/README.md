@@ -26,16 +26,16 @@ Gatekeeper, Falco, namespace 공통 보안 정책처럼 cluster-level 정책은 
 
 ```bash
 kubectl auth can-i get pods \
-  -n ticketing-payment \
+  -n dropmong-payment \
   --as=rbac-test \
   --as-group=medikong:developers
 
 kubectl auth can-i patch deployment/payment-service \
-  -n ticketing-payment \
+  -n dropmong-payment \
   --as=rbac-test \
   --as-group=medikong:operators
 
-kubectl auth can-i delete namespace ticketing-payment \
+kubectl auth can-i delete namespace dropmong-payment \
   --as=rbac-test \
   --as-group=medikong:sres
 ```

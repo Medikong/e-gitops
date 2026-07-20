@@ -1,0 +1,6 @@
+postgresql:
+  databases:
+    catalog:
+      name: catalog-db
+      namespace: dropmong-catalog
+      database: catalog_db

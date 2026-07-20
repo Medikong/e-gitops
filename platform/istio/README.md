@@ -1,369 +1,40 @@
-# Istio Platform Layer
+# DropMong Istio platform
 
-This layer bootstraps the minimum service mesh control-plane resources used by
-the Medikong GitOps workflow.
+이 디렉터리는 Istio control plane, ingress gateway, Kiali와 DropMong 서비스 간 라우팅·인가 정책을 관리한다.
 
-## Scope
+## 활성 구성
 
-Included:
+| 경로 | 책임 |
+| --- | --- |
+| `argocd/` | Istio base, istiod, ingress gateway, Kiali Application |
+| `gateway/` | 공통 Gateway와 내부 진입점 |
+| `private-dev/routing-authz/` | auth, catalog, order, payment, notification route와 외부 인가 정책 |
+| `traffic/notification/` | notification-service 연결 제한과 outlier detection |
+| `security/` | mTLS 정책과 검증 시나리오 |
 
-- `istio-system` namespace
-- Istio CRDs through the official `istio/base` Helm chart
-- Istio control plane through the official `istiod` Helm chart
-- Internal-only ingress gateway through the official `istio/gateway` Helm chart
-- HTTP external authorization provider named `medikong-authz-http`
-- A port 80 `Gateway` listener with no attached routes
-- A private-dev child layer with explicit `VirtualService` routes and a CUSTOM `AuthorizationPolicy`
-- Kiali server through the official `kiali-server` Helm chart
+라우팅 대상은 실제 서비스 DNS를 사용한다. 예를 들어 payment는
+`payment-service.dropmong-payment.svc.cluster.local`, notification은
+`notification-service.dropmong-notification.svc.cluster.local`이다.
 
-Still excluded:
-
-- external `NodePort`, `LoadBalancer`, or public IP exposure
-- namespace-wide mTLS `STRICT`
-- RequestAuthentication
-- global sidecar injection
-
-Kong remains the active external API Gateway until a later cutover task. The
-Istio gateway Service is `ClusterIP` only, so creating it does not change any
-external route. The `medikong-authz-http` provider calls Auth at
-`/internal/session/status`; the private-dev CUSTOM policy applies it only to
-the protected route matrix.
-
-## Apply order
-
-The resources are ordered with Argo CD sync waves:
-
-1. `istio-base` (`-20`)
-2. `istiod` (`-10`)
-3. `istio-ingressgateway` (`-5`)
-4. `istio-gateway-config` (`-4`)
-5. `kiali` (`0`)
-
-This follows the official Istio Helm installation order: install `base` first,
-then `istiod`, then the gateway workload. The Gateway custom resource is kept
-in its own child Application and syncs only after the gateway chart.
-
-## Local validation
-
-After sync, verify:
+## 렌더 검증
 
 ```bash
-kubectl get ns istio-system
-kubectl get pods -n istio-system
-kubectl get crd virtualservices.networking.istio.io
-kubectl get svc -n istio-system istio-ingressgateway
-kubectl get gateway.networking.istio.io -n istio-system medikong-internal
-kubectl get svc -n istio-system kiali
+task istio:render
+task mesh-monitoring:render
 ```
 
-Expected gateway exposure before cutover:
+`task istio:render`는 현재 Kustomize 리소스와 `scripts/validate-istio-routing.py` 계약을 함께 확인한다.
 
-```text
-istio-ingressgateway Service type = ClusterIP
-External NodePort or LoadBalancer exposure = 0
-```
-
-Then follow `sidecar-injection/README.md` before enabling sidecar injection for
-application workloads.
-
-## First workload verification
-
-`concert-service` is the first workload-level sidecar opt-in target. Its values
-file sets:
-
-```yaml
-deployment:
-  podLabels:
-    sidecar.istio.io/inject: "true"
-  podAnnotations:
-    sidecar.istio.io/inject: "true"
-    sidecar.istio.io/proxyCPU: 25m
-    sidecar.istio.io/proxyMemory: 64Mi
-    sidecar.istio.io/proxyCPULimit: 200m
-    sidecar.istio.io/proxyMemoryLimit: 256Mi
-```
-
-Istio's mutating webhook uses Kubernetes labels for object selector matching,
-so the workload-level opt-in requires the Pod template label. The annotation is
-kept as an explicit injection intent after the webhook is invoked. These fields
-only affect newly created Pods. If `concert-service` was already running before
-`istiod` became ready, restart the workload after the Istio control plane is
-healthy:
-
-The proxy resource annotations are intentionally low for the AWS dev cluster.
-They prevent rollout stalls caused by Istio's default proxy CPU request in a
-small test cluster. Production values must be recalculated from observed Envoy
-CPU and memory metrics.
+## 런타임 확인
 
 ```bash
-kubectl rollout restart deployment/concert-service -n ticketing-concert
-kubectl rollout status deployment/concert-service -n ticketing-concert --timeout=180s
-kubectl get pods -n ticketing-concert
+task mesh-check
+task mesh-monitoring-check
 ```
 
-Expected result:
+확인 순서는 control plane과 CRD, VirtualService·AuthorizationPolicy, 서비스 Pod의 `istio-proxy`, Prometheus의 `istio_requests_total` 순서다. 트래픽이 없으면 서비스별 mesh 지표가 없는 것이 정상이며 정적 렌더 성공을 런타임 성공으로 간주하지 않는다.
 
-```text
-concert-service-...   2/2   Running
-```
+## Sidecar 범위
 
-Keep this first rollout limited to `concert-service`. Do not enable namespace
-wide injection until Kong-routed concert API smoke tests still pass.
-
-## Backend sidecar rollout
-
-After the first `concert-service` and `reservation-service` mesh rollout, the
-next backend services opted into workload-level sidecar injection are:
-
-```text
-payment-service
-ticket-service
-notification-service
-```
-
-Their service values set:
-
-```yaml
-deployment:
-  podLabels:
-    sidecar.istio.io/inject: "true"
-  podAnnotations:
-    sidecar.istio.io/inject: "true"
-    sidecar.istio.io/proxyCPU: 25m
-    sidecar.istio.io/proxyMemory: 64Mi
-    sidecar.istio.io/proxyCPULimit: 200m
-    sidecar.istio.io/proxyMemoryLimit: 256Mi
-```
-
-Excluded for this rollout:
-
-```text
-auth-service
-dashboard
-```
-
-`auth-service` is the JWT issuing and authentication boundary, so keep it out
-of this rollout until Kong JWT smoke tests and the other backend sidecar checks
-are stable. `dashboard` is a frontend workload and is not required for the
-first internal service mesh traffic validation.
-
-Render validation:
-
-```bash
-task sidecar:render
-```
-
-Runtime validation:
-
-```bash
-task sidecar:check
-```
-
-Expected Pod readiness after the application dependencies are available:
-
-```text
-payment-service-...        2/2 Running
-ticket-service-...         2/2 Running
-notification-service-...   2/2 Running
-```
-
-The Pod count does not increase. Each existing Pod gets an additional
-`istio-proxy` container.
-
-## Kiali access
-
-Kiali is intentionally not exposed through Kong or a public LoadBalancer during
-the first rollout.
-
-Use port-forwarding:
-
-```bash
-kubectl port-forward -n istio-system svc/kiali 20001:20001
-```
-
-Then open:
-
-```text
-http://localhost:20001
-```
-
-## Prometheus dependency
-
-Kiali is configured to read Prometheus from:
-
-```text
-http://kube-prometheus-stack-prometheus.monitoring:9090
-```
-
-If the monitoring stack uses a different service name, update
-`argocd/kiali.yaml`.
-
-Mesh metric collection is owned by the monitoring platform layer, not this
-Istio bootstrap layer. The first rollout adds PodMonitors in:
-
-```text
-platform/monitoring/manifests/istio-mesh-podmonitors.yaml
-```
-
-Initial scrape scope:
-
-- `istiod` metrics from `istio-system`
-- `concert-service` Envoy sidecar metrics from `ticketing-concert`
-
-This keeps the first mesh monitoring rollout aligned with the first sidecar
-target. Expand the PodMonitor selector only after additional service namespaces
-are opted into sidecar injection.
-
-## Reservation canary routing
-
-`reservation-service` is the first canary routing target. The default GitOps
-state keeps traffic stable:
-
-```text
-reservation-service -> subset v1 100%
-```
-
-The stable policy is included in:
-
-```text
-platform/istio/traffic/reservation
-```
-
-It is applied by a separate Argo CD Application:
-
-```text
-argo/applications/aws-dev/platform/istio-traffic-reservation.yaml
-```
-
-Do not include the traffic policy directly in `platform/istio/kustomization.yaml`.
-The traffic policy depends on Istio CRDs, so it must sync after `istio-base`
-has installed `VirtualService` and `DestinationRule` CRDs.
-
-The canary scenario manifests are stored but not included in the default
-`platform/istio` kustomization:
-
-```text
-platform/istio/traffic/reservation/scenarios/canary-20
-platform/istio/traffic/reservation/scenarios/canary-50
-platform/istio/traffic/reservation/scenarios/canary-100
-platform/istio/traffic/reservation/scenarios/rollback
-```
-
-The scenarios render only the `VirtualService` for each traffic weight. The
-base `DestinationRule` remains in `platform/istio/traffic/reservation` and must
-exist before applying a scenario.
-
-The subsets are based on Pod labels:
-
-```text
-version=v1 -> stable reservation-service Deployment
-version=v2 -> optional reservation-service-v2 canary Deployment
-```
-
-The shared service chart supports the v2 workload through `canary.enabled`.
-Keep it disabled in normal stable state. Enable it only for a canary rollout or
-a dedicated validation branch.
-
-The v2 workload scenario values are stored in:
-
-```text
-values/scenarios/istio/reservation-canary-v2.yaml
-```
-
-Render validation:
-
-```bash
-task canary:render
-```
-
-Runtime validation:
-
-```bash
-task canary:check
-```
-
-The VirtualService uses the `mesh` gateway. If Kong remains outside the mesh,
-weight-based routing is verified from mesh-internal clients first. To route
-external Kong traffic through the same Istio weights, Kong must participate in
-the mesh or forward through an Istio gateway path.
-
-## Reservation circuit breaker
-
-`reservation-service` is also the first circuit breaker target because it
-already has a `DestinationRule` and `VirtualService`.
-
-Default policy:
-
-```text
-connectionPool.tcp.maxConnections = 100
-connectionPool.http.http1MaxPendingRequests = 100
-connectionPool.http.maxRequestsPerConnection = 50
-outlierDetection.consecutive5xxErrors = 5
-outlierDetection.interval = 10s
-outlierDetection.baseEjectionTime = 30s
-outlierDetection.maxEjectionPercent = 50
-```
-
-Stable route policy:
-
-```text
-timeout = 2s
-retries.attempts = 2
-retries.perTryTimeout = 1s
-retries.retryOn = 5xx,connect-failure,refused-stream
-```
-
-Fault injection scenarios are stored but not included in the default GitOps
-state:
-
-```text
-platform/istio/traffic/reservation/scenarios/fault-5xx
-platform/istio/traffic/reservation/scenarios/fault-delay
-```
-
-Render validation:
-
-```bash
-task circuit-breaker:render
-```
-
-Runtime validation:
-
-```bash
-task circuit-breaker:check
-```
-
-## Notification failure isolation policy
-
-`notification-service` keeps a default `DestinationRule` in GitOps so failure
-isolation does not depend on a manual runtime patch. This policy is intentionally
-lighter than the reservation policy because notification is an asynchronous
-side-effect service and should not consume the same connection budget as core
-reservation traffic.
-
-Default policy:
-
-```text
-connectionPool.tcp.maxConnections = 50
-connectionPool.http.http1MaxPendingRequests = 50
-connectionPool.http.maxRequestsPerConnection = 20
-outlierDetection.consecutive5xxErrors = 3
-outlierDetection.interval = 10s
-outlierDetection.baseEjectionTime = 30s
-outlierDetection.maxEjectionPercent = 50
-```
-
-GitOps path:
-
-```text
-platform/istio/traffic/notification
-```
-
-Only the stable `DestinationRule` is included in the default GitOps state.
-Fault injection resources that force `notification-service` to return HTTP 503
-must remain test-only resources and should be applied only during validation.
-
-The runtime ejection check requires at least two healthy `reservation-service`
-endpoints with Envoy sidecars. If the application pods are failing because DB or
-Kafka is unavailable, keep this as a manifest-level implementation until the
-application layer is restored.
+현재 workload 단위 확인 대상은 `dropmong-payment/payment-service`와
+`dropmong-notification/notification-service`다. namespace 전체 injection은 두 workload의 Kong 요청, 내부 호출, trace 전파를 확인한 뒤 별도 결정한다.

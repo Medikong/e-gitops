@@ -20,7 +20,7 @@ container:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@order-db:5432/order_db
     - name: KAFKA_BOOTSTRAP_SERVERS
-      value: kafka.ticketing-messaging.svc.cluster.local:9092
+      value: kafka.dropmong-messaging.svc.cluster.local:9092
   readinessProbe:
     httpGet:
       path: /readyz
@@ -44,7 +44,7 @@ ingress:
   objects:
     - name: order-customer-api
       annotations:
-        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-customer,ticketing-rate-limit-orders,ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: dropmong-jwt,dropmong-identity-headers,dropmong-role-customer,dropmong-rate-limit-orders,dropmong-correlation-id,dropmong-prometheus
       hosts:
         - host: ""
           paths:
@@ -87,7 +87,7 @@ networkPolicy:
     - to:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: ticketing-messaging
+              kubernetes.io/metadata.name: dropmong-messaging
           podSelector:
             matchLabels:
               app.kubernetes.io/name: kafka

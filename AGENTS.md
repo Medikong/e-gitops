@@ -8,7 +8,7 @@
 - `charts/`: 공통 Helm chart.
 - `cluster/`: 클러스터 bootstrap, 실험, reference 리소스.
 - `docs/`: GitOps 운영 문서와 ADR.
-- `platform/`: namespace, data, Kong, monitoring, observability, policies, storage, synthetic 같은 플랫폼 리소스.
+- `platform/`: namespace, data, Kong, monitoring, observability, policies, storage 같은 플랫폼 리소스.
 - `values/`: 서비스/환경/scenario별 Helm values.
 - `archive/`: 현재 운영 경로가 아닌 과거 reference.
 
@@ -17,7 +17,6 @@
 - `Taskfile.yml`: repo 루트 작업 진입점. 전체 검증, 로컬 dev, platform render, scenario render, 서비스 Helm render를 여기서 확인한다.
 - `platform/monitoring/Taskfile.yml`: Prometheus/Grafana monitoring stack render/up/status/down.
 - `platform/observability/Taskfile.yml`: Tempo/Loki/Collector observability stack render/up/status/down.
-- `platform/synthetic/Taskfile.yml`: synthetic traffic image, secret, deploy, run, logs, status, clean 작업.
 
 ## Usage
 

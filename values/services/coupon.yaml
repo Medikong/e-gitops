@@ -64,7 +64,7 @@ ingress:
   objects:
     - name: coupon-api
       annotations:
-        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: dropmong-correlation-id,dropmong-prometheus
       hosts:
         - host: ""
           paths:

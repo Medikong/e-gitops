@@ -6,4 +6,4 @@ container:
           name: postgres-interest-credentials
           key: database-url
     - name: KAFKA_BOOTSTRAP_SERVERS
-      value: kafka.ticketing-messaging.svc.cluster.local:9092
+      value: kafka.dropmong-messaging.svc.cluster.local:9092

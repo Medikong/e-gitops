@@ -20,7 +20,7 @@ container:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@interest-db:5432/interest_db
     - name: KAFKA_BOOTSTRAP_SERVERS
-      value: kafka.ticketing-messaging.svc.cluster.local:9092
+      value: kafka.dropmong-messaging.svc.cluster.local:9092
   readinessProbe:
     httpGet:
       path: /readyz
@@ -44,7 +44,7 @@ ingress:
   objects:
     - name: interest-customer-api
       annotations:
-        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-customer,ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: dropmong-jwt,dropmong-identity-headers,dropmong-role-customer,dropmong-correlation-id,dropmong-prometheus
       hosts:
         - host: ""
           paths:
@@ -54,7 +54,7 @@ ingress:
               pathType: Prefix
     - name: interest-public-api
       annotations:
-        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: dropmong-correlation-id,dropmong-prometheus
       hosts:
         - host: ""
           paths:
@@ -62,7 +62,7 @@ ingress:
               pathType: Prefix
     - name: interest-operator-api
       annotations:
-        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: dropmong-jwt,dropmong-identity-headers,dropmong-correlation-id,dropmong-prometheus
       hosts:
         - host: ""
           paths:
@@ -105,7 +105,7 @@ networkPolicy:
     - to:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: ticketing-messaging
+              kubernetes.io/metadata.name: dropmong-messaging
           podSelector:
             matchLabels:
               app.kubernetes.io/name: kafka

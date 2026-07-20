@@ -50,7 +50,7 @@ gitops/
     services/
       auth.yaml
       concert.yaml
-      reservation.yaml
+      order.yaml
       payment.yaml
       ticket.yaml
       notification.yaml
@@ -87,31 +87,31 @@ base
 -> optional service-env override
 ```
 
-예를 들어 `reservation`을 `aws-dev`에 렌더링할 때는 다음처럼 조합한다.
+예를 들어 `order`을 `aws-dev`에 렌더링할 때는 다음처럼 조합한다.
 
 ```bash
-helm template reservation-aws-dev charts/medikong-service \
+helm template order-aws-dev charts/medikong-service \
   -f values/base.yaml \
   -f values/env/aws-dev.yaml \
-  -f values/services/reservation.yaml
+  -f values/services/order.yaml
 ```
 
 `aws-prod`에서 특정 서비스만 별도 리소스나 replica 설정이 필요하면 `values/overrides/aws-prod/<service>.yaml`을 추가하고 마지막 layer로 합성한다. 현재 기준선에는 서비스별 `aws-prod` override를 두지 않는다.
 
 ```bash
-helm template reservation-aws-prod charts/medikong-service \
+helm template order-aws-prod charts/medikong-service \
   -f values/base.yaml \
   -f values/env/aws-prod.yaml \
-  -f values/services/reservation.yaml
+  -f values/services/order.yaml
 ```
 
 AWS scenario는 환경 파일이 아니라 scenario layer로 합성한다.
 
 ```bash
-helm template reservation-aws-scenario-network charts/medikong-service \
+helm template order-aws-scenario-network charts/medikong-service \
   -f values/base.yaml \
   -f values/scenarios/aws/base.yaml \
-  -f values/services/reservation.yaml \
+  -f values/services/order.yaml \
   -f values/scenarios/aws/network.yaml
 ```
 
@@ -141,7 +141,7 @@ GitOps repo는 image를 만들지 않는다.
 
 ```yaml
 image:
-  repository: reservation-service
+  repository: order-service
   tag: 2026.05.21-abc1234
 ```
 
@@ -181,7 +181,7 @@ PRD는 서비스별 독립 데이터베이스를 요구한다. 다만 DB lifecyc
 ```text
 argo/applications/aws-dev/root.yaml
 argo/applications/aws-dev/services/auth.yaml
-argo/applications/aws-dev/services/reservation.yaml
+argo/applications/aws-dev/services/order.yaml
 ...
 ```
 
@@ -193,17 +193,17 @@ sources:
     targetRevision: HEAD
     path: charts/medikong-service
     helm:
-      releaseName: reservation-aws-dev
+      releaseName: order-aws-dev
       valueFiles:
         - $values/values/base.yaml
         - $values/values/env/aws-dev.yaml
-        - $values/values/services/reservation.yaml
+        - $values/values/services/order.yaml
   - repoURL: https://github.com/Medikong/e-gitops.git
     targetRevision: HEAD
     ref: values
 ```
 
-이 구조에서는 `reservation`만 sync, rollback, canary 전환하는 흐름이 가능해진다. 실제 Argo CD sync 수행과 prod 승인 정책은 별도 후속 작업으로 둔다.
+이 구조에서는 `order`만 sync, rollback, canary 전환하는 흐름이 가능해진다. 실제 Argo CD sync 수행과 prod 승인 정책은 별도 후속 작업으로 둔다.
 
 AWS bootstrap 명령은 인프라 생성 명령이 아니다. `task aws:bootstrap`은 infra repo가 준비한 AWS kubeadm 클러스터와 Argo CD 위에 `argo/applications/aws-dev/root.yaml` 같은 GitOps 진입점을 등록하거나 갱신한다.
 
@@ -227,7 +227,7 @@ task validate
 task dev:check
 task aws:check
 task helm:lint
-task helm:template:service SERVICE=reservation
+task helm:template:service SERVICE=order
 task helm:template:env ENV=aws-dev
 task scenario:network
 ```
@@ -237,7 +237,7 @@ task scenario:network
 ```bash
 make validate
 make helm-lint
-make helm-template SERVICE=reservation ENV=aws-prod
+make helm-template SERVICE=order ENV=aws-prod
 ```
 
 공통 chart가 바뀐 경우에는 모든 서비스와 주요 환경 조합을 렌더링해야 한다. 서비스 values만 바뀐 경우에는 해당 서비스와 대상 환경 렌더링을 최소 검증 단위로 삼는다.

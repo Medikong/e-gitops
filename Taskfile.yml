@@ -17,8 +17,6 @@ vars:
   DEV_IMAGE_TAG: '{{default "dev" .DEV_IMAGE_TAG}}'
   DEV_ROLLOUT_ID: '{{default "" .DEV_ROLLOUT_ID}}'
   DEV_SERVICES: '{{default "auth user catalog coupon interest order payment notification dropmong-web" .DEV_SERVICES}}'
-  LOADTEST_CAPACITY_BASELINE_CPU_REQUEST: '{{default "" .LOADTEST_CAPACITY_BASELINE_CPU_REQUEST}}'
-  LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS: '{{default "" .LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS}}'
   KONG_CHART: '{{default "kong/kong" .KONG_CHART}}'
   KONG_CHART_VERSION: '{{default "3.2.0" .KONG_CHART_VERSION}}'
   KONG_NAMESPACE: '{{default "kong" .KONG_NAMESPACE}}'
@@ -32,12 +30,6 @@ includes:
   observability:
     taskfile: platform/observability/Taskfile.yml
     dir: platform/observability
-  synthetic:
-    taskfile: platform/synthetic/Taskfile.yml
-    dir: platform/synthetic
-  loadtest:
-    taskfile: platform/loadtest/Taskfile.yml
-    dir: platform/loadtest
   metrics-server:
     taskfile: platform/metrics-server/Taskfile.yml
     dir: platform/metrics-server
@@ -89,212 +81,6 @@ tasks:
     cmds:
       - task: observability:up
 
-  dev:synthetic:
-    desc: Docker Desktop dev에 synthetic k6 CronJob을 배포합니다.
-    cmds:
-      - task: dev:registry
-      - task: synthetic:dev
-
-  dev:synthetic:run:
-    desc: 배포된 synthetic CronJob에서 수동 Job을 1회 실행하고 로그를 봅니다.
-    cmds:
-      - task: synthetic:run
-
-  dev:loadtest:
-    desc: Docker Desktop dev에 특정 loadtest 시나리오를 배포하고 dataset setup과 실행을 순차 처리합니다. SCENARIO=<scenario-name> PRESET=<preset-name>
-    cmds:
-      - task: dev:registry
-      - task --taskfile platform/monitoring/Taskfile.yml up
-      - task: metrics-server:up
-      - |
-        set -eu
-        preset="${PRESET:-${LOADTEST_PRESET:-${LOADTEST_SCENARIO_PRESET:-}}}"
-        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-}}"
-        if [ -z "${scenario}" ] && [ -n "${preset}" ]; then
-          scenario="reservation-journey-load-test"
-        fi
-        scenario="${scenario:-capacity-baseline-load-test}"
-        if [ "${scenario}" = "capacity-baseline-load-test" ]; then
-          preset="${preset:-local-smoke}"
-          scenario_values_file="${LOADTEST_SCENARIO_VALUES_FILE:-}"
-          if [ -z "${scenario_values_file}" ] && [ -n "${preset}" ]; then
-            scenario_base="${scenario%-load-test}"
-            for candidate in \
-              "platform/loadtest/values/presets/${scenario}/${preset}.yaml" \
-              "platform/loadtest/values/presets/${scenario_base}/${preset}.yaml" \
-              "platform/loadtest/values/presets/${preset}.yaml"; do
-              if [ -f "${candidate}" ]; then
-                scenario_values_file="${candidate}"
-                break
-              fi
-            done
-          fi
-          if [ -z "${scenario_values_file}" ] && [ -f "platform/loadtest/values/scenarios/${scenario}.yaml" ]; then
-            scenario_values_file="platform/loadtest/values/scenarios/${scenario}.yaml"
-          fi
-          capacity_cpu_request="${LOADTEST_CAPACITY_BASELINE_CPU_REQUEST:-}"
-          capacity_auth_token_ttl_seconds="${LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS:-}"
-          if [ -z "${capacity_cpu_request}" ] && [ -n "${scenario_values_file}" ]; then
-            if command -v ruby >/dev/null 2>&1; then
-              capacity_cpu_request="$(ruby -ryaml -e 'value = YAML.load_file(ARGV[0]).dig("scenarios", "capacityBaseline", "fixedConditions", "cpuRequest"); puts value if value' "${scenario_values_file}")"
-            fi
-          fi
-          if [ -z "${capacity_auth_token_ttl_seconds}" ] && [ -n "${scenario_values_file}" ]; then
-            if command -v ruby >/dev/null 2>&1; then
-              capacity_auth_token_ttl_seconds="$(ruby -ryaml -e 'value = YAML.load_file(ARGV[0]).dig("scenarios", "capacityBaseline", "fixedConditions", "authTokenTtlSeconds"); puts value if value' "${scenario_values_file}")"
-            fi
-          fi
-          capacity_cpu_request="${capacity_cpu_request:-500m}"
-          capacity_auth_token_ttl_seconds="${capacity_auth_token_ttl_seconds:-7200}"
-          printf 'Capacity baseline service CPU request=%s auth token ttl=%ss values=%s\n' "${capacity_cpu_request}" "${capacity_auth_token_ttl_seconds}" "${scenario_values_file:-default}"
-          task dev:services \
-            LOCAL_DOCKER_DESKTOP_ENV=local-capacity-baseline \
-            DEV_ROLLOUT_ID="capacity-baseline-$(date -u +%Y%m%dT%H%M%SZ)" \
-            LOADTEST_CAPACITY_BASELINE_CPU_REQUEST="${capacity_cpu_request}" \
-            LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS="${capacity_auth_token_ttl_seconds}"
-          warmup_seconds="${LOADTEST_CAPACITY_BASELINE_PROMETHEUS_WARMUP_SECONDS:-90}"
-          printf 'Waiting %ss for Prometheus scrape warmup before capacity baseline run.\n' "${warmup_seconds}"
-          sleep "${warmup_seconds}"
-        else
-          if { [ "${scenario}" = "reservation-journey-load-test" ] && { [ "${preset}" = "local-hpa-spike-3m" ] || [ "${preset}" = "local-hpa-spike-smoke-1m" ] || [ "${preset}" = "local-hpa-spike-scaleout-6m" ]; }; } || [ "${scenario}" = "service-hpa-spike-load-test" ]; then
-            printf 'Redeploying local dev services with HPA enabled for preset=%s.\n' "${preset}"
-            task dev:services \
-              LOCAL_DOCKER_DESKTOP_ENV=local-hpa-spike \
-              DEV_ROLLOUT_ID="local-hpa-spike-$(date -u +%Y%m%dT%H%M%SZ)"
-            if [ "${preset}" = "local-hpa-spike-smoke-1m" ]; then
-              warmup_seconds="${LOADTEST_LOCAL_HPA_SPIKE_WARMUP_SECONDS:-15}"
-            else
-              warmup_seconds="${LOADTEST_LOCAL_HPA_SPIKE_WARMUP_SECONDS:-60}"
-            fi
-            printf 'Waiting %ss for metrics-server/HPA warmup before local HPA spike run.\n' "${warmup_seconds}"
-            sleep "${warmup_seconds}"
-          fi
-        fi
-      - task: loadtest:run-local
-
-  dev:loadtest:deploy:
-    desc: Docker Desktop dev에 read API loadtest Helm release를 배포합니다.
-    cmds:
-      - task: dev:registry
-      - task: loadtest:secret-local
-      - task: loadtest:deploy
-
-  dev:loadtest:setup-dataset:
-    desc: read API loadtest dataset setup Job을 1회 실행하고 완료를 기다립니다.
-    cmds:
-      - task: loadtest:setup-dataset
-
-  dev:loadtest:run:
-    desc: read API loadtest Job을 1회 실행하고 완료를 기다립니다.
-    cmds:
-      - task: loadtest:run
-
-  aws:loadtest:
-    desc: aws-dev loadtest run values를 갱신해 ArgoCD로 1회 실행합니다. 기본 PRESET=aws-dev-smoke-1m
-    cmds:
-      - |
-        set -eu
-        preset="${PRESET:-${LOADTEST_PRESET:-{{.PRESET | default ""}}}}"
-        scenario="${SCENARIO:-${LOADTEST_SCENARIO:-{{.SCENARIO | default ""}}}}"
-        preset="${preset:-aws-dev-smoke-1m}"
-        scenario="${scenario:-reservation-journey-load-test}"
-        scenario_base="${scenario%-load-test}"
-
-        preset_file=""
-        for candidate in \
-          "platform/loadtest/values/presets/${scenario}/${preset}.yaml" \
-          "platform/loadtest/values/presets/${scenario_base}/${preset}.yaml" \
-          "platform/loadtest/values/presets/${preset}.yaml"; do
-          if [ -f "${candidate}" ]; then
-            preset_file="${candidate}"
-            break
-          fi
-        done
-        if [ -z "${preset_file}" ]; then
-          printf 'Unknown PRESET=%s for SCENARIO=%s.\n' "${preset}" "${scenario}" >&2
-          exit 2
-        fi
-
-        run_id="${LOADTEST_RUN_ID:-${preset}-$(date -u +%Y%m%d%H%M%S)}"
-        run_id="$(printf '%s' "${run_id}" \
-          | tr '[:upper:]' '[:lower:]' \
-          | sed 's/[^a-z0-9-]/-/g; s/^-*//; s/-*$//; s/--*/-/g' \
-          | cut -c1-40)"
-        if [ -z "${run_id}" ]; then
-          printf '%s\n' 'LOADTEST_RUN_ID did not contain any Kubernetes-safe characters.' >&2
-          exit 2
-        fi
-
-        run_file="platform/loadtest/values/runs/aws-dev/${scenario_base}-${preset}.yaml"
-        argo_file="argo/applications/aws-dev/platform/loadtest.yaml"
-        chart_preset_file="${preset_file#platform/loadtest/}"
-        chart_run_file="${run_file#platform/loadtest/}"
-
-        mkdir -p "$(dirname "${run_file}")"
-        service_steps="${LOADTEST_CAPACITY_BASELINE_SERVICE_STEPS:-}"
-        RUN_FILE="${run_file}" RUN_ID="${run_id}" SERVICE_STEPS_JSON="${service_steps}" ruby -rjson -ryaml -e '
-          path = ENV.fetch("RUN_FILE")
-          run_id = ENV.fetch("RUN_ID")
-          data = {
-            "manualRuns" => {
-              "read" => {
-                "runId" => run_id,
-              },
-            },
-          }
-          service_steps_json = ENV.fetch("SERVICE_STEPS_JSON", "").strip
-          unless service_steps_json.empty?
-            begin
-              service_steps = JSON.parse(service_steps_json)
-            rescue JSON::ParserError => e
-              warn "LOADTEST_CAPACITY_BASELINE_SERVICE_STEPS must be a JSON string array: #{e.message}"
-              exit 2
-            end
-            unless service_steps.is_a?(Array) && service_steps.all? { |step| step.is_a?(String) && !step.empty? }
-              warn "LOADTEST_CAPACITY_BASELINE_SERVICE_STEPS must be a JSON string array."
-              exit 2
-            end
-            data["scenarios"] = {
-              "capacityBaseline" => {
-                "serviceSteps" => service_steps,
-              },
-            }
-          end
-          File.write(path, data.to_yaml.sub(/\A---\n/, ""))
-        '
-
-        ARGO_FILE="${argo_file}" CHART_PRESET_FILE="${chart_preset_file}" CHART_RUN_FILE="${chart_run_file}" ruby -e '
-          path = ENV.fetch("ARGO_FILE")
-          files = [
-            "values/aws-dev.yaml",
-            ENV.fetch("CHART_PRESET_FILE"),
-            ENV.fetch("CHART_RUN_FILE"),
-          ]
-          lines = File.readlines(path)
-          out = []
-          i = 0
-          while i < lines.length
-            out << lines[i]
-            if lines[i].match?(/^\s+valueFiles:\s*$/)
-              i += 1
-              i += 1 while i < lines.length && lines[i].match?(/^\s+-\s+/)
-              files.each { |file| out << "        - #{file}\n" }
-              next
-            end
-            i += 1
-          end
-          File.write(path, out.join)
-        '
-
-        LOADTEST_VALUES_FILE=values/aws-dev.yaml LOADTEST_SCENARIO_VALUES_FILE="${chart_preset_file}" task loadtest:render >/dev/null
-        git add "${argo_file}" "${run_file}"
-        if git diff --cached --quiet -- "${argo_file}" "${run_file}"; then
-          printf '%s\n' 'No loadtest trigger changes to commit.'
-          exit 0
-        fi
-        git commit -m "chore(loadtest): trigger aws-dev ${preset} run" -- "${argo_file}" "${run_file}"
-        git push
-        printf 'Triggered aws-dev loadtest preset=%s scenario=%s run_id=%s\n' "${preset}" "${scenario}" "${run_id}"
 
   dev:platform:
     internal: true
@@ -318,21 +104,7 @@ tasks:
         if [ -n "${image_namespace}" ]; then
           image_registry="${image_registry%/}/${image_namespace#/}"
         fi
-        extra_helm_args=""
-        if [ "{{.LOCAL_DOCKER_DESKTOP_ENV}}" = "local-capacity-baseline" ]; then
-          capacity_cpu_request='{{.LOADTEST_CAPACITY_BASELINE_CPU_REQUEST}}'
-          capacity_cpu_request="${capacity_cpu_request:-${LOADTEST_CAPACITY_BASELINE_CPU_REQUEST:-500m}}"
-          capacity_auth_token_ttl_seconds='{{.LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS}}'
-          capacity_auth_token_ttl_seconds="${capacity_auth_token_ttl_seconds:-${LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS:-7200}}"
-          extra_helm_args="${extra_helm_args} --set hpa.enabled=false"
-          extra_helm_args="${extra_helm_args} --set-string container.resources.requests.cpu=${capacity_cpu_request}"
-          extra_helm_args="${extra_helm_args} --set container.resources.limits.cpu=null"
-          extra_helm_args="${extra_helm_args} --set nodeSelector=null"
-          extra_helm_args="${extra_helm_args} --set deployment.podAnnotations.sidecar\\.istio\\.io/proxyCPULimit=null"
-        fi
-        if [ "{{.LOCAL_DOCKER_DESKTOP_ENV}}" = "local-hpa-spike" ]; then
-          extra_helm_args="${extra_helm_args} --set nodeSelector=null"
-        fi
+
         yaml_section_field() {
           awk -v section="$2" -v wanted="$3" '
             $1 == section ":" { in_section = 1; next }
@@ -361,7 +133,6 @@ tasks:
           service="$(basename "${service_file}" .yaml)"
           namespace="$(yaml_section_field "${service_file}" app namespace)"
           release="${service}-{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"
-          service_helm_args="${extra_helm_args}"
           env_service_values=""
           if [ -f "values/services/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${service}.yaml" ]; then
             env_service_values="-f values/services/{{.LOCAL_DOCKER_DESKTOP_ENV}}/${service}.yaml"
@@ -370,9 +141,6 @@ tasks:
           override_args=""
           if [ -f "${override_file}" ]; then
             override_args="-f ${override_file}"
-          fi
-          if [ "{{.LOCAL_DOCKER_DESKTOP_ENV}}" = "local-capacity-baseline" ] && [ "${service}" = "auth" ]; then
-            service_helm_args="${service_helm_args} --set-string container.env[1].value=${capacity_auth_token_ttl_seconds}"
           fi
           (
             {{.HELM}} upgrade --install "${release}" {{.SERVICE_CHART}} \
@@ -387,8 +155,7 @@ tasks:
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
               --set-string image.digest="" \
               --set-string image.pullPolicy=Always \
-              --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id='"${rollout_id}" \
-              ${service_helm_args}
+              --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id='"${rollout_id}"
           ) &
           pids="${pids} $!"
         done
@@ -400,18 +167,6 @@ tasks:
         done
         if [ "${failed}" -ne 0 ]; then
           exit 1
-        fi
-        if [ "{{.LOCAL_DOCKER_DESKTOP_ENV}}" = "local-capacity-baseline" ]; then
-          for service in {{.DEV_SERVICES}}; do
-            service_file="values/services/${service}.yaml"
-            if [ ! -f "${service_file}" ]; then
-              printf 'Unknown DEV_SERVICES entry: %s (expected values/services/%s.yaml).\n' "${service}" "${service}" >&2
-              exit 2
-            fi
-            app_name="$(yaml_section_field "${service_file}" app name)"
-            namespace="$(yaml_section_field "${service_file}" app namespace)"
-            {{.KUBECTL}} scale "deployment/${app_name}" -n "${namespace}" --replicas=1
-          done
         fi
         pids=""
         rollout_failures="$(mktemp)"
@@ -666,7 +421,7 @@ tasks:
         set -eu
         service='{{default "" .SERVICE}}'
         if [ -z "${service}" ]; then
-          printf '%s\n' 'SERVICE is required, for example: task dev:restart SERVICE=concert' >&2
+          printf '%s\n' 'SERVICE is required, for example: task dev:restart SERVICE=order' >&2
           exit 2
         fi
         service_file="values/services/${service}.yaml"
@@ -928,21 +683,30 @@ tasks:
     cmds:
       - |
         set -eu
-        {{.KUBECTL}} delete job/kafka-create-topics -n ticketing-messaging --ignore-not-found=true
+        {{.KUBECTL}} delete job/kafka-create-topics -n dropmong-messaging --ignore-not-found=true
         {{.HELM}} upgrade --install medikong-data platform/data/chart \
-          --namespace ticketing-system \
+          --namespace dropmong-system \
           --create-namespace \
           -f platform/data/local/postgresql.yaml \
           -f platform/data/local/postgres-auth.yaml \
+          -f platform/data/local/postgres-user.yaml \
+          -f platform/data/local/postgres-catalog.yaml \
           -f platform/data/local/postgres-coupon.yaml \
+          -f platform/data/local/postgres-interest.yaml \
+          -f platform/data/local/postgres-order.yaml \
           -f platform/data/local/postgres-payment.yaml \
           -f platform/data/local/valkey.yaml
         pids=""
         for item in \
-          ticketing-auth/auth-db \
-          ticketing-payment/payment-db \
-          ticketing-messaging/kafka \
-          ticketing-coupon/coupon-redis
+          dropmong-auth/auth-db \
+          dropmong-user/user-db \
+          dropmong-catalog/catalog-db \
+          dropmong-coupon/coupon-db \
+          dropmong-interest/interest-db \
+          dropmong-order/order-db \
+          dropmong-payment/payment-db \
+          dropmong-messaging/kafka \
+          dropmong-coupon/coupon-redis
         do
           namespace="${item%%/*}"
           statefulset="${item##*/}"
@@ -960,7 +724,7 @@ tasks:
         if [ "${failed}" -ne 0 ]; then
           exit 1
         fi
-        {{.KUBECTL}} wait --for=condition=complete job/kafka-create-topics -n ticketing-messaging --timeout=180s
+        {{.KUBECTL}} wait --for=condition=complete job/kafka-create-topics -n dropmong-messaging --timeout=180s
 
   kong:repo:
     internal: true
@@ -996,7 +760,7 @@ tasks:
         printf '%s\n' '  task mesh-check'
 
   mesh-check:
-    desc: Istio control plane, Kiali, concert-service sidecar injection 상태를 확인합니다.
+    desc: Istio control plane, Kiali, DropMong routing resource 상태를 확인합니다.
     cmds:
       - |
         set -eu
@@ -1005,25 +769,8 @@ tasks:
         {{.KUBECTL}} get pods -n istio-system
         {{.KUBECTL}} get crd virtualservices.networking.istio.io destinationrules.networking.istio.io
         {{.KUBECTL}} get svc -n istio-system kiali
-        inject="$({{.KUBECTL}} get deployment concert-service -n ticketing-concert -o jsonpath='{.spec.template.metadata.annotations.sidecar\.istio\.io/inject}' 2>/dev/null || true)"
-        if [ "${inject}" != "true" ]; then
-          printf 'concert-service sidecar injection annotation is not enabled. current=%s\n' "${inject:-<empty>}" >&2
-          exit 1
-        fi
-        pod="$({{.KUBECTL}} get pods -n ticketing-concert -l app=concert-service -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
-        if [ -z "${pod}" ]; then
-          printf '%s\n' 'concert-service pod was not found.' >&2
-          exit 1
-        fi
-        containers="$({{.KUBECTL}} get pod "${pod}" -n ticketing-concert -o jsonpath='{.spec.containers[*].name}')"
-        printf 'concert-service pod containers: %s\n' "${containers}"
-        case " ${containers} " in
-          *" istio-proxy "*) ;;
-          *)
-            printf '%s\n' 'concert-service pod does not contain istio-proxy yet. Restart after istiod is healthy.' >&2
-            exit 1
-            ;;
-        esac
+        {{.KUBECTL}} get virtualservice --all-namespaces
+        {{.KUBECTL}} get authorizationpolicy --all-namespaces
 
   mesh-monitoring:render:
     desc: Istio/Kiali/Prometheus mesh monitoring 리소스를 렌더링합니다.
@@ -1037,22 +784,23 @@ tasks:
       - |
         set -eu
         {{.KUBECTL}} get crd podmonitors.monitoring.coreos.com
-        {{.KUBECTL}} get podmonitor -n monitoring istiod concert-envoy-sidecar
+        {{.KUBECTL}} get podmonitor -n monitoring istiod dropmong-envoy-sidecars
         {{.KUBECTL}} get svc -n monitoring kube-prometheus-stack-prometheus kube-prometheus-stack-grafana
         {{.KUBECTL}} get svc -n istio-system kiali
         {{.KUBECTL}} get pods -n istio-system -l app=istiod
-        {{.KUBECTL}} get pods -n ticketing-concert -l app=concert-service
+        {{.KUBECTL}} get pods -n dropmong-payment -l app=payment-service
+        {{.KUBECTL}} get pods -n dropmong-notification -l app=notification-service
         printf '%s\n' 'Prometheus queries to verify after traffic exists:'
         printf '%s\n' '  istio_requests_total'
         printf '%s\n' '  istio_request_duration_milliseconds_bucket'
         printf '%s\n' '  pilot_xds_pushes'
 
   sidecar:render:
-    desc: auth/dashboard을 제외한 backend sidecar rollout 대상 Helm manifest를 렌더링합니다.
+    desc: payment/notification sidecar rollout 대상 Helm manifest를 렌더링합니다.
     cmds:
       - |
         set -eu
-        for service in payment ticket notification; do
+        for service in payment notification; do
           {{.HELM}} template "${service}-sidecar" {{.SERVICE_CHART}} \
             -f {{.VALUES_BASE}} \
             -f values/env/aws-dev.yaml \
@@ -1061,14 +809,13 @@ tasks:
         done
 
   sidecar:check:
-    desc: payment/ticket/notification sidecar injection annotation과 Pod container 상태를 확인합니다.
+    desc: payment/notification sidecar injection annotation과 Pod container 상태를 확인합니다.
     cmds:
       - |
         set -eu
         for item in \
-          ticketing-payment/payment-service \
-          ticketing-ticket/ticket-service \
-          ticketing-notification/notification-service; do
+          dropmong-payment/payment-service \
+          dropmong-notification/notification-service; do
           ns="${item%/*}"
           deployment="${item#*/}"
           printf '%s\n' "Deployment annotation: ${ns}/${deployment}"
@@ -1088,7 +835,7 @@ tasks:
     cmds:
       - |
         set -eu
-        for ns in ticketing-auth ticketing-concert ticketing-reservation ticketing-payment ticketing-ticket ticketing-notification ticketing-dashboard ticketing-messaging; do
+        for ns in dropmong-auth dropmong-user dropmong-catalog dropmong-coupon dropmong-interest dropmong-order dropmong-payment dropmong-notification dropmong-web dropmong-messaging; do
           {{.KUBECTL}} get role -n "${ns}" medikong-developer-readonly medikong-operator-deployment-manager medikong-sre-namespace-admin
           {{.KUBECTL}} get rolebinding -n "${ns}" medikong-developers-readonly medikong-operators-deployment-manager medikong-sres-namespace-admin
         done
@@ -1096,82 +843,6 @@ tasks:
         printf '%s\n' '  medikong:developers -> readonly'
         printf '%s\n' '  medikong:operators  -> deployment patch/update'
         printf '%s\n' '  medikong:sres       -> namespace admin'
-
-  canary:render:
-    desc: reservation-service canary Helm/VirtualService/DestinationRule manifest를 렌더링합니다.
-    cmds:
-      - |
-        set -eu
-        {{.HELM}} template reservation-canary {{.SERVICE_CHART}} \
-          -f {{.VALUES_BASE}} \
-          -f values/env/aws-dev.yaml \
-          -f values/services/reservation.yaml \
-          -f values/services/aws-dev/reservation.yaml \
-          -f values/scenarios/istio/reservation-canary-v2.yaml >/dev/null
-        {{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/reservation >/dev/null
-        for scenario in canary-20 canary-50 canary-100 rollback; do
-          {{.KUBECTL}} kustomize "{{.ISTIO_PLATFORM}}/traffic/reservation/scenarios/${scenario}" >/dev/null
-        done
-
-  canary:check:
-    desc: reservation-service canary routing과 v1/v2 Pod label 상태를 확인합니다.
-    cmds:
-      - |
-        set -eu
-        {{.KUBECTL}} get destinationrule -n ticketing-reservation reservation-service
-        {{.KUBECTL}} get virtualservice -n ticketing-reservation reservation-service
-        {{.KUBECTL}} get pods -n ticketing-reservation -l app=reservation-service --show-labels
-        printf '%s\n' 'Expected subsets:'
-        printf '%s\n' '  version=v1 -> stable reservation-service deployment'
-        printf '%s\n' '  version=v2 -> reservation-service-v2 canary deployment'
-        printf '%s\n' 'Scenario manifests:'
-        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/canary-20'
-        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/canary-50'
-        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/canary-100'
-        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/rollback'
-
-  circuit-breaker:render:
-    desc: reservation-service/notification-service circuit breaker와 fault injection scenario manifest를 렌더링합니다.
-    cmds:
-      - |
-        set -eu
-        {{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/reservation >/dev/null
-        {{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/notification >/dev/null
-        for scenario in fault-5xx fault-delay rollback; do
-          {{.KUBECTL}} kustomize "{{.ISTIO_PLATFORM}}/traffic/reservation/scenarios/${scenario}" >/dev/null
-        done
-
-  circuit-breaker:check:
-    desc: reservation-service/notification-service circuit breaker 정책과 검증 대상 리소스 상태를 확인합니다.
-    cmds:
-      - |
-        set -eu
-        {{.KUBECTL}} get destinationrule -n ticketing-reservation reservation-service
-        {{.KUBECTL}} get destinationrule -n ticketing-notification notification-service
-        {{.KUBECTL}} get virtualservice -n ticketing-reservation reservation-service
-        {{.KUBECTL}} get pods -n ticketing-reservation -l app=reservation-service --show-labels
-        {{.KUBECTL}} get pods -n ticketing-notification -l app=notification-service --show-labels
-        printf '%s\n' 'Expected DestinationRule trafficPolicy:'
-        printf '%s\n' '  connectionPool.tcp.maxConnections=100'
-        printf '%s\n' '  connectionPool.http.http1MaxPendingRequests=100'
-        printf '%s\n' '  connectionPool.http.maxRequestsPerConnection=50'
-        printf '%s\n' '  outlierDetection.consecutive5xxErrors=5'
-        printf '%s\n' '  outlierDetection.baseEjectionTime=30s'
-        printf '%s\n' 'Expected notification DestinationRule trafficPolicy:'
-        printf '%s\n' '  connectionPool.tcp.maxConnections=50'
-        printf '%s\n' '  connectionPool.http.http1MaxPendingRequests=50'
-        printf '%s\n' '  connectionPool.http.maxRequestsPerConnection=20'
-        printf '%s\n' '  outlierDetection.consecutive5xxErrors=3'
-        printf '%s\n' '  outlierDetection.baseEjectionTime=30s'
-        printf '%s\n' 'Expected VirtualService stable policy:'
-        printf '%s\n' '  timeout=2s'
-        printf '%s\n' '  retries.attempts=2'
-        printf '%s\n' '  retries.perTryTimeout=1s'
-        printf '%s\n' 'Fault scenarios:'
-        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/fault-5xx'
-        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/fault-delay'
-        printf '%s\n' 'Rollback scenario:'
-        printf '%s\n' '  platform/istio/traffic/reservation/scenarios/rollback'
 
   dev:kong:check:
     internal: true
@@ -1219,7 +890,7 @@ tasks:
       - '{{.KUBECTL}} get ingressclass kong'
       - '{{.KUBECTL}} get pods,svc -n {{.KONG_NAMESPACE}}'
       - '{{.KUBECTL}} get kongclusterplugins.configuration.konghq.com'
-      - '{{.KUBECTL}} get kongconsumers.configuration.konghq.com -n ticketing-auth'
+      - '{{.KUBECTL}} get kongconsumers.configuration.konghq.com -n dropmong-auth'
 
   dev:kong:down:
     internal: true
@@ -1263,7 +934,7 @@ tasks:
             }
           ' "$1"
         }
-        namespaces="monitoring observability {{.KONG_NAMESPACE}} ticketing-messaging"
+        namespaces="monitoring observability {{.KONG_NAMESPACE}} dropmong-messaging"
         for service_file in values/services/*.yaml; do
           namespace="$(app_field "${service_file}" namespace)"
           if [ -n "${namespace}" ]; then
@@ -1324,7 +995,7 @@ tasks:
       - task: dev:kong:down
       - |
         set -eu
-        {{.HELM}} uninstall medikong-data --namespace ticketing-system --ignore-not-found
+        {{.HELM}} uninstall medikong-data --namespace dropmong-system --ignore-not-found
         {{.KUBECTL}} delete -k platform/namespaces --ignore-not-found=true
 
   aws:check:
@@ -1400,7 +1071,7 @@ tasks:
         set -eu
         service='{{default "" .SERVICE}}'
         if [ -z "${service}" ]; then
-          printf '%s\n' 'SERVICE is required, for example: task helm:template:service SERVICE=concert' >&2
+          printf '%s\n' 'SERVICE is required, for example: task helm:template:service SERVICE=order' >&2
           exit 2
         fi
         service_file="values/services/${service}.yaml"
@@ -1440,7 +1111,7 @@ tasks:
         env='{{default "" .ENV}}'
         output='{{default "/dev/null" .OUTPUT}}'
         if [ -z "${service}" ] || [ -z "${env}" ]; then
-          printf '%s\n' 'SERVICE and ENV are required, for example: task helm:template:one SERVICE=concert ENV=aws-dev' >&2
+          printf '%s\n' 'SERVICE and ENV are required, for example: task helm:template:one SERVICE=order ENV=aws-dev' >&2
           exit 2
         fi
         service_file="values/services/${service}.yaml"
@@ -1497,7 +1168,7 @@ tasks:
         service='{{default "" .SERVICE}}'
         scenario='{{default "" .SCENARIO}}'
         if [ -z "${scenario}" ]; then
-          printf '%s\n' 'SCENARIO is required, for example: task scenario:render SCENARIO=network SERVICE=concert' >&2
+          printf '%s\n' 'SCENARIO is required, for example: task scenario:render SCENARIO=network SERVICE=order' >&2
           exit 2
         fi
         if [ ! -f "values/scenarios/aws/${scenario}.yaml" ]; then
@@ -1537,20 +1208,27 @@ tasks:
         {{.HELM}} template medikong-data platform/data/chart
         -f platform/data/local/postgresql.yaml
         -f platform/data/local/postgres-auth.yaml
+        -f platform/data/local/postgres-user.yaml
+        -f platform/data/local/postgres-catalog.yaml
         -f platform/data/local/postgres-coupon.yaml
+        -f platform/data/local/postgres-interest.yaml
+        -f platform/data/local/postgres-order.yaml
         -f platform/data/local/postgres-payment.yaml
         -f platform/data/local/valkey.yaml >/dev/null
       - >-
         {{.HELM}} template medikong-data platform/data/chart
         -f platform/data/aws-dev/postgresql.yaml
         -f platform/data/aws-dev/postgres-auth.yaml
+        -f platform/data/aws-dev/postgres-user.yaml
+        -f platform/data/aws-dev/postgres-catalog.yaml
+        -f platform/data/aws-dev/postgres-coupon.yaml
+        -f platform/data/aws-dev/postgres-interest.yaml
+        -f platform/data/aws-dev/postgres-order.yaml
         -f platform/data/aws-dev/postgres-payment.yaml >/dev/null
       - '{{.KUBECTL}} kustomize platform/data-private-dev >/dev/null'
       - '{{.KUBECTL}} kustomize platform/kong >/dev/null'
       - '{{.KUBECTL}} kustomize platform/monitoring >/dev/null'
       - '{{.KUBECTL}} kustomize platform/policies >/dev/null'
-      - '{{.KUBECTL}} kustomize platform/synthetic-credentials >/dev/null'
-      - '{{.KUBECTL}} kustomize platform/synthetic-credentials-private-dev >/dev/null'
       - task istio:render
       - task: metrics-server:render
 

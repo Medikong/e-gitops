@@ -1,7 +1,7 @@
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-rate-limit-concerts
+  name: dropmong-rate-limit-payments
   annotations:
     kubernetes.io/ingress.class: kong
   labels:
@@ -14,7 +14,7 @@ config:
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-rate-limit-reservations
+  name: dropmong-rate-limit-notifications
   annotations:
     kubernetes.io/ingress.class: kong
   labels:
@@ -27,46 +27,7 @@ config:
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-rate-limit-payments
-  annotations:
-    kubernetes.io/ingress.class: kong
-  labels:
-    app.kubernetes.io/part-of: medikong
-plugin: rate-limiting
-config:
-  minute: 120
-  policy: local
----
-apiVersion: configuration.konghq.com/v1
-kind: KongClusterPlugin
-metadata:
-  name: ticketing-rate-limit-tickets
-  annotations:
-    kubernetes.io/ingress.class: kong
-  labels:
-    app.kubernetes.io/part-of: medikong
-plugin: rate-limiting
-config:
-  minute: 120
-  policy: local
----
-apiVersion: configuration.konghq.com/v1
-kind: KongClusterPlugin
-metadata:
-  name: ticketing-rate-limit-notifications
-  annotations:
-    kubernetes.io/ingress.class: kong
-  labels:
-    app.kubernetes.io/part-of: medikong
-plugin: rate-limiting
-config:
-  minute: 120
-  policy: local
----
-apiVersion: configuration.konghq.com/v1
-kind: KongClusterPlugin
-metadata:
-  name: ticketing-rate-limit-orders
+  name: dropmong-rate-limit-orders
   annotations:
     kubernetes.io/ingress.class: kong
   labels:

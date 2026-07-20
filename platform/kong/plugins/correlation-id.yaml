@@ -1,7 +1,7 @@
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-correlation-id
+  name: dropmong-correlation-id
   annotations:
     kubernetes.io/ingress.class: kong
   labels:

@@ -44,7 +44,6 @@ Loki label은 낮은 cardinality 값만 허용한다.
   - span_id
   - request_id
   - client_action_id
-  - synthetic_run_id
   - user_id
   - order_id
   - payment_id

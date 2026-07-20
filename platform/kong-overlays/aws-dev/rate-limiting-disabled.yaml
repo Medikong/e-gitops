@@ -1,7 +1,7 @@
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-rate-limit-concerts
+  name: dropmong-rate-limit-payments
 config:
   minute: 1000000
   policy: local
@@ -9,7 +9,7 @@ config:
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-rate-limit-reservations
+  name: dropmong-rate-limit-notifications
 config:
   minute: 1000000
   policy: local
@@ -17,23 +17,7 @@ config:
 apiVersion: configuration.konghq.com/v1
 kind: KongClusterPlugin
 metadata:
-  name: ticketing-rate-limit-payments
-config:
-  minute: 1000000
-  policy: local
----
-apiVersion: configuration.konghq.com/v1
-kind: KongClusterPlugin
-metadata:
-  name: ticketing-rate-limit-tickets
-config:
-  minute: 1000000
-  policy: local
----
-apiVersion: configuration.konghq.com/v1
-kind: KongClusterPlugin
-metadata:
-  name: ticketing-rate-limit-notifications
+  name: dropmong-rate-limit-orders
 config:
   minute: 1000000
   policy: local

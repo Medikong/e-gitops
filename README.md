@@ -48,7 +48,7 @@ Taskfile이 기본 명령 표면이다.
 task dev
 ```
 
-`task dev`는 Prometheus stack을 먼저 준비한 뒤 namespace, `platform/data`, Kong Ingress Controller/Gateway를 준비한다. 이어서 `SERVICE_REPO`의 공개 Taskfile 명령으로 백엔드 서비스 이미지를 만들고 push한 뒤, 같은 registry/tag를 서비스 Helm release에 넘긴다. 기본값은 `SERVICE_REPO=../service`, `DEV_REGISTRY=localhost:5001`, `DEV_IMAGE_TAG=dev`, `DEV_SERVICES="auth concert notification payment reservation ticket"`이다. dashboard는 로컬 dev/metrics 검증 대상에서 제외한다.
+`task dev`는 Prometheus/Grafana와 Tempo/Loki를 먼저 준비한 뒤 namespace, `platform/data`, Kong Ingress Controller/Gateway를 준비한다. 이어서 `SERVICE_REPO`의 공개 Taskfile 명령으로 백엔드 서비스 이미지를 만들고 push한 뒤, 같은 registry/tag를 서비스 Helm release에 넘긴다. 기본값은 `SERVICE_REPO=../service`, `DEV_REGISTRY=localhost:5001`, `DEV_IMAGE_TAG=dev`, `DEV_SERVICES="auth user catalog coupon interest order payment notification dropmong-web"`이다.
 
 ```bash
 task dev:check
@@ -83,8 +83,8 @@ TOKEN="$(
   | sed -n 's/.*"accessToken"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
 )"
 
-curl -fsS http://localhost/concerts -H "Authorization: Bearer ${TOKEN}"
-curl -fsS http://localhost/reservations -H "Authorization: Bearer ${TOKEN}"
+curl -fsS http://localhost/v1/drops -H "Authorization: Bearer ${TOKEN}"
+curl -fsS http://localhost/orders -H "Authorization: Bearer ${TOKEN}"
 ```
 
 배포 후 상태 확인과 정리는 다음처럼 한다.
@@ -116,9 +116,9 @@ Makefile은 호환 wrapper다.
 ```bash
 make validate
 make helm-lint
-make helm-template SERVICE=concert ENV=aws-prod
-make helm-template-service SERVICE=concert
-make scenario SCENARIO=hpa SERVICE=concert
+make helm-template SERVICE=order ENV=aws-prod
+make helm-template-service SERVICE=order
+make scenario SCENARIO=hpa SERVICE=order
 ```
 
 ## 환경 이름

@@ -19,5 +19,5 @@ metadata:
     app.kubernetes.io/part-of: medikong
 stringData:
   key: auth-service
-  secret: ticketing-dev-secret
+  secret: dropmong-dev-secret
   algorithm: HS256

@@ -1,0 +1,6 @@
+postgresql:
+  databases:
+    interest:
+      name: interest-db
+      namespace: dropmong-interest
+      database: interest_db

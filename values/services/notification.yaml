@@ -30,7 +30,7 @@ container:
   port: 8084
   env:
     - name: KAFKA_BOOTSTRAP_SERVERS
-      value: kafka.ticketing-messaging.svc.cluster.local:9092
+      value: kafka.dropmong-messaging.svc.cluster.local:9092
   apiEnv:
     - name: UVICORN_WORKERS
       value: "2"
@@ -57,7 +57,7 @@ ingress:
   objects:
     - name: notification-customer-api
       annotations:
-        konghq.com/plugins: ticketing-jwt,ticketing-identity-headers,ticketing-role-customer,ticketing-rate-limit-notifications,ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: dropmong-jwt,dropmong-identity-headers,dropmong-role-customer,dropmong-rate-limit-notifications,dropmong-correlation-id,dropmong-prometheus
       hosts:
         - host: ""
           paths:
@@ -65,7 +65,7 @@ ingress:
               pathType: Prefix
     - name: notification-debug-api
       annotations:
-        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: dropmong-correlation-id,dropmong-prometheus
       hosts:
         - host: ""
           paths:
@@ -101,7 +101,7 @@ networkPolicy:
     - to:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: ticketing-messaging
+              kubernetes.io/metadata.name: dropmong-messaging
           podSelector:
             matchLabels:
               app.kubernetes.io/name: kafka

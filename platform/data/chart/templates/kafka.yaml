@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kafka
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: kafka
@@ -19,7 +19,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kafka-headless
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: kafka
@@ -39,7 +39,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: kafka
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: kafka
@@ -90,7 +90,7 @@ spec:
             - name: KAFKA_LISTENERS
               value: PLAINTEXT://:9092,CONTROLLER://:9093
             - name: KAFKA_ADVERTISED_LISTENERS
-              value: PLAINTEXT://kafka.ticketing-messaging.svc.cluster.local:9092
+              value: PLAINTEXT://kafka.dropmong-messaging.svc.cluster.local:9092
             - name: KAFKA_HEAP_OPTS
               value: -Xms256m -Xmx512m
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
@@ -98,7 +98,7 @@ spec:
             - name: KAFKA_CONTROLLER_LISTENER_NAMES
               value: CONTROLLER
             - name: KAFKA_CONTROLLER_QUORUM_VOTERS
-              value: 1@kafka-0.kafka-headless.ticketing-messaging.svc.cluster.local:9093
+              value: 1@kafka-0.kafka-headless.dropmong-messaging.svc.cluster.local:9093
             - name: KAFKA_INTER_BROKER_LISTENER_NAME
               value: PLAINTEXT
             - name: KAFKA_LOG_DIRS
@@ -147,7 +147,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: kafka-create-topics
-  namespace: ticketing-messaging
+  namespace: dropmong-messaging
   labels:
     app.kubernetes.io/part-of: medikong
     app.kubernetes.io/name: kafka-create-topics

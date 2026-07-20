@@ -81,7 +81,7 @@ ingress:
   objects:
     - name: user-registration-api
       annotations:
-        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus
+        konghq.com/plugins: dropmong-correlation-id,dropmong-prometheus
         konghq.com/strip-path: "false"
       hosts:
         - host: ""
@@ -90,7 +90,7 @@ ingress:
               pathType: Exact
     - name: user-self-api
       annotations:
-        konghq.com/plugins: ticketing-correlation-id,ticketing-prometheus,ticketing-jwt
+        konghq.com/plugins: dropmong-correlation-id,dropmong-prometheus,dropmong-jwt
         konghq.com/strip-path: "false"
       hosts:
         - host: ""
