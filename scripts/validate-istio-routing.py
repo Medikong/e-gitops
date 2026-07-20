@@ -35,7 +35,23 @@ DESTINATIONS: Final = {
 }
 PUBLIC_HEADERS: Final = {"x-user-id", "x-session-id", "x-token-id", "x-user-role", "x-user-email"}
 PROTECTED_HEADERS: Final = {"x-user-role", "x-user-email"}
-CANONICAL_HEADERS: Final = {"x-user-id", "x-session-id", "x-token-id"}
+SESSION_STATUS_PATH: Final = "/internal/session/status"
+SESSION_STATUS_REDIS_URL: Final = "redis://auth-session-redis.dropmong-auth.svc.cluster.local:6379/0"
+SESSION_STATUS_CACHE_TTL: Final = "5m"
+SESSION_STATUS_TOMBSTONE_TTL: Final = "20m"
+SESSION_STATUS_ENV: Final = {
+    "AUTH_SESSION_STATUS_ENABLED",
+    "REDIS_URL",
+    "AUTH_SESSION_STATUS_TIMEOUT",
+    "AUTH_SESSION_STATUS_DB_TIMEOUT",
+    "AUTH_SESSION_STATUS_CACHE_TTL",
+    "AUTH_SESSION_STATUS_TOMBSTONE_TTL",
+}
+LEGACY_SESSION_STATUS_ENV: Final = {
+    "AUTH_SESSION_STATUS_REDIS_URL",
+    "AUTH_SESSION_STATUS_ACTIVE_TTL",
+    "AUTH_SESSION_STATUS_MAX_DB_LOOKUPS",
+}
 FORBIDDEN: Final = (
     "/internal",
     "jwks",
@@ -222,11 +238,91 @@ def validate_provider(repo: Path) -> None:
     providers = sequence(mapping(mapping(values, "istiod values").get("meshConfig"), "meshConfig").get("extensionProviders"), "extensionProviders")
     matching = [mapping(item, "extensionProviders[]") for item in providers if mapping(item, "extensionProviders[]").get("name") == "medikong-authz-http"]
     if len(matching) != 1:
-        raise ContractError("provider_headers", f"provider count {len(matching)}")
+        raise ContractError("provider_contract", f"provider count {len(matching)}")
     config = mapping(matching[0].get("envoyExtAuthzHttp"), "envoyExtAuthzHttp")
-    headers = set(sequence(config.get("headersToUpstreamOnAllow"), "headersToUpstreamOnAllow"))
-    if headers != CANONICAL_HEADERS:
-        raise ContractError("provider_headers", f"canonical overwrite headers {sorted(headers)}")
+    expected: dict[str, YamlValue] = {
+        "service": "auth-service.dropmong-auth.svc.cluster.local",
+        "port": 8080,
+        "pathPrefix": SESSION_STATUS_PATH,
+        "timeout": "200ms",
+        "failOpen": False,
+        "statusOnError": "503",
+        "includeRequestHeadersInCheck": ["authorization", "x-request-id"],
+        "headersToUpstreamOnAllow": ["x-user-id", "x-session-id", "x-token-id"],
+    }
+    actual = {key: config.get(key) for key in expected}
+    if actual != expected:
+        raise ContractError("provider_contract", f"auth provider differs: {actual}")
+
+
+def container_env(repo: Path, relative_path: str) -> dict[str, YamlValue]:
+    values = load(repo / relative_path)
+    container = mapping(values.get("container"), f"{relative_path}.container")
+    result: dict[str, YamlValue] = {}
+    for item_value in sequence(container.get("env"), f"{relative_path}.container.env"):
+        item = mapping(item_value, f"{relative_path}.container.env[]")
+        name = scalar(item.get("name"), f"{relative_path}.container.env[].name")
+        if name in result:
+            raise ContractError("auth_session_status", f"{relative_path}: duplicate {name}")
+        result[name] = item.get("value")
+    return result
+
+
+def validate_auth_session_status(repo: Path) -> None:
+    expected_by_file: dict[str, dict[str, YamlValue]] = {
+        "values/services/auth.yaml": {
+            "AUTH_SESSION_STATUS_ENABLED": "false",
+            "AUTH_SESSION_STATUS_TIMEOUT": "200ms",
+            "AUTH_SESSION_STATUS_DB_TIMEOUT": "100ms",
+            "AUTH_SESSION_STATUS_CACHE_TTL": SESSION_STATUS_CACHE_TTL,
+            "AUTH_SESSION_STATUS_TOMBSTONE_TTL": SESSION_STATUS_TOMBSTONE_TTL,
+        },
+        "values/services/private-dev/auth.yaml": {
+            "AUTH_SESSION_STATUS_ENABLED": "true",
+            "REDIS_URL": SESSION_STATUS_REDIS_URL,
+            "AUTH_SESSION_STATUS_TIMEOUT": "200ms",
+            "AUTH_SESSION_STATUS_DB_TIMEOUT": "100ms",
+            "AUTH_SESSION_STATUS_CACHE_TTL": SESSION_STATUS_CACHE_TTL,
+            "AUTH_SESSION_STATUS_TOMBSTONE_TTL": SESSION_STATUS_TOMBSTONE_TTL,
+        },
+    }
+    for relative_path, expected in expected_by_file.items():
+        env = container_env(repo, relative_path)
+        legacy = sorted(LEGACY_SESSION_STATUS_ENV & env.keys())
+        if legacy:
+            raise ContractError("auth_session_status", f"{relative_path}: legacy variables {legacy}")
+        actual = {name: env.get(name) for name in expected}
+        if actual != expected:
+            raise ContractError("auth_session_status", f"{relative_path}: {actual}")
+
+    base = load(repo / "values/services/auth.yaml")
+    workers = sequence(base.get("workers"), "values/services/auth.yaml.workers")
+    matching = [
+        mapping(value, "values/services/auth.yaml.workers[]")
+        for value in workers
+        if mapping(value, "values/services/auth.yaml.workers[]").get("name") == "worker"
+    ]
+    if len(matching) != 1 or matching[0].get("command") != ["/app/worker"]:
+        raise ContractError("auth_session_status", "auth worker command differs")
+    worker_env = {
+        scalar(mapping(value, "auth worker env[]").get("name"), "auth worker env[].name")
+        for value in sequence(matching[0].get("env", []), "auth worker env")
+    }
+    duplicate_session_env = sorted(worker_env & SESSION_STATUS_ENV)
+    if duplicate_session_env:
+        raise ContractError(
+            "auth_session_status",
+            f"auth worker overrides inherited session status variables {duplicate_session_env}",
+        )
+    worker_template = (repo / "charts/medikong-service/templates/workers.yaml").read_text(
+        encoding="utf-8"
+    )
+    inheritance_contract = (
+        "$containerEnv := concat $observabilityEnv $root.Values.container.env "
+        "(default (list) $worker.env)"
+    )
+    if inheritance_contract not in worker_template:
+        raise ContractError("auth_session_status", "auth worker no longer inherits container.env")
 
 
 def application_sources(application: dict[str, YamlValue]) -> list[dict[str, YamlValue]]:
@@ -289,12 +385,13 @@ def main() -> int:
         _, protected = validate_routes(virtual_services(repo), expected)
         validate_policy(repo, protected)
         validate_provider(repo)
+        validate_auth_session_status(repo)
         validate_applications(repo)
         validate_network_policies(repo)
     except ContractError as error:
         print(f"FAIL {error}")
         return 1
-    print(f"PASS task9-istio-routing-authz: public={len(expected[0])} protected={len(expected[1])} networkPolicies=4 privateRefs=1 awsRefs=0")
+    print(f"PASS task9-istio-routing-authz: public={len(expected[0])} protected={len(expected[1])} networkPolicies=4 privateRefs=1 awsRefs=0 sessionStatus=private-dev")
     return 0
 
 
