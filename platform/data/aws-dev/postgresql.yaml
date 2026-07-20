@@ -12,3 +12,4 @@ postgresql:
       cpu: 1000m
       memory: 1Gi
   storage: 10Gi
+  storageClassName: medikong-aws-gp3

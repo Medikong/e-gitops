@@ -162,6 +162,9 @@ spec:
     - metadata:
         name: data
       spec:
+{{- if $postgres.storageClassName }}
+        storageClassName: {{ $postgres.storageClassName | quote }}
+{{- end }}
         accessModes:
           - ReadWriteOnce
         resources:
