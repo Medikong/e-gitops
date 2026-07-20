@@ -288,7 +288,11 @@ additionalManifests:
             - containerPort: 9094
             env:
             - name: DISCORD_WEBHOOK
-              value: "https://discord.com/api/webhooks/1517439837165060217/cI7CINSHhBWJuFp8p2uaIrze89xbfYPSdhOz3e7o0G8RxbHhXzYkl84BMX1tV8hlAjIy"
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-discord-webhook
+                  key: webhook-url
+                  optional: false
   - apiVersion: v1
     kind: Service
     metadata:

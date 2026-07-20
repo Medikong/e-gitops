@@ -1,21 +1,39 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: service-slo-alerts
+  name: dropmong-service-slo
   labels:
-    app.kubernetes.io/name: service-slo-alerts
-    app.kubernetes.io/part-of: medikong-platform
+    app.kubernetes.io/name: dropmong-service-slo
+    app.kubernetes.io/part-of: dropmong-platform
     release: kube-prometheus-stack
 spec:
   groups:
-    - name: medikong.service.slo
+    - name: dropmong.service.recording
       rules:
-        - alert: MedikongServiceHigh5xxErrorRate
+        - record: dropmong:http_requests:rate5m
+          expr: |
+            sum by (service_name) (
+              rate(http_server_request_duration_seconds_count{
+                service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                http_route_kind="api"
+              }[5m])
+            )
+        - record: dropmong:http_5xx:rate5m
+          expr: |
+            sum by (service_name) (
+              rate(http_server_request_duration_seconds_count{
+                service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                http_route_kind="api",
+                http_response_status_code=~"5.."
+              }[5m])
+            )
+        - record: dropmong:http_5xx_ratio:rate5m
           expr: |
             (
               sum by (service_name) (
                 rate(http_server_request_duration_seconds_count{
-                  service_name=~".+-service",
+                  service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                  http_route_kind="api",
                   http_response_status_code=~"5.."
                 }[5m])
               )
@@ -23,44 +41,231 @@ spec:
               clamp_min(
                 sum by (service_name) (
                   rate(http_server_request_duration_seconds_count{
-                    service_name=~".+-service"
+                    service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                    http_route_kind="api"
                   }[5m])
                 ),
                 0.001
               )
-            ) > 0.05
-          for: 5m
-          labels:
-            severity: critical
-          annotations:
-            summary: "Service 5xx error rate is above 5%"
-            description: "{{ $labels.service_name }} has a 5xx error rate above 5% for more than 5 minutes."
-        - alert: MedikongServiceP99LatencyHigh
+            )
+            and on (service_name)
+            (
+              sum by (service_name) (
+                rate(http_server_request_duration_seconds_count{
+                  service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                  http_route_kind="api"
+                }[5m])
+              ) > 0
+            )
+        - record: dropmong:http_request_duration_seconds:p99_5m
           expr: |
             histogram_quantile(
               0.99,
               sum by (service_name, le) (
                 rate(http_server_request_duration_seconds_bucket{
-                  service_name=~".+-service"
+                  service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                  http_route_kind="api"
                 }[5m])
               )
-            ) > 2
+            )
+        - record: dropmong:slo_http_5xx_burn_rate:5m
+          expr: |
+            (
+              (
+                sum by (service_name) (
+                  rate(http_server_request_duration_seconds_count{
+                    service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                    http_route_kind="api",
+                    http_response_status_code=~"5.."
+                  }[5m])
+                )
+                /
+                clamp_min(
+                  sum by (service_name) (
+                    rate(http_server_request_duration_seconds_count{
+                      service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                      http_route_kind="api"
+                    }[5m])
+                  ),
+                  0.001
+                )
+              )
+            ) / 0.001
+            and on (service_name)
+            (
+              sum by (service_name) (
+                rate(http_server_request_duration_seconds_count{
+                  service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                  http_route_kind="api"
+                }[5m])
+              ) > 0
+            )
+        - record: dropmong:slo_http_5xx_burn_rate:1h
+          expr: |
+            (
+              (
+                sum by (service_name) (
+                  rate(http_server_request_duration_seconds_count{
+                    service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                    http_route_kind="api",
+                    http_response_status_code=~"5.."
+                  }[1h])
+                )
+                /
+                clamp_min(
+                  sum by (service_name) (
+                    rate(http_server_request_duration_seconds_count{
+                      service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                      http_route_kind="api"
+                    }[1h])
+                  ),
+                  0.001
+                )
+              )
+            ) / 0.001
+            and on (service_name)
+            (
+              sum by (service_name) (
+                rate(http_server_request_duration_seconds_count{
+                  service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                  http_route_kind="api"
+                }[1h])
+              ) > 0
+            )
+        - record: dropmong:slo_http_5xx_burn_rate:30m
+          expr: |
+            (
+              (
+                sum by (service_name) (
+                  rate(http_server_request_duration_seconds_count{
+                    service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                    http_route_kind="api",
+                    http_response_status_code=~"5.."
+                  }[30m])
+                )
+                /
+                clamp_min(
+                  sum by (service_name) (
+                    rate(http_server_request_duration_seconds_count{
+                      service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                      http_route_kind="api"
+                    }[30m])
+                  ),
+                  0.001
+                )
+              )
+            ) / 0.001
+            and on (service_name)
+            (
+              sum by (service_name) (
+                rate(http_server_request_duration_seconds_count{
+                  service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                  http_route_kind="api"
+                }[30m])
+              ) > 0
+            )
+        - record: dropmong:slo_http_5xx_burn_rate:6h
+          expr: |
+            (
+              (
+                sum by (service_name) (
+                  rate(http_server_request_duration_seconds_count{
+                    service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                    http_route_kind="api",
+                    http_response_status_code=~"5.."
+                  }[6h])
+                )
+                /
+                clamp_min(
+                  sum by (service_name) (
+                    rate(http_server_request_duration_seconds_count{
+                      service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                      http_route_kind="api"
+                    }[6h])
+                  ),
+                  0.001
+                )
+              )
+            ) / 0.001
+            and on (service_name)
+            (
+              sum by (service_name) (
+                rate(http_server_request_duration_seconds_count{
+                  service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web",
+                  http_route_kind="api"
+                }[6h])
+              ) > 0
+            )
+    - name: dropmong.service.alerts
+      rules:
+        - alert: DropMongSLOFastBurn
+          expr: |
+            dropmong:slo_http_5xx_burn_rate:5m > 14.4
+            and on (service_name)
+            dropmong:slo_http_5xx_burn_rate:1h > 14.4
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "DropMong HTTP error budget is burning quickly"
+            description: "{{ $labels.service_name }} exceeded the 14.4x burn-rate threshold in both the 5m and 1h windows."
+            runbook_url: "https://github.com/Medikong/e-gitops/blob/main/platform/monitoring/runbooks/README.md#dropmongslofastburn"
+        - alert: DropMongSLOSlowBurn
+          expr: |
+            dropmong:slo_http_5xx_burn_rate:30m > 6
+            and on (service_name)
+            dropmong:slo_http_5xx_burn_rate:6h > 6
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "DropMong HTTP error budget is burning steadily"
+            description: "{{ $labels.service_name }} exceeded the 6x burn-rate threshold in both the 30m and 6h windows."
+            runbook_url: "https://github.com/Medikong/e-gitops/blob/main/platform/monitoring/runbooks/README.md#dropmongsloslowburn"
+        - alert: DropMongServiceP99LatencyHigh
+          expr: dropmong:http_request_duration_seconds:p99_5m > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "DropMong service p99 latency exceeds the slow-request boundary"
+            description: "{{ $labels.service_name }} p99 API latency has exceeded 1 second for 10 minutes. The threshold is provisional until load and live traffic validation is complete."
+            runbook_url: "https://github.com/Medikong/e-gitops/blob/main/platform/monitoring/runbooks/README.md#dropmongservicep99latencyhigh"
+        - alert: DropMongServiceNotReady
+          expr: |
+            min by (service_name) (
+              service_ready{
+                service_name=~"auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web"
+              }
+            ) == 0
           for: 5m
           labels:
-            severity: warning
+            severity: critical
           annotations:
-            summary: "Service P99 latency is above 2 seconds"
-            description: "{{ $labels.service_name }} has P99 request latency above 2 seconds for more than 5 minutes."
-        - alert: MedikongServiceNoTraffic
+            summary: "DropMong service readiness is failing"
+            description: "At least one {{ $labels.service_name }} target has reported service_ready=0 for 5 minutes."
+            runbook_url: "https://github.com/Medikong/e-gitops/blob/main/platform/monitoring/runbooks/README.md#dropmongservicenotready"
+        - alert: DropMongCollectorLogExportFailure
           expr: |
-            sum by (service_name) (
-              rate(http_server_request_duration_seconds_count{
-                service_name=~".+-service"
-              }[15m])
-            ) == 0
-          for: 30m
+            sum by (exporter) (
+              rate(otelcol_exporter_send_failed_log_records_total[5m])
+            ) > 0
+          for: 10m
           labels:
-            severity: warning
+            severity: critical
           annotations:
-            summary: "Service has no observed HTTP traffic"
-            description: "{{ $labels.service_name }} has no observed HTTP request metric samples for more than 30 minutes."
+            summary: "OpenTelemetry Collector cannot export logs"
+            description: "Collector exporter {{ $labels.exporter }} has continuously failed to send log records for 10 minutes. Retries may still be active, so verify queue and backend state before declaring data loss."
+            runbook_url: "https://github.com/Medikong/e-gitops/blob/main/platform/monitoring/runbooks/README.md#dropmongcollectorlogexportfailure"
+        - alert: DropMongCollectorTraceExportFailure
+          expr: |
+            sum by (exporter) (
+              rate(otelcol_exporter_send_failed_spans_total[5m])
+            ) > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "OpenTelemetry Collector cannot export traces"
+            description: "Collector exporter {{ $labels.exporter }} has continuously failed to send spans for 10 minutes. Retries may still be active, so verify queue and backend state before declaring data loss."
+            runbook_url: "https://github.com/Medikong/e-gitops/blob/main/platform/monitoring/runbooks/README.md#dropmongcollectortraceexportfailure"

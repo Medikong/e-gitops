@@ -33,7 +33,7 @@ tasks:
       - task render
       - '{{.HELM}} upgrade --install {{.MONITORING_RELEASE}} {{.MONITORING_CHART}} --version {{.MONITORING_CHART_VERSION}} --namespace {{.MONITORING_NAMESPACE}} --create-namespace -f {{.GITOPS_ROOT}}/{{.MONITORING_LOCAL_VALUES}} --wait --timeout=600s'
       - '{{.KUBECTL}} wait --for=condition=Established crd/servicemonitors.monitoring.coreos.com crd/podmonitors.monitoring.coreos.com crd/prometheusrules.monitoring.coreos.com --timeout=180s'
-      - '{{.KUBECTL}} delete configmap medikong-service-metrics-dashboards medikong-app-dashboards medikong-infra-dashboards --namespace {{.MONITORING_NAMESPACE}} --ignore-not-found'
+      - '{{.KUBECTL}} delete configmap medikong-service-metrics-dashboards medikong-app-dashboards medikong-infra-dashboards medikong-ops-dashboards medikong-logs-dashboards medikong-db-dashboards medikong-load-dashboards --namespace {{.MONITORING_NAMESPACE}} --ignore-not-found'
       - '{{.KUBECTL}} apply -k {{.GITOPS_ROOT}}/platform/monitoring'
 
   status:

@@ -1,0 +1,657 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Purpose",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Follow asynchronous work across producer and consumer boundaries using the safe Kafka completion-log fields. The default service selector includes only broker-enabled active values: interest, order, payment and notification. The topic list comes from the DropMong data-plane bootstrap; message payloads are intentionally excluded."
+      }
+    },
+    {
+      "id": 2,
+      "title": "Kafka Operations by Topic",
+      "type": "timeseries",
+      "description": "Producer and consumer completion logs by bounded topic and outcome.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name, messaging_destination_name, messaging_operation, outcome) (count_over_time({service_name=~\"$service\"} | json | event=~\"kafka\\.message\\.(publish|process)\" | messaging_destination_name=~\"$topic\" | messaging_operation=~\"$operation\" | outcome=~\"$outcome\" [$__interval]))",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Kafka Failures",
+      "type": "stat",
+      "description": "Failed publish or process operations.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 6,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({service_name=~\"$service\"} | json | event=~\"kafka\\.message\\.(publish|process)\" | messaging_destination_name=~\"$topic\" | messaging_operation=~\"$operation\" | outcome=\"failure\" [$__range]))",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 4,
+      "title": "Failures Missing Trace ID",
+      "type": "stat",
+      "description": "A non-zero value indicates broken Kafka trace propagation.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 3,
+        "w": 6,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({service_name=~\"$service\"} | json | event=~\"kafka\\.message\\.(publish|process)\" | messaging_destination_name=~\"$topic\" | outcome=\"failure\" | trace_id=\"\" [$__range]))",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 5,
+      "title": "Kafka Completion Logs",
+      "type": "logs",
+      "description": "No message key or payload is displayed.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{service_name=~\"$service\"} | json | event=~\"kafka\\.message\\.(publish|process)\" | messaging_destination_name=~\"$topic\" | messaging_operation=~\"$operation\" | outcome=~\"$outcome\" | line_format \"event={{.event}} service={{.service_name}} topic={{.messaging_destination_name}} operation={{.messaging_operation}} outcome={{.outcome}} correlation_id={{.correlation_id}} trace_id={{.trace_id}} span_id={{.span_id}} failure_code={{.failure_code}}\"",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 6,
+      "title": "Correlation ID Across Services",
+      "type": "logs",
+      "description": "Paste one correlation_id to follow producer and consumer logs.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"dropmong-.*\"} | json | correlation_id=~\"$correlation_id\" | line_format \"event={{.event}} service={{.service_name}} correlation_id={{.correlation_id}} trace_id={{.trace_id}} span_id={{.span_id}}\"",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 7,
+      "title": "Trace / Span Focus",
+      "type": "logs",
+      "description": "Use span_id to select the producer or consumer operation within a trace.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{service_name=~\"$service\"} | json | trace_id=~\"$trace_id\" | span_id=~\"$span_id\"",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 8,
+      "title": "Tempo Trace by trace_id",
+      "type": "traces",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 19,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceId",
+          "query": "$trace_id",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Recent Kafka Traces",
+      "type": "table",
+      "description": "Trace search uses the same service list as the Kafka completion logs.",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "editorMode": "builder",
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"$service\" && span.messaging.system = \"kafka\" }",
+          "limit": 50,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": [
+    "dropmong",
+    "logs",
+    "kafka",
+    "correlation",
+    "trace"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "custom",
+        "query": "interest-service,notification-service,order-service,payment-service",
+        "options": [
+          {
+            "selected": false,
+            "text": "interest-service",
+            "value": "interest-service"
+          },
+          {
+            "selected": false,
+            "text": "notification-service",
+            "value": "notification-service"
+          },
+          {
+            "selected": false,
+            "text": "order-service",
+            "value": "order-service"
+          },
+          {
+            "selected": false,
+            "text": "payment-service",
+            "value": "payment-service"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": "(interest-service|notification-service|order-service|payment-service)",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "topic",
+        "label": "Topic",
+        "type": "custom",
+        "query": "interest.added,interest.removed,order.created,order.expired,inventory.changed,notification.requested,refund.requested,refund.completed,refund.failed,payment.approved,payment.failed",
+        "options": [
+          {
+            "selected": false,
+            "text": "interest.added",
+            "value": "interest.added"
+          },
+          {
+            "selected": false,
+            "text": "interest.removed",
+            "value": "interest.removed"
+          },
+          {
+            "selected": false,
+            "text": "order.created",
+            "value": "order.created"
+          },
+          {
+            "selected": false,
+            "text": "order.expired",
+            "value": "order.expired"
+          },
+          {
+            "selected": false,
+            "text": "inventory.changed",
+            "value": "inventory.changed"
+          },
+          {
+            "selected": false,
+            "text": "notification.requested",
+            "value": "notification.requested"
+          },
+          {
+            "selected": false,
+            "text": "refund.requested",
+            "value": "refund.requested"
+          },
+          {
+            "selected": false,
+            "text": "refund.completed",
+            "value": "refund.completed"
+          },
+          {
+            "selected": false,
+            "text": "refund.failed",
+            "value": "refund.failed"
+          },
+          {
+            "selected": false,
+            "text": "payment.approved",
+            "value": "payment.approved"
+          },
+          {
+            "selected": false,
+            "text": "payment.failed",
+            "value": "payment.failed"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": "(interest\\.added|interest\\.removed|order\\.created|order\\.expired|inventory\\.changed|notification\\.requested|refund\\.requested|refund\\.completed|refund\\.failed|payment\\.approved|payment\\.failed)",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "operation",
+        "label": "Operation",
+        "type": "custom",
+        "query": "publish,process",
+        "options": [
+          {
+            "selected": false,
+            "text": "publish",
+            "value": "publish"
+          },
+          {
+            "selected": false,
+            "text": "process",
+            "value": "process"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "outcome",
+        "label": "Outcome",
+        "type": "custom",
+        "query": "success,failure",
+        "options": [
+          {
+            "selected": false,
+            "text": "success",
+            "value": "success"
+          },
+          {
+            "selected": false,
+            "text": "failure",
+            "value": "failure"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "correlation_id",
+        "label": "Correlation ID",
+        "type": "textbox",
+        "query": "a^",
+        "current": {
+          "selected": true,
+          "text": "a^",
+          "value": "a^"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "a^",
+            "value": "a^"
+          }
+        ]
+      },
+      {
+        "name": "trace_id",
+        "label": "Trace ID",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "selected": true,
+          "text": ".*",
+          "value": ".*"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": ".*",
+            "value": ".*"
+          }
+        ]
+      },
+      {
+        "name": "span_id",
+        "label": "Span ID",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "selected": true,
+          "text": ".*",
+          "value": ".*"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": ".*",
+            "value": ".*"
+          }
+        ]
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "24h"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Logs 30 - Kafka Correlation",
+  "uid": "dropmong-logs-kafka-correlation",
+  "version": 1,
+  "weekStart": ""
+}

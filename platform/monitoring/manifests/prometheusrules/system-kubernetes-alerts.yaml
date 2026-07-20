@@ -1,20 +1,20 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: system-kubernetes-alerts
+  name: dropmong-system-kubernetes-alerts
   labels:
-    app.kubernetes.io/name: system-kubernetes-alerts
-    app.kubernetes.io/part-of: medikong-platform
+    app.kubernetes.io/name: dropmong-system-kubernetes-alerts
+    app.kubernetes.io/part-of: dropmong-platform
     release: kube-prometheus-stack
 spec:
   groups:
-    - name: medikong.system.kubernetes
+    - name: dropmong.system.kubernetes
       rules:
-        - alert: MedikongDeploymentReplicasUnavailable
+        - alert: DropMongDeploymentReplicasUnavailable
           expr: |
             sum by (namespace, deployment) (
-              kube_deployment_spec_replicas{namespace=~"ticketing-.*|monitoring|observability"}
-              - kube_deployment_status_replicas_available{namespace=~"ticketing-.*|monitoring|observability"}
+              kube_deployment_spec_replicas{namespace=~"dropmong-(auth|user|catalog|coupon|interest|order|payment|notification|web)|monitoring|observability"}
+              - kube_deployment_status_replicas_available{namespace=~"dropmong-(auth|user|catalog|coupon|interest|order|payment|notification|web)|monitoring|observability"}
             ) > 0
           for: 10m
           labels:
@@ -22,32 +22,16 @@ spec:
           annotations:
             summary: "Deployment has unavailable replicas"
             description: "{{ $labels.namespace }}/{{ $labels.deployment }} has unavailable replicas for more than 10 minutes."
-        - alert: MedikongPodNotReady
-          expr: |
-            sum by (namespace, pod) (
-              kube_pod_status_ready{namespace=~"ticketing-.*|monitoring|observability",condition="false"} == 1
-            ) > 0
-          for: 10m
-          labels:
-            severity: warning
-          annotations:
-            summary: "Pod is not Ready"
-            description: "{{ $labels.namespace }}/{{ $labels.pod }} has Ready=false for more than 10 minutes."
-        - alert: MedikongPodContainerRestarting
-          expr: |
-            sum by (namespace, pod, container) (
-              increase(kube_pod_container_status_restarts_total{namespace=~"ticketing-.*|monitoring|observability",container!="",container!="POD",pod!=""}[15m])
-            ) > 0
-          for: 10m
-          labels:
-            severity: warning
-          annotations:
-            summary: "Container restart increased"
-            description: "{{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} restarted within the last 15 minutes."
-        - alert: MedikongPodOOMKilled
+            runbook_url: "https://github.com/Medikong/e-gitops/blob/main/platform/monitoring/runbooks/README.md#dropmongdeploymentreplicasunavailable"
+        - alert: DropMongPodOOMKilled
           expr: |
             max by (namespace, pod, container) (
-              kube_pod_container_status_last_terminated_reason{namespace=~"ticketing-.*|monitoring|observability",reason="OOMKilled",container!="",pod!=""} == 1
+              kube_pod_container_status_last_terminated_reason{
+                namespace=~"dropmong-(auth|user|catalog|coupon|interest|order|payment|notification|web)|monitoring|observability",
+                reason="OOMKilled",
+                container!="",
+                pod!=""
+              } == 1
             ) > 0
           for: 5m
           labels:
@@ -55,16 +39,29 @@ spec:
           annotations:
             summary: "Container was OOMKilled"
             description: "{{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} last terminated with OOMKilled."
-        - alert: MedikongContainerCpuThrottlingHigh
+            runbook_url: "https://github.com/Medikong/e-gitops/blob/main/platform/monitoring/runbooks/README.md#dropmongpodoomkilled"
+        - alert: DropMongContainerCpuThrottlingHigh
           expr: |
             100 *
             sum by (namespace, pod, container) (
-              rate(container_cpu_cfs_throttled_periods_total{namespace=~"ticketing-.*|monitoring|observability",container!="",container!="POD",pod!="",image!=""}[5m])
+              rate(container_cpu_cfs_throttled_periods_total{
+                namespace=~"dropmong-(auth|user|catalog|coupon|interest|order|payment|notification|web)|monitoring|observability",
+                container!="",
+                container!="POD",
+                pod!="",
+                image!=""
+              }[5m])
             )
             /
             clamp_min(
               sum by (namespace, pod, container) (
-                rate(container_cpu_cfs_periods_total{namespace=~"ticketing-.*|monitoring|observability",container!="",container!="POD",pod!="",image!=""}[5m])
+                rate(container_cpu_cfs_periods_total{
+                  namespace=~"dropmong-(auth|user|catalog|coupon|interest|order|payment|notification|web)|monitoring|observability",
+                  container!="",
+                  container!="POD",
+                  pod!="",
+                  image!=""
+                }[5m])
               ),
               0.001
             ) > 25
@@ -74,7 +71,8 @@ spec:
           annotations:
             summary: "Container CPU throttling is high"
             description: "{{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} CPU throttling ratio is above 25% for more than 15 minutes."
-        - alert: MedikongNodeMemoryPressure
+            runbook_url: "https://github.com/Medikong/e-gitops/blob/main/platform/monitoring/runbooks/README.md#dropmongcontainercputhrottlinghigh"
+        - alert: DropMongNodeMemoryPressure
           expr: |
             max by (node) (
               kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
@@ -85,3 +83,4 @@ spec:
           annotations:
             summary: "Node reports MemoryPressure"
             description: "{{ $labels.node }} reports MemoryPressure for more than 10 minutes."
+            runbook_url: "https://github.com/Medikong/e-gitops/blob/main/platform/monitoring/runbooks/README.md#dropmongnodememorypressure"

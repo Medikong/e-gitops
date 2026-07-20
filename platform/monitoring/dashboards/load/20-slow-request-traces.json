@@ -1,0 +1,575 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Investigation Order",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Open this from Load 10 after latency or errors rise. Select the same time window, copy a candidate `trace_id`, inspect its exact `span_id` in logs, then open the complete Tempo trace."
+      }
+    },
+    {
+      "id": 2,
+      "title": "Slow Requests by Route",
+      "type": "timeseries",
+      "description": "Retained slow request logs by route.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name, http_route) (count_over_time({k8s_namespace_name=~\"$namespace\",service_name=~\"$service\"} | json | event=\"http.request.completed\" | http_route_kind=\"api\" | http_route=~\"$route\" | duration_ms >= $min_duration_ms [$__interval]))",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "5xx Requests by Route",
+      "type": "timeseries",
+      "description": "Retained 5xx request logs by route.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name, http_route) (count_over_time({k8s_namespace_name=~\"$namespace\",service_name=~\"$service\"} | json | event=\"http.request.completed\" | http_route_kind=\"api\" | http_route=~\"$route\" | http_status_code=~\"5..\" [$__interval]))",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Slow / Error Request Candidates",
+      "type": "logs",
+      "description": "Both queries use the same route template and identifier contract.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\",service_name=~\"$service\"} | json | event=\"http.request.completed\" | http_route_kind=\"api\" | http_route=~\"$route\" | duration_ms >= $min_duration_ms | line_format \"service={{.service_name}} method={{.http_method}} route={{.http_route}} status={{.http_status_code}} duration_ms={{.duration_ms}} request_id={{.request_id}} trace_id={{.trace_id}} span_id={{.span_id}}\"",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\",service_name=~\"$service\"} | json | event=\"http.request.completed\" | http_route_kind=\"api\" | http_route=~\"$route\" | http_status_code=~\"5..\" | line_format \"service={{.service_name}} method={{.http_method}} route={{.http_route}} status={{.http_status_code}} duration_ms={{.duration_ms}} request_id={{.request_id}} trace_id={{.trace_id}} span_id={{.span_id}}\"",
+          "legendFormat": "",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 5,
+      "title": "Tempo Traces over Threshold",
+      "type": "table",
+      "description": "Tempo traces remain searchable even when sampled access logs are absent.",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 11,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "editorMode": "builder",
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"$service\" && duration > $tempo_min_duration }",
+          "limit": 100,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      }
+    },
+    {
+      "id": 6,
+      "title": "Selected Trace / Span Logs",
+      "type": "logs",
+      "description": "Use span_id to isolate the operation inside the trace.",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{k8s_namespace_name=~\"$namespace\",service_name=~\"$service\"} | json | trace_id=~\"$trace_id\" | span_id=~\"$span_id\"",
+          "legendFormat": "",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
+    },
+    {
+      "id": 7,
+      "title": "Tempo Trace by trace_id",
+      "type": "traces",
+      "datasource": {
+        "type": "tempo",
+        "uid": "tempo"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "tempo",
+            "uid": "tempo"
+          },
+          "queryType": "traceId",
+          "query": "$trace_id",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 41,
+  "tags": [
+    "dropmong",
+    "load",
+    "logs",
+    "tempo",
+    "trace"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "custom",
+        "query": "local,private-dev,aws-dev",
+        "options": [
+          {
+            "selected": false,
+            "text": "local",
+            "value": "local"
+          },
+          {
+            "selected": false,
+            "text": "private-dev",
+            "value": "private-dev"
+          },
+          {
+            "selected": false,
+            "text": "aws-dev",
+            "value": "aws-dev"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "namespace",
+        "label": "Target Namespace",
+        "type": "custom",
+        "query": "dropmong-auth,dropmong-user,dropmong-catalog,dropmong-coupon,dropmong-interest,dropmong-order,dropmong-payment,dropmong-notification,dropmong-web",
+        "options": [
+          {
+            "selected": false,
+            "text": "dropmong-auth",
+            "value": "dropmong-auth"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-user",
+            "value": "dropmong-user"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-catalog",
+            "value": "dropmong-catalog"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-coupon",
+            "value": "dropmong-coupon"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-interest",
+            "value": "dropmong-interest"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-order",
+            "value": "dropmong-order"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-payment",
+            "value": "dropmong-payment"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-notification",
+            "value": "dropmong-notification"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-web",
+            "value": "dropmong-web"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": "(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment|dropmong-notification|dropmong-web)",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "service",
+        "label": "Target Service",
+        "type": "custom",
+        "query": "auth-service,user-service,catalog-service,coupon-service,interest-service,order-service,payment-service,notification-service,dropmong-web",
+        "options": [
+          {
+            "selected": false,
+            "text": "auth-service",
+            "value": "auth-service"
+          },
+          {
+            "selected": false,
+            "text": "user-service",
+            "value": "user-service"
+          },
+          {
+            "selected": false,
+            "text": "catalog-service",
+            "value": "catalog-service"
+          },
+          {
+            "selected": false,
+            "text": "coupon-service",
+            "value": "coupon-service"
+          },
+          {
+            "selected": false,
+            "text": "interest-service",
+            "value": "interest-service"
+          },
+          {
+            "selected": false,
+            "text": "order-service",
+            "value": "order-service"
+          },
+          {
+            "selected": false,
+            "text": "payment-service",
+            "value": "payment-service"
+          },
+          {
+            "selected": false,
+            "text": "notification-service",
+            "value": "notification-service"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-web",
+            "value": "dropmong-web"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": "(auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web)",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "route",
+        "label": "Target Route",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(http_server_request_duration_seconds_count{service_environment=~\"$environment\",service_name=~\"$service\",http_route_kind=\"api\"}, http_route)",
+        "definition": "label_values(http_server_request_duration_seconds_count{service_environment=~\"$environment\",service_name=~\"$service\",http_route_kind=\"api\"}, http_route)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "min_duration_ms",
+        "label": "Slow request ms",
+        "type": "textbox",
+        "query": "1000",
+        "current": {
+          "selected": true,
+          "text": "1000",
+          "value": "1000"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "1000",
+            "value": "1000"
+          }
+        ]
+      },
+      {
+        "name": "tempo_min_duration",
+        "label": "Tempo minimum duration",
+        "type": "textbox",
+        "query": "1s",
+        "current": {
+          "selected": true,
+          "text": "1s",
+          "value": "1s"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "1s",
+            "value": "1s"
+          }
+        ]
+      },
+      {
+        "name": "trace_id",
+        "label": "Trace ID",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "selected": true,
+          "text": ".*",
+          "value": ".*"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": ".*",
+            "value": ".*"
+          }
+        ]
+      },
+      {
+        "name": "span_id",
+        "label": "Span ID",
+        "type": "textbox",
+        "query": ".*",
+        "current": {
+          "selected": true,
+          "text": ".*",
+          "value": ".*"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": ".*",
+            "value": ".*"
+          }
+        ]
+      }
+    ]
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "6h"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Load 20 - Slow Request Traces",
+  "uid": "dropmong-load-slow-request-traces",
+  "version": 1,
+  "weekStart": ""
+}

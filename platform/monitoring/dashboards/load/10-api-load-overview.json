@@ -1,0 +1,732 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Scope",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Representative screen 4/4.** Use this while generating traffic against a selected DropMong API route. It relies on the common application HTTP metrics and Kubernetes resources. No k6 result series or ingress-controller metric is shown because those collection contracts are not active."
+      }
+    },
+    {
+      "id": 2,
+      "title": "Request Rate by Route",
+      "type": "timeseries",
+      "description": "Completed requests per second for active DropMong route templates.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name, http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"$environment\",service_name=~\"$service\",http_route=~\"$route\",http_route_kind=\"api\"}[$__rate_interval]))",
+          "legendFormat": "{{service_name}} {{http_route}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+        {
+          "title": "Open slow request traces",
+          "url": "/d/dropmong-load-slow-request-traces/load-20-slow-request-traces?orgId=1&var-environment=$environment&var-namespace=$namespace&var-service=$service&var-route=$route&from=${__from}&to=${__to}",
+          "targetBlank": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "p95 / p99 Latency by Route",
+      "type": "timeseries",
+      "description": "Application-observed route latency.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (service_name, http_route, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"$environment\",service_name=~\"$service\",http_route=~\"$route\",http_route_kind=\"api\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{service_name}} {{http_route}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (service_name, http_route, le) (rate(http_server_request_duration_seconds_bucket{service_environment=~\"$environment\",service_name=~\"$service\",http_route=~\"$route\",http_route_kind=\"api\"}[$__rate_interval])))",
+          "legendFormat": "p99 {{service_name}} {{http_route}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "links": [
+        {
+          "title": "Open slow request traces",
+          "url": "/d/dropmong-load-slow-request-traces/load-20-slow-request-traces?orgId=1&var-environment=$environment&var-namespace=$namespace&var-service=$service&var-route=$route&from=${__from}&to=${__to}",
+          "targetBlank": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "5xx Ratio by Route",
+      "type": "timeseries",
+      "description": "5xx share under load. Empty data is not interpreted as success.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (service_name, http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"$environment\",service_name=~\"$service\",http_route=~\"$route\",http_route_kind=\"api\",http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum by (service_name, http_route) (rate(http_server_request_duration_seconds_count{service_environment=~\"$environment\",service_name=~\"$service\",http_route=~\"$route\",http_route_kind=\"api\"}[$__rate_interval])), 0.001)",
+          "legendFormat": "{{service_name}} {{http_route}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+        {
+          "title": "Open slow request traces",
+          "url": "/d/dropmong-load-slow-request-traces/load-20-slow-request-traces?orgId=1&var-environment=$environment&var-namespace=$namespace&var-service=$service&var-route=$route&from=${__from}&to=${__to}",
+          "targetBlank": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Active Requests",
+      "type": "timeseries",
+      "description": "In-flight requests for the selected load target.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 11,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name, http_route) (http_server_active_requests{service_environment=~\"$environment\",service_name=~\"$service\",http_route=~\"$route\",http_route_kind=\"api\"})",
+          "legendFormat": "{{service_name}} {{http_route}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Service Readiness",
+      "type": "stat",
+      "description": "Readiness during the load window.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 11,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "min by (service_name) (service_ready{service_name=~\"$service\"})",
+          "legendFormat": "{{service_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 7,
+      "title": "Target Pod CPU",
+      "type": "timeseries",
+      "description": "CPU saturation for the selected namespace.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{namespace}} / {{pod}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Target Pod Memory",
+      "type": "timeseries",
+      "description": "Memory working set for the selected namespace.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 18,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"})",
+          "legendFormat": "{{namespace}} / {{pod}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Target Pod Restarts",
+      "type": "timeseries",
+      "description": "Restarts during the load window.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 18,
+        "w": 8,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\"}[$__rate_interval]))",
+          "legendFormat": "{{namespace}} / {{pod}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "Request Count by Route and Status",
+      "type": "table",
+      "description": "Bounded route templates and status codes for the selected experiment window.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name, http_route, http_response_status_code) (increase(http_server_request_duration_seconds_count{service_environment=~\"$environment\",service_name=~\"$service\",http_route=~\"$route\",http_route_kind=\"api\"}[$__range]))",
+          "legendFormat": "{{service_name}} {{http_route}} {{http_response_status_code}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 41,
+  "tags": [
+    "dropmong",
+    "load",
+    "representative",
+    "http",
+    "saturation"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "custom",
+        "query": "local,private-dev,aws-dev",
+        "options": [
+          {
+            "selected": false,
+            "text": "local",
+            "value": "local"
+          },
+          {
+            "selected": false,
+            "text": "private-dev",
+            "value": "private-dev"
+          },
+          {
+            "selected": false,
+            "text": "aws-dev",
+            "value": "aws-dev"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "namespace",
+        "label": "Target Namespace",
+        "type": "custom",
+        "query": "dropmong-auth,dropmong-user,dropmong-catalog,dropmong-coupon,dropmong-interest,dropmong-order,dropmong-payment,dropmong-notification,dropmong-web",
+        "options": [
+          {
+            "selected": false,
+            "text": "dropmong-auth",
+            "value": "dropmong-auth"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-user",
+            "value": "dropmong-user"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-catalog",
+            "value": "dropmong-catalog"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-coupon",
+            "value": "dropmong-coupon"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-interest",
+            "value": "dropmong-interest"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-order",
+            "value": "dropmong-order"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-payment",
+            "value": "dropmong-payment"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-notification",
+            "value": "dropmong-notification"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-web",
+            "value": "dropmong-web"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": "(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment|dropmong-notification|dropmong-web)",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "service",
+        "label": "Target Service",
+        "type": "custom",
+        "query": "auth-service,user-service,catalog-service,coupon-service,interest-service,order-service,payment-service,notification-service,dropmong-web",
+        "options": [
+          {
+            "selected": false,
+            "text": "auth-service",
+            "value": "auth-service"
+          },
+          {
+            "selected": false,
+            "text": "user-service",
+            "value": "user-service"
+          },
+          {
+            "selected": false,
+            "text": "catalog-service",
+            "value": "catalog-service"
+          },
+          {
+            "selected": false,
+            "text": "coupon-service",
+            "value": "coupon-service"
+          },
+          {
+            "selected": false,
+            "text": "interest-service",
+            "value": "interest-service"
+          },
+          {
+            "selected": false,
+            "text": "order-service",
+            "value": "order-service"
+          },
+          {
+            "selected": false,
+            "text": "payment-service",
+            "value": "payment-service"
+          },
+          {
+            "selected": false,
+            "text": "notification-service",
+            "value": "notification-service"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-web",
+            "value": "dropmong-web"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": "(auth-service|user-service|catalog-service|coupon-service|interest-service|order-service|payment-service|notification-service|dropmong-web)",
+        "multi": true,
+        "refresh": 0
+      },
+      {
+        "name": "route",
+        "label": "Target Route",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(http_server_request_duration_seconds_count{service_environment=~\"$environment\",service_name=~\"$service\",http_route_kind=\"api\"}, http_route)",
+        "definition": "label_values(http_server_request_duration_seconds_count{service_environment=~\"$environment\",service_name=~\"$service\",http_route_kind=\"api\"}, http_route)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "6h"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Load 10 - API Load Overview",
+  "uid": "dropmong-load-api-overview",
+  "version": 1,
+  "weekStart": ""
+}

@@ -14,7 +14,7 @@ OpenTelemetry Collector의 OTLP receiver, processor, exporter는 `platform/obser
 
 ```text
 trace path
-  FastAPI OpenTelemetry instrumentation
+  DropMong service OpenTelemetry instrumentation
   -> OTLP
   -> OpenTelemetry Collector
   -> Tempo
@@ -50,7 +50,7 @@ Tempo datasource URL은 Kubernetes service DNS를 기준으로 둔다.
 http://tempo.observability.svc.cluster.local:3200
 ```
 
-Tempo의 trace-to-logs 연결은 Loki log field의 `trace_id`를 검색에 사용한다. `trace_id`, `request_id`, `user_id`, reservation/payment/ticket 같은 업무 객체 ID는 Loki label이나 metric label로 올리지 않는다.
+Tempo의 trace-to-logs 연결은 Loki log field의 `trace_id`를 검색에 사용한다. `trace_id`, `request_id`, `user_id`, drop/order/payment/coupon 같은 업무 객체 ID는 Loki label이나 metric label로 올리지 않는다.
 
 ## 검증
 

@@ -16,7 +16,7 @@ vars:
   DEV_IMAGE_NAMESPACE: '{{default "" .DEV_IMAGE_NAMESPACE}}'
   DEV_IMAGE_TAG: '{{default "dev" .DEV_IMAGE_TAG}}'
   DEV_ROLLOUT_ID: '{{default "" .DEV_ROLLOUT_ID}}'
-  DEV_SERVICES: '{{default "auth user coupon backoffice" .DEV_SERVICES}}'
+  DEV_SERVICES: '{{default "auth user catalog coupon interest order payment notification dropmong-web" .DEV_SERVICES}}'
   LOADTEST_CAPACITY_BASELINE_CPU_REQUEST: '{{default "" .LOADTEST_CAPACITY_BASELINE_CPU_REQUEST}}'
   LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS: '{{default "" .LOADTEST_CAPACITY_BASELINE_AUTH_TOKEN_TTL_SECONDS}}'
   KONG_CHART: '{{default "kong/kong" .KONG_CHART}}'
@@ -385,6 +385,7 @@ tasks:
               ${override_args} \
               --set-string image.registry="${image_registry}" \
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
+              --set-string image.digest="" \
               --set-string image.pullPolicy=Always \
               --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id='"${rollout_id}" \
               ${service_helm_args}
@@ -622,6 +623,7 @@ tasks:
               ${override_values} \
               --set-string image.registry="${image_registry}" \
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
+              --set-string image.digest="" \
               --set-string image.pullPolicy=Always \
               --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id='"${rollout_id}"
           ) &
@@ -733,6 +735,7 @@ tasks:
             ${override_values} \
             --set-string image.registry="${image_registry}" \
             --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
+            --set-string image.digest="" \
             --set-string image.pullPolicy=Always \
             --set-string 'deployment.podAnnotations.medikong\.io/dev-rollout-id=check' >/dev/null
         done

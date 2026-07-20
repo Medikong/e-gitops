@@ -1,0 +1,539 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Purpose",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "After an impact is visible in Ops 00, identify unhealthy Deployments or Pods, resource pressure, and OpenTelemetry Collector export failures. Collector failures are shown separately from application failures."
+      }
+    },
+    {
+      "id": 2,
+      "title": "Deployment Available Ratio",
+      "type": "timeseries",
+      "description": "Available replicas divided by desired replicas.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (namespace, deployment) (kube_deployment_status_replicas_available{namespace=~\"$namespace\"}) / clamp_min(sum by (namespace, deployment) (kube_deployment_spec_replicas{namespace=~\"$namespace\"}), 1)",
+          "legendFormat": "{{namespace}} / {{deployment}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Not Ready Pods",
+      "type": "timeseries",
+      "description": "Pods currently reporting Ready=false.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (kube_pod_status_ready{namespace=~\"$namespace\",condition=\"false\"} == 1)",
+          "legendFormat": "{{namespace}} / {{pod}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Container Restart Increase",
+      "type": "timeseries",
+      "description": "Restart increases in the selected interval.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\"}[$__rate_interval]))",
+          "legendFormat": "{{namespace}} / {{pod}} / {{container}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "OOMKilled Events",
+      "type": "timeseries",
+      "description": "Containers whose last termination reason was OOMKilled during the selected range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod, container) (max_over_time(kube_pod_container_status_last_terminated_reason{namespace=~\"$namespace\",reason=\"OOMKilled\",container!=\"\"}[$__range]) == 1)",
+          "legendFormat": "{{namespace}} / {{pod}} / {{container}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "CPU Usage by Pod",
+      "type": "timeseries",
+      "description": "CPU usage by application Pod.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{namespace}} / {{pod}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cores"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Memory Working Set by Pod",
+      "type": "timeseries",
+      "description": "Memory working set by application Pod.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (container_memory_working_set_bytes{namespace=~\"$namespace\",container!=\"\",container!=\"POD\",image!=\"\"})",
+          "legendFormat": "{{namespace}} / {{pod}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Collector Export Failures",
+      "type": "timeseries",
+      "description": "Documented Collector self-metrics for failed trace/log exports. Missing series remains no data.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (exporter) (rate(otelcol_exporter_send_failed_spans_total[$__rate_interval]))",
+          "legendFormat": "spans / {{exporter}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (exporter) (rate(otelcol_exporter_send_failed_log_records_total[$__rate_interval]))",
+          "legendFormat": "logs / {{exporter}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Collector Queue Utilization",
+      "type": "timeseries",
+      "description": "Documented queue size divided by capacity. This metric is authoritative because Collector self-logs are excluded from the filelog pipeline.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (exporter, data_type) (otelcol_exporter_queue_size) / clamp_min(sum by (exporter, data_type) (otelcol_exporter_queue_capacity), 1)",
+          "legendFormat": "{{exporter}} / {{data_type}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 41,
+  "tags": [
+    "dropmong",
+    "ops",
+    "kubernetes",
+    "collector"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "custom",
+        "query": "dropmong-auth,dropmong-user,dropmong-catalog,dropmong-coupon,dropmong-interest,dropmong-order,dropmong-payment,dropmong-notification,dropmong-web",
+        "options": [
+          {
+            "selected": false,
+            "text": "dropmong-auth",
+            "value": "dropmong-auth"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-user",
+            "value": "dropmong-user"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-catalog",
+            "value": "dropmong-catalog"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-coupon",
+            "value": "dropmong-coupon"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-interest",
+            "value": "dropmong-interest"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-order",
+            "value": "dropmong-order"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-payment",
+            "value": "dropmong-payment"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-notification",
+            "value": "dropmong-notification"
+          },
+          {
+            "selected": false,
+            "text": "dropmong-web",
+            "value": "dropmong-web"
+          }
+        ],
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "allValue": "(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment|dropmong-notification|dropmong-web)",
+        "multi": true,
+        "refresh": 0
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "24h"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Ops 10 - Runtime and Telemetry",
+  "uid": "dropmong-ops-runtime-telemetry",
+  "version": 1,
+  "weekStart": ""
+}

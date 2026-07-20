@@ -54,13 +54,13 @@ ADR 0004 기준으로 신호별 경로를 섞지 않는다.
 
 ```text
 metric
-  FastAPI /metrics
+  DropMong application /metrics
   -> ServiceMonitor
   -> Prometheus scrape
   -> Grafana
 
 trace
-  FastAPI OpenTelemetry instrumentation
+  DropMong service OpenTelemetry instrumentation
   -> OTLP
   -> OpenTelemetry Collector
   -> Tempo
@@ -84,6 +84,8 @@ audit log
 ```
 
 Collector는 trace용 OTLP receiver와 Tempo exporter pipeline, 기술 로그용 filelog receiver와 Loki OTLP exporter pipeline을 함께 가진다. trace 저장량은 Collector의 tail sampling 정책으로 조절하고, metric scrape와 audit log pipeline은 별도 책임으로 둔다.
+
+Collector OTLP ingress는 `dropmong.io/tier`가 `api` 또는 `frontend`인 신규 workload만 허용한다. 현재 대상은 `auth`, `user`, `catalog`, `coupon`, `interest`, `order`, `payment`, `notification`, `dropmong-web`이다. 과거 서비스 label이나 namespace alias는 허용하지 않는다.
 
 Profile은 OpenTelemetry Collector를 기본 수집 경로로 쓰지 않는다. Python 서비스가 `PYROSCOPE_ENABLED=true`일 때 Pyroscope SDK로 `pyroscope.observability.svc.cluster.local:4040`에 push한다. 수집 단위는 process-level continuous profiling이고, API별 분석은 Tempo span에서 Pyroscope profile로 이동해 확인한다.
 
@@ -231,13 +233,15 @@ helm upgrade --install auth charts/medikong-service \
   -f values/services/auth.yaml \
   --set observability.profiling.sampleRate=100 \
   --set observability.profiling.spanProfilesEnabled=true \
-  --set-string observability.profiling.tags.scenario=reservation-journey-load-test \
+  --set-string observability.profiling.tags.scenario=<low-cardinality-scenario> \
   --set-string observability.profiling.tags.run_id=<loadtest-run-id>
 ```
 
-profile tag는 낮은 cardinality만 사용한다. 허용 기준은 `service`, `environment`, `version`, `scenario`, `run_id`이며 `user_id`, `reservation_id`, `payment_id`, `ticket_id` 같은 요청별 ID는 tag로 넣지 않는다.
+profile tag는 낮은 cardinality만 사용한다. 허용 기준은 `service`, `environment`, `version`, `scenario`, `run_id`이며 `user_id`와 요청·주문·결제 같은 업무 객체 ID는 tag로 넣지 않는다.
 
 Trace 저장량은 `platform/observability/collector/values/*.yaml`의 `tail_sampling/read_api` processor로 제어한다. 정책 순서는 error trace keep, latency threshold 이상 keep, baseline probabilistic sampling 순서다. Grafana Tempo datasource는 Pyroscope datasource uid `pyroscope`와 연결되어 있으며, OTel resource `service.name`은 Pyroscope label `service`로 매핑한다.
+
+Ingress request metric은 교체할 Ingress Controller의 이름/label 계약이 확정될 때까지 관측성 SLI에 넣지 않는다. Kong 전용 metric, 호환 alias 또는 fallback query를 신규 서비스 규칙에 남기지 않으며, 현재 SLO의 요청 진실은 서비스별 `/metrics`다. Istio Envoy metric은 values에서 sidecar injection이 확인된 payment/notification만 수집한다.
 
 Docker Desktop 로컬 배포는 `task dev` 한 번으로 Prometheus/Grafana, Tempo/Loki, Kong, data, service release를 함께 올린다. Tempo/Loki만 따로 확인하려면 각 컴포넌트 Taskfile의 `up`을 사용할 수 있다.
 

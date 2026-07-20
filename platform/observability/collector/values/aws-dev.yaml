@@ -317,20 +317,12 @@ extraManifests:
                 matchLabels:
                   app.kubernetes.io/part-of: medikong
               podSelector:
-                matchLabels:
-                  ticketing.io/tier: api
-          ports:
-            - protocol: TCP
-              port: 4317
-            - protocol: TCP
-              port: 4318
-        - from:
-            - namespaceSelector:
-                matchLabels:
-                  app.kubernetes.io/part-of: medikong
-              podSelector:
-                matchLabels:
-                  dropmong.io/tier: api
+                matchExpressions:
+                  - key: dropmong.io/tier
+                    operator: In
+                    values:
+                      - api
+                      - frontend
           ports:
             - protocol: TCP
               port: 4317

@@ -5,7 +5,7 @@ metadata:
   namespace: monitoring
   labels:
     app.kubernetes.io/name: grafana
-    app.kubernetes.io/part-of: medikong-platform
+    app.kubernetes.io/part-of: dropmong-platform
   annotations:
     konghq.com/protocols: http
 spec:

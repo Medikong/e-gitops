@@ -46,10 +46,10 @@ Loki label은 낮은 cardinality 값만 허용한다.
   - client_action_id
   - synthetic_run_id
   - user_id
-  - reservation_id
+  - order_id
   - payment_id
-  - ticket_id
-  - seat_id
+  - drop_id
+  - coupon_id
   - raw URL path
   - query string
 ```

@@ -5,7 +5,7 @@ metadata:
   namespace: monitoring
   labels:
     app.kubernetes.io/name: istiod
-    app.kubernetes.io/part-of: medikong-platform
+    app.kubernetes.io/part-of: dropmong-platform
     release: kube-prometheus-stack
 spec:
   namespaceSelector:
@@ -26,7 +26,7 @@ metadata:
   namespace: monitoring
   labels:
     app.kubernetes.io/name: dropmong-envoy-sidecars
-    app.kubernetes.io/part-of: medikong-platform
+    app.kubernetes.io/part-of: dropmong-platform
     release: kube-prometheus-stack
 spec:
   namespaceSelector:
