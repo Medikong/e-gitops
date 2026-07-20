@@ -97,11 +97,13 @@ container:
     - name: AUTH_SESSION_STATUS_ENABLED
       value: "false"
   resources:
-    requests:
-      cpu: 400m
-      memory: 256Mi
+    # TODO(운영 전환 시 재활성화, 2026-07-20 팀 합의): 개발단계엔 스케줄링 유연성
+    # 우선으로 CPU request/limit 비활성화. requests.cpu는 실측 기준 100m로 통일.
+    # requests:
+    #   cpu: 100m
+    requests: null
     limits:
-      cpu: "1"
+      cpu: null
       memory: 768Mi
 
 migration:
