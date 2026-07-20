@@ -7,7 +7,7 @@ deployment:
     sidecar.istio.io/proxyMemory: 64Mi
     sidecar.istio.io/proxyCPULimit: 200m
     sidecar.istio.io/proxyMemoryLimit: 256Mi
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -20,7 +20,7 @@ canary:
 container:
   resources:
     requests:
-      cpu: 400m
+      cpu: 300m
       memory: 256Mi
     limits:
       cpu: "1"

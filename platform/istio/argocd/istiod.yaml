@@ -33,7 +33,7 @@ spec:
               envoyExtAuthzHttp:
                 service: auth-service.dropmong-auth.svc.cluster.local
                 port: 8080
-                pathPrefix: /internal/ext-authz
+                pathPrefix: /internal/session/status
                 timeout: 200ms
                 failOpen: false
                 statusOnError: "503"

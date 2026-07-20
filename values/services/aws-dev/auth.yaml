@@ -7,7 +7,7 @@ deployment:
     sidecar.istio.io/proxyMemory: 64Mi
     sidecar.istio.io/proxyCPULimit: 200m
     sidecar.istio.io/proxyMemoryLimit: 256Mi
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -21,19 +21,84 @@ container:
   env:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@auth-db:5432/auth_db
+    - name: AUDIT_SINK_DATABASE_URL
+      value: postgresql+psycopg://user:password@auth-db:5432/auth_db
     - name: AUTH_TOKEN_TTL_SECONDS
       value: "7200"
     - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
       value: "604800"
-    - name: JWT_SECRET
-      value: ticketing-dev-secret
-    - name: JWT_ISSUER
-      value: auth-service
-    - name: AUTH_DEV_TEST_TOKEN_ENABLED
+    # AUTH_JWT_PRIVATE_KEY_PEM through AUTH_ALLOWED_ORIGINS: sourced from the
+    # auth-runtime-credentials Secret (openssl-generated placeholder keys via
+    # `task aws-dev:secrets`, see infra/.../aws-dev/playbooks/secrets.yml).
+    # Real keys/origin still owned by auth-service - replace before this is
+    # used for anything beyond internal dev testing.
+    - name: AUTH_JWT_PRIVATE_KEY_PEM
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: jwt-private-key-pem
+    - name: AUTH_JWT_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: jwt-key-id
+    - name: AUTH_JWT_ISSUER
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: jwt-issuer
+    - name: AUTH_JWT_AUDIENCES
+      value: dropmong-api
+    - name: AUTH_CREDENTIAL_HMAC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: credential-hmac-key
+    - name: AUTH_REPLAY_ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: replay-encryption-key
+    - name: AUTH_PROOF_PRIVATE_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: auth-proof-private-key
+    - name: AUTH_PROOF_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: auth-proof-key-id
+    - name: AUTH_USER_PROOF_PUBLIC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: user-proof-public-key
+    - name: AUTH_USER_PROOF_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: user-proof-key-id
+    - name: AUTH_USER_PROOF_ISSUER
+      value: user-service
+    - name: AUTH_ALLOWED_ORIGINS
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: allowed-origins
+    - name: AUTH_COOKIE_SECURE
+      value: "true"
+    - name: AUTH_DEVELOPMENT_ENABLED
+      value: "false"
+    - name: AUTH_DEV_ROUTE_ENABLED
+      value: "false"
+    - name: AUTH_VIRTUAL_ADAPTERS_ENABLED
+      value: "false"
+    - name: AUTH_SESSION_STATUS_ENABLED
       value: "false"
   resources:
     requests:
-      cpu: 600m
+      cpu: 400m
       memory: 256Mi
     limits:
       cpu: "1"
@@ -45,6 +110,8 @@ migration:
     - /app/migrate
   env:
     - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@auth-db:5432/auth_db
+    - name: AUDIT_SINK_DATABASE_URL
       value: postgresql+psycopg://user:password@auth-db:5432/auth_db
   resources:
     requests:
@@ -66,6 +133,6 @@ pdb:
 
 hpa:
   enabled: true
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70

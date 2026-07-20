@@ -9,8 +9,8 @@ image:
   repository: notification-service
   tag: ""
 
-  digest: "sha256:f5dcc2c2648cd83b62ee136ee43a054a35a166e90131cfb09797df31889d56ee"
-  version: "v0.2.4"
+  digest: "sha256:f8f975c99a857a598194bc3654d584f8498e3e6b7fa71a98bc99ee844eb00568"
+  version: "v0.2.6"
 database:
   sqlalchemy:
     enabled: false

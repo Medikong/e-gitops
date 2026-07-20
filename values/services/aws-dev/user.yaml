@@ -1,5 +1,5 @@
 deployment:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -12,7 +12,7 @@ canary:
 container:
   resources:
     requests:
-      cpu: 200m
+      cpu: 100m
       memory: 256Mi
     limits:
       cpu: 750m

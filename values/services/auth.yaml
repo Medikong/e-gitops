@@ -7,8 +7,10 @@ app:
 
 image:
   repository: auth-service
-  tag: v0.9.12
+  tag: ""
 
+  digest: "sha256:ef80bd77e95cba068ca1961f2ef93202b2056c8699cf39a1e71eb94975e82fbc"
+  version: "v0.9.13"
 database:
   sqlalchemy:
     enabled: false
@@ -102,14 +104,16 @@ container:
       value: "false"
     - name: AUTH_VIRTUAL_ADAPTERS_ENABLED
       value: "false"
-    - name: AUTH_SESSION_STATUS_REDIS_URL
-      value: redis://auth-session-redis.dropmong-auth.svc.cluster.local:6379/0
-    - name: AUTH_SESSION_STATUS_CACHE_TTL
-      value: 5m
+    - name: AUTH_SESSION_STATUS_ENABLED
+      value: "false"
+    - name: AUTH_SESSION_STATUS_TIMEOUT
+      value: 200ms
     - name: AUTH_SESSION_STATUS_DB_TIMEOUT
       value: 100ms
-    - name: AUTH_SESSION_STATUS_MAX_DB_LOOKUPS
-      value: "32"
+    - name: AUTH_SESSION_STATUS_CACHE_TTL
+      value: 5m
+    - name: AUTH_SESSION_STATUS_TOMBSTONE_TTL
+      value: 20m
   readinessProbe:
     httpGet:
       path: /readyz
