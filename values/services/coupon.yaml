@@ -7,8 +7,10 @@ app:
 
 image:
   repository: coupon-service
-  tag: v0.1.2
+  tag: ""
 
+  digest: "sha256:a3cd43357ea1d83dcfb5d0ec92766c3ebbdd28112fbb6553e640f6196b97e0a2"
+  version: "v0.1.3"
 database:
   sqlalchemy:
     enabled: false

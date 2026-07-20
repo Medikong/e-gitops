@@ -7,8 +7,10 @@ app:
 
 image:
   repository: auth-service
-  tag: v0.9.12
+  tag: ""
 
+  digest: "sha256:ef80bd77e95cba068ca1961f2ef93202b2056c8699cf39a1e71eb94975e82fbc"
+  version: "v0.9.13"
 database:
   sqlalchemy:
     enabled: false
