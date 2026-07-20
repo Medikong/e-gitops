@@ -33,9 +33,7 @@ container:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@user-db:5432/user_db
     - name: USER_ALLOWED_ORIGINS
-      value: http://localhost:3000
-    - name: USER_DEVELOPMENT_ENABLED
-      value: "true"
+      value: https://user.dropmong.internal
   readinessProbe:
     httpGet:
       path: /readyz

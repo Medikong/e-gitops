@@ -6,9 +6,7 @@ container:
           name: postgres-user-credentials
           key: database-url
     - name: USER_ALLOWED_ORIGINS
-      value: http://localhost:3000
-    - name: USER_DEVELOPMENT_ENABLED
-      value: "true"
+      value: https://user.dropmong.internal
 
 ingress:
   enabled: false
