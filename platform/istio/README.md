@@ -11,24 +11,23 @@ Included:
 - Istio CRDs through the official `istio/base` Helm chart
 - Istio control plane through the official `istiod` Helm chart
 - Internal-only ingress gateway through the official `istio/gateway` Helm chart
-- Passive HTTP external authorization provider named `medikong-authz-http`
+- HTTP external authorization provider named `medikong-authz-http`
 - A port 80 `Gateway` listener with no attached routes
+- A private-dev child layer with explicit `VirtualService` routes and a CUSTOM `AuthorizationPolicy`
 - Kiali server through the official `kiali-server` Helm chart
 
 Still excluded:
 
-- `VirtualService` routes through `istio-ingressgateway`
 - external `NodePort`, `LoadBalancer`, or public IP exposure
 - namespace-wide mTLS `STRICT`
-- AuthorizationPolicy
 - RequestAuthentication
 - global sidecar injection
 
 Kong remains the active external API Gateway until a later cutover task. The
 Istio gateway Service is `ClusterIP` only, so creating it does not change any
-external route. The `medikong-authz-http` provider points to Auth
-`/internal/ext-authz`, but remains passive until a later task adds an explicit
-AuthorizationPolicy that references it.
+external route. The `medikong-authz-http` provider calls Auth at
+`/internal/session/status`; the private-dev CUSTOM policy applies it only to
+the protected route matrix.
 
 ## Apply order
 
@@ -61,7 +60,7 @@ Expected gateway exposure before cutover:
 
 ```text
 istio-ingressgateway Service type = ClusterIP
-VirtualService routes attached to medikong-internal = 0
+External NodePort or LoadBalancer exposure = 0
 ```
 
 Then follow `sidecar-injection/README.md` before enabling sidecar injection for
