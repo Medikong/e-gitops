@@ -35,7 +35,7 @@ container:
     - name: USER_ALLOWED_ORIGINS
       value: http://localhost:3000
     - name: USER_DEVELOPMENT_ENABLED
-      value: "false"
+      value: "true"
   readinessProbe:
     httpGet:
       path: /readyz
