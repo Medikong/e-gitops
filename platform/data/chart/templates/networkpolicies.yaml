@@ -17,6 +17,9 @@ spec:
         - podSelector:
             matchLabels:
               app: auth-service
+        - podSelector:
+            matchLabels:
+              app: auth-service-worker
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: dropmong-payment
