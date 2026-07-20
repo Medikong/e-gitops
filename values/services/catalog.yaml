@@ -43,6 +43,18 @@ container:
     initialDelaySeconds: 10
     periodSeconds: 10
 
+migration:
+  enabled: true
+  command:
+    - python
+    - -m
+    - app.migrations
+  args:
+    - upgrade
+  env:
+    - name: DATABASE_URL
+      value: postgresql+asyncpg://user:password@catalog-db:5432/catalog_db
+
 service:
   port: 8081
   targetPort: http
@@ -76,6 +88,13 @@ networkPolicy:
           port: 53
         - protocol: TCP
           port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: catalog-db
+      ports:
+        - protocol: TCP
+          port: 5432
     - to:
         - namespaceSelector:
             matchLabels:

@@ -86,8 +86,36 @@ tasks:
     desc: Docker Desktop dev의 namespace, data, Kong 기반 리소스를 준비합니다.
     cmds:
       - '{{.KUBECTL}} apply -k platform/namespaces'
+      - task: dev:auth-secrets
       - task: dev:data
       - task: dev:kong
+
+  dev:auth-secrets:
+    internal: true
+    desc: 로컬 dev auth-service의 RSA JWT 서명키를 Kubernetes Secret으로 준비합니다.
+    cmds:
+      - |
+        set -eu
+        namespace='dropmong-auth'
+        secret='auth-dev-jwt'
+        {{.KUBECTL}} create namespace "${namespace}" --dry-run=client -o yaml | {{.KUBECTL}} apply -f - >/dev/null
+        if {{.KUBECTL}} get secret "${secret}" -n "${namespace}" -o json 2>/dev/null \
+          | jq -e '.data["jwt-private-key-pem"] and .data["jwt-key-id"] and .data["jwt-issuer"]' >/dev/null; then
+          exit 0
+        fi
+        if ! command -v openssl >/dev/null 2>&1; then
+          printf '%s\n' 'openssl is required to generate the local dev JWT signing key.' >&2
+          exit 2
+        fi
+        task_private_key_file="$(mktemp)"
+        trap 'rm -f "${task_private_key_file}"' EXIT
+        openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "${task_private_key_file}" 2>/dev/null
+        {{.KUBECTL}} create secret generic "${secret}" \
+          --namespace "${namespace}" \
+          --from-file=jwt-private-key-pem="${task_private_key_file}" \
+          --from-literal=jwt-key-id=local-dev \
+          --from-literal=jwt-issuer=auth-service \
+          --dry-run=client -o yaml | {{.KUBECTL}} apply -f - >/dev/null
 
   dev:services:
     desc: Docker Desktop dev에 로컬 dev 대상 서비스 Helm release를 병렬 배포하고 병렬로 rollout을 기다립니다.
@@ -150,6 +178,7 @@ tasks:
               -f "${service_file}" \
               ${env_service_values} \
               ${override_args} \
+              --set-json 'nodeSelector={}' \
               --set-string image.registry="${image_registry}" \
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
               --set-string image.digest="" \
@@ -230,6 +259,7 @@ tasks:
     desc: SERVICE=<name|all> 하나 또는 전체 dev 서비스를 build/push 후 Docker Desktop dev에 Helm 배포합니다.
     cmds:
       - task: dev:registry
+      - task: dev:auth-secrets
       - |
         set -eu
         service='{{default "" .SERVICE}}'
@@ -377,6 +407,7 @@ tasks:
               -f "${service_file}" \
               ${env_service_values} \
               ${override_values} \
+              --set-json 'nodeSelector={}' \
               --set-string image.registry="${image_registry}" \
               --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
               --set-string image.digest="" \
@@ -489,6 +520,7 @@ tasks:
             -f "${service_file}" \
             ${env_service_values} \
             ${override_values} \
+            --set-json 'nodeSelector={}' \
             --set-string image.registry="${image_registry}" \
             --set-string image.tag="{{.DEV_IMAGE_TAG}}" \
             --set-string image.digest="" \

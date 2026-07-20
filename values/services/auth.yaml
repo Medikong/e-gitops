@@ -125,6 +125,16 @@ container:
     initialDelaySeconds: 10
     periodSeconds: 10
 
+migration:
+  enabled: true
+  command:
+    - /app/migrate
+  env:
+    - name: DATABASE_URL
+      value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
+    - name: AUDIT_SINK_DATABASE_URL
+      value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
+
 workers:
   - name: worker
     replicas: 1

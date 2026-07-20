@@ -1,4 +1,7 @@
 container:
+  apiEnv:
+    - name: UVICORN_WORKERS
+      value: "1"
   resources:
     requests:
       cpu: 200m

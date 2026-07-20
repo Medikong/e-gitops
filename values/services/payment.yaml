@@ -45,6 +45,17 @@ container:
     initialDelaySeconds: 10
     periodSeconds: 10
 
+migration:
+  enabled: true
+  command:
+    - alembic
+  args:
+    - upgrade
+    - head
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@payment-db:5432/payment_db
+
 service:
   port: 8083
   targetPort: http

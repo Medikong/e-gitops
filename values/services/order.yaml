@@ -34,6 +34,18 @@ container:
     initialDelaySeconds: 10
     periodSeconds: 10
 
+migration:
+  enabled: true
+  command:
+    - python
+    - -m
+    - app.migrate
+  args:
+    - upgrade
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@order-db:5432/order_db
+
 service:
   port: 8082
   targetPort: http

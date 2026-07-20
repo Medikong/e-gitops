@@ -6,10 +6,23 @@ container:
       value: "900"
     - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
       value: "604800"
-    - name: JWT_SECRET
-      value: dropmong-dev-secret
-    - name: JWT_ISSUER
-      value: auth-service
+    - name: AUTH_JWT_PRIVATE_KEY_PEM
+      valueFrom:
+        secretKeyRef:
+          name: auth-dev-jwt
+          key: jwt-private-key-pem
+    - name: AUTH_JWT_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: auth-dev-jwt
+          key: jwt-key-id
+    - name: AUTH_JWT_ISSUER
+      valueFrom:
+        secretKeyRef:
+          name: auth-dev-jwt
+          key: jwt-issuer
+    - name: AUTH_JWT_AUDIENCES
+      value: dropmong-api
     - name: AUTH_DEV_TEST_TOKEN_ENABLED
       value: "true"
   resources:
