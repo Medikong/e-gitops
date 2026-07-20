@@ -9,8 +9,8 @@ image:
   repository: dropmong-web
   tag: ""
 
-  digest: "sha256:a6e539209f0570b6c30be8b2f29dcac255785331fc2f0c18c422f95dd7aa83a8"
-  version: "v0.1.1"
+  digest: "sha256:e1122f7d45f20b4f617adf2922c8c04caf9dcb05237e6b492e7df9b01ea86700"
+  version: "v0.1.2"
 deployment:
   replicas: 1
 
