@@ -9,8 +9,8 @@ image:
   repository: interest-service
   tag: ""
 
-  digest: "sha256:0261c8f0c76d75fcb78c648e2ebccc73f13f89eb686e8c28ec4aeafc9b51fd94"
-  version: "v0.1.2"
+  digest: "sha256:7f19346e0f0c4c5b7c1b585b1b6a4d3424401e190518418b5331d6c88bc15127"
+  version: "v0.2.0"
 deployment:
   replicas: 1
 
