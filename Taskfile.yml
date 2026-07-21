@@ -27,6 +27,9 @@ vars:
   KONG_PROXY_SERVICE: '{{default "kong-kong-proxy" .KONG_PROXY_SERVICE}}'
   AWS_ARGO_ROOT: '{{default "argo/applications/aws-dev/root.yaml" .AWS_ARGO_ROOT}}'
   ISTIO_PLATFORM: '{{default "platform/istio" .ISTIO_PLATFORM}}'
+  CNPG_CHART_VERSION: '{{default "0.29.0" .CNPG_CHART_VERSION}}'
+  CNPG_OPERATOR_VALUES: '{{default "platform/cloudnative-pg/operator/aws-dev-values.yaml" .CNPG_OPERATOR_VALUES}}'
+  CNPG_TEST_CLUSTER: '{{default "platform/cloudnative-pg/clusters/aws-dev/test-postgres" .CNPG_TEST_CLUSTER}}'
 
 includes:
   observability:
@@ -55,6 +58,7 @@ tasks:
       - helm:template:all
       - scenario:all
       - platform:render
+      - cnpg:render
       - kong:render
       - argo:validate
     cmds:
@@ -972,6 +976,48 @@ tasks:
       - task: kong:repo
       - '{{.HELM}} template {{.KONG_RELEASE}} {{.KONG_CHART}} --version {{.KONG_CHART_VERSION}} --namespace {{.KONG_NAMESPACE}} -f {{.KONG_VALUES}} >/dev/null'
       - '{{.KUBECTL}} kustomize platform/kong >/dev/null'
+
+  cnpg:repo:
+    internal: true
+    desc: CloudNativePG Helm chart repository를 준비합니다.
+    cmds:
+      - '{{.HELM}} repo add cnpg https://cloudnative-pg.github.io/charts --force-update >/dev/null'
+      - '{{.HELM}} repo update cnpg >/dev/null'
+
+  cnpg:render:
+    desc: CloudNativePG Operator와 aws-dev 3-instance 테스트 Cluster를 검증합니다.
+    deps:
+      - cnpg:repo
+    cmds:
+      - >-
+        {{.HELM}} template cloudnative-pg cnpg/cloudnative-pg
+        --version {{.CNPG_CHART_VERSION}}
+        --namespace cnpg-system
+        -f {{.CNPG_OPERATOR_VALUES}} >/dev/null
+      - |
+        set -eu
+        {{.KUBECTL}} kustomize "{{.CNPG_TEST_CLUSTER}}" \
+        | ruby -ryaml -e '
+          documents = YAML.load_stream(STDIN.read)
+          abort("CNPG manifest is empty") if documents.empty?
+
+          cluster = documents.find do |document|
+            document.is_a?(Hash) && document["kind"] == "Cluster"
+          end
+
+          abort("CNPG Cluster was not found") unless cluster
+          abort("instances must be 3") unless cluster.dig("spec", "instances") == 3
+
+          storage_class = cluster.dig("spec", "storage", "storageClass")
+          unless storage_class == "medikong-aws-gp3"
+            abort("unexpected StorageClass: #{storage_class.inspect}")
+          end
+
+          puts "CNPG render validation passed"
+          puts "cluster=#{cluster.dig("metadata", "namespace")}/#{cluster.dig("metadata", "name")}"
+          puts "instances=#{cluster.dig("spec", "instances")}"
+          puts "storageClass=#{storage_class}"
+        '
 
   istio:render:
     desc: Istio platform ArgoCD Application 레이어를 렌더링합니다.

@@ -74,3 +74,19 @@ metadata:
   name: synthetic
   labels:
     app.kubernetes.io/part-of: medikong
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cnpg-system
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: cloudnative-pg
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cnpg-test
+  labels:
+    app.kubernetes.io/part-of: medikong
+    app.kubernetes.io/name: cloudnative-pg-test

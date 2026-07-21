@@ -1,0 +1,39 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cnpg-test
+  namespace: cnpg-test
+  labels:
+    app.kubernetes.io/name: cnpg-test
+    app.kubernetes.io/part-of: medikong
+    medikong.io/environment: aws-dev
+spec:
+  instances: 3
+
+  imageName: ghcr.io/cloudnative-pg/postgresql:15.14-standard-trixie
+
+  enableSuperuserAccess: false
+
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+      dataChecksums: true
+
+  storage:
+    storageClass: medikong-aws-gp3
+    size: 5Gi
+    resizeInUseVolumes: true
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: preferred
+    topologyKey: kubernetes.io/hostname

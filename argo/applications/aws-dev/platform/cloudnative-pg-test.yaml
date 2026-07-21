@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudnative-pg-test-aws-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-24"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Medikong/e-gitops.git
+    targetRevision: HEAD
+    path: platform/cloudnative-pg/clusters/aws-dev/test-postgres
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-test
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
