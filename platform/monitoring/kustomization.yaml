@@ -2,7 +2,6 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: monitoring
 resources:
-  - manifests/namespace.yaml
   - manifests/grafana-ingress.yaml
   - manifests/istio-mesh-podmonitors.yaml
   - manifests/prometheusrules/service-slo-alerts.yaml

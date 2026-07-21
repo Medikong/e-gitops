@@ -1276,6 +1276,7 @@ tasks:
   platform:render:
     cmds:
       - '{{.KUBECTL}} kustomize platform/namespaces >/dev/null'
+      - '{{.KUBECTL}} kustomize platform/external-secrets/aws-dev/monitoring >/dev/null'
       - 'ruby -e ''require "yaml"; YAML.load_stream(File.read("platform/storage/storageclass-aws-gp3.yaml"))'' >/dev/null'
       - 'ruby -e ''require "yaml"; YAML.load_stream(File.read("platform/storage/local-path-private-dev.yaml"))'' >/dev/null'
       - >-
@@ -1330,6 +1331,7 @@ tasks:
           has_key kind "${file}" || { printf 'Missing kind: %s\n' "${file}" >&2; exit 2; }
           has_key metadata "${file}" || { printf 'Missing metadata: %s\n' "${file}" >&2; exit 2; }
         done
+      - ruby scripts/validate-aws-dev-grafana-external-secret.rb
       - |
         set -eu
         ruby -ryaml -e '

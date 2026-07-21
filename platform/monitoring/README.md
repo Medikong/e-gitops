@@ -55,13 +55,23 @@ Ops의 `payment-service-metrics.json`은 현재 `/payments/*` route, payment Pos
 
 모든 경보에는 저장소 runbook의 절대 `runbook_url`이 있다. 경보의 임계치는 초기 운영값이며 live traffic과 부하 시험 자료로 보정한다.
 
+## Grafana 관리자 Secret
+
+AWS Dev의 Grafana 로컬 관리자는 비상용 계정으로만 사용한다. AWS Secrets Manager가 원본을 보관하고 External Secrets Operator가 `monitoring/grafana-admin-credentials`를 생성한다. Git과 Terraform에는 Secret 값을 저장하지 않는다.
+
+Grafana가 최초 관리자 비밀번호를 내부 DB에 저장하므로 ExternalSecret은 `CreatedOnce`, immutable, Orphan 조합을 사용한다. 대상 Kubernetes Secret이 삭제되면 ESO가 AWS 원본으로 복구하지만, 원본 값이 바뀌었다는 이유만으로 정상 Secret을 자동 교체하지 않는다. 회전 시에는 Grafana CLI/API, AWS 원본, Kubernetes Secret을 함께 변경해야 한다.
+
+일반 사용자 로그인은 향후 OIDC/SSO로 전환한다. IdP issuer, client ID, callback URL과 그룹 역할 매핑을 검증하기 전에는 로컬 로그인과 비상용 계정을 비활성화하지 않는다.
+
 ## 적용 순서
 
-1. Argo CD platform Application이 `monitoring` namespace와 dashboard ConfigMap, PodMonitor, PrometheusRule을 적용한다.
-2. kube-prometheus-stack Helm source가 Prometheus Operator, Prometheus, Alertmanager와 Grafana를 적용한다.
-3. 서비스 chart의 ServiceMonitor가 각 `/metrics` endpoint를 Prometheus에 연결한다.
-4. Grafana sidecar가 `grafana_dashboard=1` ConfigMap을 `Ops`, `Logs`, `DB`, `Load` 폴더로 읽는다.
-5. Loki와 Tempo datasource는 `platform/observability`가 배포한 backend service를 사용한다.
+1. `namespaces-aws-dev`가 `external-secrets`와 `monitoring` namespace를 만든다.
+2. `external-secrets-aws-dev`가 ESO CRD와 컨트롤러를 설치한다.
+3. `external-secrets-monitoring-config-aws-dev`가 SecretStore와 ExternalSecret을 만들고 PostSync Job으로 실제 Secret 준비를 확인한다.
+4. `monitoring-aws-dev`가 dashboard ConfigMap, PodMonitor, PrometheusRule과 kube-prometheus-stack을 적용한다.
+5. 서비스 chart의 ServiceMonitor가 각 `/metrics` endpoint를 Prometheus에 연결한다.
+6. Grafana sidecar가 `grafana_dashboard=1` ConfigMap을 `Ops`, `Logs`, `DB`, `Load` 폴더로 읽는다.
+7. Loki와 Tempo datasource는 `platform/observability`가 배포한 backend service를 사용한다.
 
 Alertmanager는 cluster 내부 adapter만 호출한다. 외부 webhook 원문은 Git에 두지 않고 `monitoring/alertmanager-discord-webhook` Secret의 `webhook-url` key로 adapter에 주입한다.
 
