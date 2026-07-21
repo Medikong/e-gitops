@@ -94,6 +94,18 @@ networkPolicy:
       ports:
         - protocol: TCP
           port: 8083
+
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+          podSelector:
+            matchLabels:
+              app: istio-ingressgateway
+              istio: ingressgateway
+      ports:
+        - protocol: TCP
+          port: 8083
   egress:
     - to:
         - namespaceSelector:
