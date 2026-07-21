@@ -34,7 +34,6 @@ migration:
     - python
     - -m
     - app.migrations
-    - upgrade
   env:
     - name: DATABASE_URL
       value: postgresql+asyncpg://user:password@catalog-db:5432/catalog_db
