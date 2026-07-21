@@ -85,6 +85,19 @@ networkPolicy:
           port: 53
         - protocol: TCP
           port: 53
-
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+          podSelector:
+            matchLabels:
+              app: istiod
+      ports:
+        - protocol: TCP
+          port: 15012
+        - protocol: TCP
+          port: 15010
+        - protocol: TCP
+          port: 443
 nodeSelector:
   medikong.io/workload: app
