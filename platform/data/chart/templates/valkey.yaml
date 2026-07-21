@@ -36,24 +36,55 @@ spec:
         app.kubernetes.io/part-of: medikong
         app.kubernetes.io/name: {{ .Values.valkey.name | quote }}
     spec:
+{{- with .Values.valkey.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | nindent 8 }}
+{{- end }}
       containers:
         - name: valkey
           image: {{ .Values.valkey.image | quote }}
+{{- if .Values.valkey.auth.enabled }}
+          command:
+            - sh
+            - -ec
+            - exec valkey-server --appendonly yes --requirepass "$REDIS_PASSWORD"
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.valkey.auth.secretName | quote }}
+                  key: {{ .Values.valkey.auth.passwordKey | quote }}
+{{- else }}
+          args:
+            - valkey-server
+            - --appendonly
+            - "yes"
+{{- end }}
           ports:
             - name: redis
               containerPort: {{ .Values.valkey.port }}
           readinessProbe:
             exec:
               command:
-                - valkey-cli
-                - ping
+                - sh
+                - -ec
+{{- if .Values.valkey.auth.enabled }}
+                - REDISCLI_AUTH="$REDIS_PASSWORD" valkey-cli ping 2>/dev/null | grep -qx PONG
+{{- else }}
+                - valkey-cli ping | grep -qx PONG
+{{- end }}
             initialDelaySeconds: 5
             periodSeconds: 5
           livenessProbe:
             exec:
               command:
-                - valkey-cli
-                - ping
+                - sh
+                - -ec
+{{- if .Values.valkey.auth.enabled }}
+                - REDISCLI_AUTH="$REDIS_PASSWORD" valkey-cli ping 2>/dev/null | grep -qx PONG
+{{- else }}
+                - valkey-cli ping | grep -qx PONG
+{{- end }}
             initialDelaySeconds: 20
             periodSeconds: 10
           resources:
@@ -67,6 +98,9 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
+{{- if .Values.valkey.storageClassName }}
+        storageClassName: {{ .Values.valkey.storageClassName | quote }}
+{{- end }}
         resources:
           requests:
             storage: {{ .Values.valkey.storage }}
@@ -74,7 +108,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-coupon-redis-ingress
+  name: {{ default (printf "allow-%s-ingress" .Values.valkey.name) .Values.valkey.networkPolicyName | quote }}
   namespace: {{ .Values.valkey.namespace | quote }}
   labels:
     app.kubernetes.io/part-of: medikong
@@ -89,7 +123,7 @@ spec:
     - from:
         - podSelector:
             matchLabels:
-              app: coupon-service
+{{ toYaml .Values.valkey.allowedPodSelector | nindent 14 }}
       ports:
         - protocol: TCP
           port: {{ .Values.valkey.port }}

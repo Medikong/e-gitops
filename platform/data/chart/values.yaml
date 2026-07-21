@@ -54,3 +54,12 @@ valkey:
     limits:
       memory: 256Mi
   storage: 1Gi
+  storageClassName: ""
+  auth:
+    enabled: false
+    secretName: ""
+    passwordKey: password
+  allowedPodSelector:
+    app: coupon-service
+  nodeSelector: {}
+  networkPolicyName: ""

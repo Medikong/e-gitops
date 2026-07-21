@@ -1299,7 +1299,8 @@ tasks:
         -f platform/data/aws-dev/postgres-coupon.yaml
         -f platform/data/aws-dev/postgres-interest.yaml
         -f platform/data/aws-dev/postgres-order.yaml
-        -f platform/data/aws-dev/postgres-payment.yaml >/dev/null
+        -f platform/data/aws-dev/postgres-payment.yaml
+        -f platform/data/aws-dev/valkey-auth.yaml >/dev/null
       - '{{.KUBECTL}} kustomize platform/data-private-dev >/dev/null'
       - '{{.KUBECTL}} kustomize platform/kong >/dev/null'
       - '{{.KUBECTL}} kustomize platform/monitoring >/dev/null'

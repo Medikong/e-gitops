@@ -1,0 +1,22 @@
+valkey:
+  enabled: true
+  name: auth-valkey
+  namespace: dropmong-auth
+  port: 6379
+  storage: 1Gi
+  storageClassName: medikong-aws-gp3
+  auth:
+    enabled: true
+    secretName: auth-valkey-credentials
+    passwordKey: password
+  allowedPodSelector:
+    app: auth-service
+  nodeSelector:
+    medikong.io/workload: data
+  networkPolicyName: allow-auth-valkey-ingress
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
