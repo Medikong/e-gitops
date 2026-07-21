@@ -286,9 +286,14 @@ resources:
     cpu: 300m
     memory: 512Mi
 
-# aws-dev 3-node cluster currently has no dedicated platform worker.
-# Keep this empty temporarily so the scheduler can place the collector on available workers.
+# The DaemonSet stays on every node so node-local application and platform logs
+# remain available. The toleration also includes the dedicated observability node.
 nodeSelector: {}
+tolerations:
+  - key: medikong.io/workload
+    operator: Equal
+    value: observability
+    effect: NoSchedule
 
 podLabels:
   app.kubernetes.io/part-of: medikong

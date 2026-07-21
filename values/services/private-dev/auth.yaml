@@ -148,3 +148,14 @@ networkPolicy:
           port: 4317
         - protocol: TCP
           port: 4318
+
+
+deployment:
+  podLabels:
+    sidecar.istio.io/inject: "true"
+  podAnnotations:
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/proxyCPU: 50m
+    sidecar.istio.io/proxyMemory: 64Mi
+    sidecar.istio.io/proxyCPULimit: 300m
+    sidecar.istio.io/proxyMemoryLimit: 256Mi

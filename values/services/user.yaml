@@ -7,8 +7,10 @@ app:
 
 image:
   repository: user-service
-  tag: v0.1.2
+  tag: ""
 
+  digest: "sha256:3c77517be09477c87295908894e9d30bc2b10e83f6c03128d0cf1a794efe74ea"
+  version: "v0.1.3"
 database:
   sqlalchemy:
     enabled: false
@@ -33,9 +35,47 @@ container:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@user-db:5432/user_db
     - name: USER_ALLOWED_ORIGINS
-      value: http://localhost:3000
-    - name: USER_DEVELOPMENT_ENABLED
-      value: "false"
+      value: https://user.dropmong.internal
+    # USER_SIGNING_PRIVATE_KEY through USER_PRIVATE_NAME_ENCRYPTION_KEY:
+    # sourced from the user-runtime-credentials Secret (openssl-generated
+    # placeholder keys via `task aws-dev:secrets`, see infra repo). Real
+    # keys/rotation still owned by user-service - replace before this is
+    # used for anything beyond internal dev testing.
+    - name: USER_SIGNING_PRIVATE_KEY
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: user-signing-private-key
+    - name: USER_SIGNING_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: user-signing-key-id
+    - name: AUTH_PROOF_PUBLIC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: auth-proof-public-key
+    - name: AUTH_PROOF_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: auth-proof-key-id
+    - name: MEDIA_PROOF_PUBLIC_KEY
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: media-proof-public-key
+    - name: MEDIA_PROOF_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: media-proof-key-id
+    - name: USER_PRIVATE_NAME_ENCRYPTION_KEY
+      valueFrom:
+        secretKeyRef:
+          name: user-runtime-credentials
+          key: private-name-encryption-key
   readinessProbe:
     httpGet:
       path: /readyz

@@ -139,6 +139,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
+        storageClassName: medikong-aws-gp3
         resources:
           requests:
             storage: 1Gi

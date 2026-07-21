@@ -10,6 +10,7 @@ vars:
   MONITORING_CHART_REPO: '{{default "https://prometheus-community.github.io/helm-charts" .MONITORING_CHART_REPO}}'
   MONITORING_CHART_REPO_NAME: '{{default "prometheus-community" .MONITORING_CHART_REPO_NAME}}'
   MONITORING_CHART_VERSION: '{{default "86.1.0" .MONITORING_CHART_VERSION}}'
+  MONITORING_AWS_DEV_VALUES: '{{default "platform/monitoring/values/kube-prometheus-stack.yaml" .MONITORING_AWS_DEV_VALUES}}'
   MONITORING_PRIVATE_DEV_VALUES: '{{default "platform/monitoring/values/kube-prometheus-stack-private-dev.yaml" .MONITORING_PRIVATE_DEV_VALUES}}'
   MONITORING_LOCAL_VALUES: '{{default "platform/monitoring/values/kube-prometheus-stack-local.yaml" .MONITORING_LOCAL_VALUES}}'
 
@@ -20,10 +21,11 @@ tasks:
       - '{{.HELM}} repo update {{.MONITORING_CHART_REPO_NAME}} >/dev/null'
 
   render:
-    desc: kube-prometheus-stack private-dev/local values와 monitoring Kustomize 리소스를 렌더링합니다.
+    desc: kube-prometheus-stack aws-dev/private-dev/local values와 monitoring Kustomize 리소스를 렌더링합니다.
     cmds:
       - task repo
       - '{{.KUBECTL}} kustomize {{.GITOPS_ROOT}}/platform/monitoring >/dev/null'
+      - '{{.HELM}} template {{.MONITORING_RELEASE}} {{.MONITORING_CHART}} --version {{.MONITORING_CHART_VERSION}} --namespace {{.MONITORING_NAMESPACE}} --include-crds -f {{.GITOPS_ROOT}}/{{.MONITORING_AWS_DEV_VALUES}} >/dev/null'
       - '{{.HELM}} template {{.MONITORING_RELEASE}} {{.MONITORING_CHART}} --version {{.MONITORING_CHART_VERSION}} --namespace {{.MONITORING_NAMESPACE}} --include-crds -f {{.GITOPS_ROOT}}/{{.MONITORING_PRIVATE_DEV_VALUES}} >/dev/null'
       - '{{.HELM}} template {{.MONITORING_RELEASE}} {{.MONITORING_CHART}} --version {{.MONITORING_CHART_VERSION}} --namespace {{.MONITORING_NAMESPACE}} --include-crds -f {{.GITOPS_ROOT}}/{{.MONITORING_LOCAL_VALUES}} >/dev/null'
 

@@ -40,8 +40,8 @@ pdb:
   minAvailable: 1
 
 hpa:
-  enabled: true
-  minReplicas: 2
+  enabled: false
+  minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
 

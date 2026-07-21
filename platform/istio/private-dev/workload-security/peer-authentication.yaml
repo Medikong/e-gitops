@@ -1,0 +1,35 @@
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: protected-service-mtls
+  namespace: dropmong-auth
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth-service
+  mtls:
+    mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: protected-service-mtls
+  namespace: dropmong-order
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: order-service
+  mtls:
+    mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: protected-service-mtls
+  namespace: dropmong-payment
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payment-service
+  mtls:
+    mode: PERMISSIVE
