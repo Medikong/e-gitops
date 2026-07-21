@@ -24,8 +24,6 @@ migration:
   enabled: true
   command:
     - alembic
-    - upgrade
-    - head
   env:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@payment-db:5432/payment_db
