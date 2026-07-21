@@ -80,6 +80,17 @@ grafana_external_secret = load_yaml("platform/external-secrets/aws-dev/monitorin
   assert_equal("Grafana ExternalSecret #{label}", values[0], values[1])
 end
 
+grafana_external_secret.fetch("spec").fetch("data").each do |mapping|
+  remote_ref = mapping.fetch("remoteRef")
+  {
+    "conversion strategy" => [remote_ref["conversionStrategy"], "Default"],
+    "decoding strategy" => [remote_ref["decodingStrategy"], "None"],
+    "metadata policy" => [remote_ref["metadataPolicy"], "None"],
+  }.each do |label, values|
+    assert_equal("Grafana ExternalSecret #{mapping.fetch("secretKey")} #{label}", values[0], values[1])
+  end
+end
+
 readiness_job = load_yaml("platform/external-secrets/aws-dev/monitoring/readiness-job.yaml")
 {
   "hook" => [readiness_job.dig("metadata", "annotations", "argocd.argoproj.io/hook"), "PostSync"],
