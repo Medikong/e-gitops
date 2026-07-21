@@ -1,0 +1,6 @@
+container:
+  env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@user-db:5432/user_db
+    - name: USER_ALLOWED_ORIGINS
+      value: https://user.dropmong.internal
