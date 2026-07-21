@@ -59,7 +59,7 @@ Ops의 `payment-service-metrics.json`은 현재 `/payments/*` route, payment Pos
 
 AWS Dev의 Grafana 로컬 관리자는 비상용 계정으로만 사용한다. AWS Secrets Manager가 원본을 보관하고 External Secrets Operator가 `monitoring/grafana-admin-credentials`를 생성한다. Git과 Terraform에는 Secret 값을 저장하지 않는다.
 
-Grafana가 최초 관리자 비밀번호를 내부 DB에 저장하므로 ExternalSecret은 `CreatedOnce`, immutable, Orphan 조합을 사용한다. 대상 Kubernetes Secret이 삭제되면 ESO가 AWS 원본으로 복구하지만, 원본 값이 바뀌었다는 이유만으로 정상 Secret을 자동 교체하지 않는다. 회전 시에는 Grafana CLI/API, AWS 원본, Kubernetes Secret을 함께 변경해야 한다.
+Grafana가 최초 관리자 비밀번호를 내부 DB에 저장하므로 ExternalSecret은 `CreatedOnce`와 immutable target을 사용한다. target은 `Owner`로 연결해 Kubernetes Secret 삭제 이벤트를 ESO가 즉시 감지하고 AWS 원본으로 복구하게 한다. 정상 Secret은 AWS 원본 값이 바뀌었다는 이유만으로 자동 교체되지 않는다. ExternalSecret을 삭제하면 target도 함께 제거되므로 Argo CD에서 ExternalSecret을 계속 관리해야 하며, 회전 시에는 Grafana CLI/API, AWS 원본, Kubernetes Secret을 함께 변경해야 한다.
 
 일반 사용자 로그인은 향후 OIDC/SSO로 전환한다. IdP issuer, client ID, callback URL과 그룹 역할 매핑을 검증하기 전에는 로컬 로그인과 비상용 계정을 비활성화하지 않는다.
 

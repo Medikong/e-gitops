@@ -8,7 +8,7 @@ Terraform manages purpose-specific IAM roles, exact read policies, and Grafana S
 
 The AWS secret `dropmong/aws-dev/monitoring/grafana-admin` contains JSON properties named `admin-user` and `admin-password`. Initialize its value only after Terraform creates the secret metadata. Use a protected local input method and suppress AWS CLI output; never place the value in a shell command, committed file, Terraform variable, plan, or CI log.
 
-The Grafana ExternalSecret uses `CreatedOnce` with an immutable, orphaned target because Grafana persists the initial administrator credential in its own database. ESO recreates the Kubernetes Secret if it is deleted, but it does not periodically replace a healthy Secret merely because the AWS value changed.
+The Grafana ExternalSecret uses `CreatedOnce` with an immutable target because Grafana persists the initial administrator credential in its own database. The target uses `creationPolicy: Owner` so ESO immediately reconciles target Secret deletion events. ESO does not periodically replace a healthy Secret merely because the AWS value changed. Deleting the ExternalSecret also garbage-collects its owned target, so Argo CD must continuously manage the ExternalSecret.
 
 Changing the AWS value does not rotate an administrator already stored in Grafana's database. A rotation must reset the Grafana account through the Grafana CLI or API, update the AWS value, and deliberately recreate the immutable Kubernetes Secret. Human login should ultimately use OIDC/SSO, leaving this account for emergency access only.
 
