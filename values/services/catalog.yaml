@@ -9,8 +9,8 @@ image:
   repository: catalog-service
   tag: ""
 
-  digest: "sha256:93557317a32b1b34686a879b41e53bae8cfc4e62f646d89400f0f06122a5965e"
-  version: "v0.1.3"
+  digest: "sha256:35cdfb3d31653682dae2a7a685342608fc1bfde449aea565f4d5865a136cdf6c"
+  version: "v0.1.4"
 database:
   sqlalchemy:
     enabled: false
