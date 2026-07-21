@@ -5,6 +5,7 @@
 ## 대상과 원칙
 
 - 대상은 `auth`, `user`, `catalog`, `coupon`, `interest`, `order`, `payment`, `notification`, `dropmong-web` 9개 서비스와 각각의 `dropmong-*` namespace다.
+- Ops 11은 서비스 Pod를 반복하지 않고 `monitoring`, `observability`, `kong`, `kube-system`, `local-path-storage`, `dropmong-messaging`과 실제 DB·Valkey StatefulSet을 지원 Pod로 분리한다.
 - API 신호는 route template을 사용하는 공통 `http_server_request_duration_seconds` histogram과 `http_server_active_requests`를 기준으로 한다.
 - `request_id`, `trace_id`, `span_id`는 고카디널리티 metric label이 아니라 구조화 로그 본문에 둔다.
 - 실제 요청 자료가 없으면 SLO 달성률, Error Budget 잔여량, burn rate 실측값을 만들지 않는다.
@@ -17,7 +18,7 @@ Grafana sidecar는 총 29개 화면을 `Ops` 9개, `Logs` 9개, `DB` 4개, `Load
 
 | 그룹 | 대표 화면 | 상세 조사 순서 |
 | --- | --- | --- |
-| Ops | `00-service-overview.json` | `00` 영향 확인 → `01` 서비스 runtime → `03` mesh 근거 → `04` 업무 route/Pod 로그 → `10` Kubernetes → `11` Pod·Container → `12` Node |
+| Ops | `00-service-overview.json` | `00` 영향 확인 → `01` 서비스 runtime → `03` mesh 근거 → `04` 업무 route/Pod 로그 → `10` Kubernetes → `11` 지원 Pod → `12` Node |
 | Logs | `logs-10-overview.json` | `10` 전체 이상 → `20` 서비스·route → `25` ID 검색 → `30` 오류/Kafka → `40` ID 연결 → `50` trace → `70` platform → `80` 서비스 상세 |
 | DB | `db-10-operations-overview.json` | `10` PostgreSQL 이상 → `20` DB Pod 자원 → `30` workload/slow span → `40` log·trace 연결 |
 | Load | `load-10-api-load-overview.json` | `10` 부하 영향 → `20` latency/error → `30` saturation → `40` 원인 후보 → `50` service/DB/Kafka 자원 → `60` runner 로그 → `70` slow trace |
@@ -27,7 +28,7 @@ Ops의 `payment-service-metrics.json`은 현재 `/payments/*` route, payment Pos
 ## 조사 순서
 
 1. Ops 00 또는 Load 10에서 영향 서비스, route, 시간대와 Latency·Traffic·Errors·Saturation을 확인한다.
-2. Ops 01/10/11/12에서 서비스 → Deployment → Pod·Container → Node 순서로 Kubernetes 원인을 좁힌다.
+2. Ops 01/10/11/12에서 서비스 → Deployment → 지원 시스템 Pod → Node 순서로 Kubernetes 원인을 좁힌다.
 3. Logs 10/20/25에서 같은 조건의 `request_id`와 `trace_id`를 찾고, Logs 30/40/50에서 오류·Kafka·span을 연결한다.
 4. Tempo에서 `trace_id`를 열고 `span_id`가 가리키는 지연 또는 실패 구간을 확인한다.
 5. DB 소유 서비스라면 DB 10/20/30/40에서 PostgreSQL → DB Pod → workload → trace 순서로 확인한다.
@@ -41,7 +42,7 @@ Ops의 `payment-service-metrics.json`은 현재 `/payments/*` route, payment Pos
 - 업무 화면은 공통 HTTP route 완료량과 Kafka 완료 로그를 운영 근거로 사용한다. 이를 주문 성공률이나 결제 성공률 같은 업무 성과로 표현하지 않는다.
 - DB 30은 실제 PostgreSQL exporter와 Tempo PostgreSQL span을 사용한다. 별도 slow-query metric이 없으면 이를 가정하지 않는다.
 
-대시보드 JSON은 `scripts/generate_dashboards.rb`에서 공통 변수, UID, 이전·다음 링크와 현재 서비스 범위를 함께 생성한다. JSON을 변경할 때는 생성기와 결과 파일을 함께 갱신한다.
+`dashboards/{ops,logs,db,load}`의 JSON 파일이 Grafana 대시보드의 유일한 원본이다. 대시보드는 해당 JSON을 직접 수정하고 문법, UID, 링크와 렌더링을 검증한다.
 
 ## 규칙과 운영 문서
 

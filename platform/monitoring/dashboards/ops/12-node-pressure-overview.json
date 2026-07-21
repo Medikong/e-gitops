@@ -67,9 +67,9 @@
       }
     },
     {
-      "title": "Not Ready Nodes",
-      "type": "stat",
-      "description": null,
+      "title": "Node Resource Snapshot",
+      "type": "table",
+      "description": "Current node CPU, memory and Pod occupancy. node_uname_info maps node-exporter instances to Kubernetes node names; Ready comes from kube-state-metrics.",
       "targets": [
         {
           "datasource": {
@@ -77,10 +77,116 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (node) (kube_node_status_condition{condition=\"Ready\",status!=\"true\"} == 1)",
-          "legendFormat": "{{service_name}}",
-          "range": true,
+          "expr": "max by (node) (kube_node_status_condition{condition=\"Ready\",status=\"true\"} == 1)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "Ready",
+          "range": false,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (node) (label_replace(sum by (instance) (rate(node_cpu_seconds_total{mode!=\"idle\"}[$__rate_interval])) * on (instance) group_left (nodename) node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "CPU Used",
+          "range": false,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (node) (label_replace(count by (instance) (node_cpu_seconds_total{mode=\"idle\"}) * on (instance) group_left (nodename) node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "CPU Total",
+          "range": false,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (node) (label_replace((1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval]))) * on (instance) group_left (nodename) node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "CPU %",
+          "range": false,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (node) (label_replace((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) * on (instance) group_left (nodename) node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "Memory Used",
+          "range": false,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (node) (label_replace(node_memory_MemTotal_bytes * on (instance) group_left (nodename) node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "Memory Total",
+          "range": false,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (node) (label_replace((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) * on (instance) group_left (nodename) node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\")) / clamp_min(sum by (node) (label_replace(node_memory_MemTotal_bytes * on (instance) group_left (nodename) node_uname_info, \"node\", \"$1\", \"nodename\", \"(.+)\")), 1)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "Memory %",
+          "range": false,
+          "refId": "G"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (node) ((kube_pod_status_phase{phase=\"Running\"} == 1) * on (namespace, pod) group_left (node) kube_pod_info)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "Running Pods",
+          "range": false,
+          "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "100 * sum by (node) ((kube_pod_status_phase{phase=\"Running\"} == 1) * on (namespace, pod) group_left (node) kube_pod_info) / clamp_min(max by (node) (kube_node_status_capacity{resource=\"pods\",unit=\"integer\"}), 1)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "Pod %",
+          "range": false,
+          "refId": "I"
         }
       ],
       "links": [
@@ -88,142 +194,348 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "short",
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          }
         },
         "overrides": [
-
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Node"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 210
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Ready"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU Used"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "cores"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU Total"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "cores"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/^Memory (Used|Total)$/"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 70
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Memory %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 70
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Pod %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 70
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge"
+                }
+              }
+            ]
+          }
         ]
       },
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "options": {
+        "cellHeight": "md",
+        "showHeader": true,
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        }
+      },
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "node",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true,
+              "Time 6": true,
+              "Time 7": true,
+              "Time 8": true,
+              "Time 9": true
+            },
+            "indexByName": {
+              "node": 0,
+              "Value #A": 1,
+              "Value #B": 2,
+              "Value #C": 3,
+              "Value #D": 4,
+              "Value #E": 5,
+              "Value #F": 6,
+              "Value #G": 7,
+              "Value #H": 8,
+              "Value #I": 9
+            },
+            "renameByName": {
+              "node": "Node",
+              "Value #A": "Ready",
+              "Value #B": "CPU Used",
+              "Value #C": "CPU Total",
+              "Value #D": "CPU %",
+              "Value #E": "Memory Used",
+              "Value #F": "Memory Total",
+              "Value #G": "Memory %",
+              "Value #H": "Running Pods",
+              "Value #I": "Pod %"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {
+            },
+            "sort": [
+              {
+                "field": "Node",
+                "desc": false
+              }
+            ]
+          }
+        }
+      ],
       "id": 2,
       "gridPos": {
         "x": 0,
         "y": 3,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "MemoryPressure Nodes",
-      "type": "stat",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (node) (kube_node_status_condition{condition=\"MemoryPressure\",status=\"true\"} == 1)",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 3,
-      "gridPos": {
-        "x": 12,
-        "y": 3,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "DiskPressure Nodes",
-      "type": "stat",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (node) (kube_node_status_condition{condition=\"DiskPressure\",status=\"true\"} == 1)",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 4,
-      "gridPos": {
-        "x": 0,
-        "y": 10,
-        "w": 12,
-        "h": 7
-      }
-    },
-    {
-      "title": "PIDPressure Nodes",
-      "type": "stat",
-      "description": null,
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sum by (node) (kube_node_status_condition{condition=\"PIDPressure\",status=\"true\"} == 1)",
-          "legendFormat": "{{service_name}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "links": [
-
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": [
-
-        ]
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "id": 5,
-      "gridPos": {
-        "x": 12,
-        "y": 10,
-        "w": 12,
-        "h": 7
+        "w": 24,
+        "h": 8
       }
     },
     {
@@ -258,10 +570,10 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 6,
+      "id": 3,
       "gridPos": {
         "x": 0,
-        "y": 17,
+        "y": 11,
         "w": 12,
         "h": 7
       }
@@ -298,10 +610,10 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 7,
+      "id": 4,
       "gridPos": {
         "x": 12,
-        "y": 17,
+        "y": 11,
         "w": 12,
         "h": 7
       }
@@ -338,10 +650,10 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 8,
+      "id": 5,
       "gridPos": {
         "x": 0,
-        "y": 24,
+        "y": 18,
         "w": 12,
         "h": 7
       }
@@ -378,10 +690,10 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 9,
+      "id": 6,
       "gridPos": {
         "x": 12,
-        "y": 24,
+        "y": 18,
         "w": 12,
         "h": 7
       }
@@ -418,10 +730,10 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 10,
+      "id": 7,
       "gridPos": {
         "x": 0,
-        "y": 31,
+        "y": 25,
         "w": 12,
         "h": 7
       }
