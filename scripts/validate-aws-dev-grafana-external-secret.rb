@@ -72,6 +72,7 @@ grafana_external_secret = load_yaml("platform/external-secrets/aws-dev/monitorin
   "admin password property" => [grafana_external_secret.dig("spec", "data", 1, "remoteRef", "property"), "admin-password"],
   "target Secret" => [grafana_external_secret.dig("spec", "target", "name"), "grafana-admin-credentials"],
   "refresh policy" => [grafana_external_secret.dig("spec", "refreshPolicy"), "CreatedOnce"],
+  "defaulted refresh interval" => [grafana_external_secret.dig("spec", "refreshInterval"), "1h0m0s"],
   "creation policy" => [grafana_external_secret.dig("spec", "target", "creationPolicy"), "Owner"],
   "deletion policy" => [grafana_external_secret.dig("spec", "target", "deletionPolicy"), "Retain"],
   "immutable target" => [grafana_external_secret.dig("spec", "target", "immutable"), true],
