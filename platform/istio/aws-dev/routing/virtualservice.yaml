@@ -1,0 +1,174 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: medikong-aws-dev
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/part-of: medikong
+    medikong.io/environment: aws-dev
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - medikong-internal
+  http:
+    - name: auth-debug
+      match:
+        - uri:
+            prefix: /__debug/auth/status
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+
+    - name: notification-debug
+      match:
+        - uri:
+            prefix: /__debug/notification/status
+      route:
+        - destination:
+            host: notification-service.dropmong-notification.svc.cluster.local
+            port:
+              number: 8084
+
+    - name: payment-debug
+      match:
+        - uri:
+            prefix: /__debug/payment/status
+      route:
+        - destination:
+            host: payment-service.dropmong-payment.svc.cluster.local
+            port:
+              number: 8083
+
+    - name: user-self
+      match:
+        - uri:
+            prefix: /api/v1/users/me
+      route:
+        - destination:
+            host: user-service.dropmong-user.svc.cluster.local
+            port:
+              number: 8080
+
+    - name: user
+      match:
+        - uri:
+            prefix: /api/v1/users
+      route:
+        - destination:
+            host: user-service.dropmong-user.svc.cluster.local
+            port:
+              number: 8080
+
+    - name: interest-operator
+      match:
+        - uri:
+            prefix: /v1/operator
+      route:
+        - destination:
+            host: interest-service.dropmong-interest.svc.cluster.local
+            port:
+              number: 8085
+
+    - name: interest-rankings
+      match:
+        - uri:
+            prefix: /v1/rankings
+      route:
+        - destination:
+            host: interest-service.dropmong-interest.svc.cluster.local
+            port:
+              number: 8085
+
+    - name: interest-users
+      match:
+        - uri:
+            prefix: /v1/users
+      route:
+        - destination:
+            host: interest-service.dropmong-interest.svc.cluster.local
+            port:
+              number: 8085
+
+    - name: interest-drops
+      match:
+        - uri:
+            prefix: /v1/drops
+      route:
+        - destination:
+            host: interest-service.dropmong-interest.svc.cluster.local
+            port:
+              number: 8085
+
+    - name: auth
+      match:
+        - uri:
+            prefix: /auth
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+
+    - name: catalog
+      match:
+        - uri:
+            prefix: /drops
+      route:
+        - destination:
+            host: catalog-service.dropmong-catalog.svc.cluster.local
+            port:
+              number: 8081
+
+    - name: coupon
+      match:
+        - uri:
+            prefix: /coupons
+      route:
+        - destination:
+            host: coupon-service.dropmong-coupon.svc.cluster.local
+            port:
+              number: 8080
+
+    - name: notification
+      match:
+        - uri:
+            prefix: /notifications
+      route:
+        - destination:
+            host: notification-service.dropmong-notification.svc.cluster.local
+            port:
+              number: 8084
+
+    - name: order
+      match:
+        - uri:
+            prefix: /orders
+      route:
+        - destination:
+            host: order-service.dropmong-order.svc.cluster.local
+            port:
+              number: 8082
+
+    - name: payment
+      match:
+        - uri:
+            prefix: /payments
+      route:
+        - destination:
+            host: payment-service.dropmong-payment.svc.cluster.local
+            port:
+              number: 8083
+
+    # Catch-all은 반드시 마지막에 둔다.
+    - name: web
+      match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: dropmong-web.dropmong-web.svc.cluster.local
+            port:
+              number: 80

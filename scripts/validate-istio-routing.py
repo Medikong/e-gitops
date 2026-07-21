@@ -149,16 +149,41 @@ def route_tuple(match_value: YamlValue) -> RouteTuple:
 
 
 def virtual_services(repo: Path) -> list[dict[str, YamlValue]]:
-    child = repo / "platform/istio/private-dev/routing-authz"
-    services = [load(path) for path in sorted(child.glob("*-virtualservice.yaml"))]
+    private_child = repo / "platform/istio/private-dev/routing-authz"
+    aws_child = repo / "platform/istio/aws-dev/routing"
+    allowed_gateway_roots = (private_child, aws_child)
+
+    services = [
+        load(path)
+        for path in sorted(private_child.glob("*-virtualservice.yaml"))
+    ]
     if len(services) != len(DESTINATIONS):
-        raise ContractError("route_matrix", f"expected five VirtualServices, found {len(services)}")
+        raise ContractError(
+            "route_matrix",
+            f"expected five VirtualServices, found {len(services)}",
+        )
+
     for path in repo.glob("platform/**/*.yaml"):
-        if child in path.parents or "kind: VirtualService" not in path.read_text(encoding="utf-8"):
+        if (
+            any(root in path.parents for root in allowed_gateway_roots)
+            or "kind: VirtualService" not in path.read_text(encoding="utf-8")
+        ):
             continue
+
         resource = load(path)
-        if resource.get("kind") == "VirtualService" and "medikong-internal" in sequence(mapping(resource.get("spec"), "spec").get("gateways"), "spec.gateways"):
-            raise ContractError("outside_child_gateway", str(path.relative_to(repo)))
+        gateways = sequence(
+            mapping(resource.get("spec"), "spec").get("gateways"),
+            "spec.gateways",
+        )
+        if (
+            resource.get("kind") == "VirtualService"
+            and "medikong-internal" in gateways
+        ):
+            raise ContractError(
+                "outside_child_gateway",
+                str(path.relative_to(repo)),
+            )
+
     return services
 
 
