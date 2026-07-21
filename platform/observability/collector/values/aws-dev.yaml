@@ -6,9 +6,6 @@ image:
   tag: 0.153.0
   pullPolicy: IfNotPresent
 
-imagePullSecrets:
-  - name: ecr-registry
-
 command:
   name: otelcol-contrib
 

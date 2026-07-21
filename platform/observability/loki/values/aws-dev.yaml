@@ -21,9 +21,6 @@ chunksCache:
 resultsCache:
   enabled: false
 
-imagePullSecrets:
-  - name: ecr-registry
-
 loki:
   auth_enabled: false
   image:

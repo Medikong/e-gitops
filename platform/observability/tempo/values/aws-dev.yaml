@@ -13,8 +13,6 @@ tempo:
   registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
   repository: grafana/tempo
   tag: 2.9.0
-  pullSecrets:
-    - ecr-registry
   retention: 72h
   memBallastSizeMbs: 64
   reportingEnabled: false

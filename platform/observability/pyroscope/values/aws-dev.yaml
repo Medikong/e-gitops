@@ -23,8 +23,6 @@ pyroscope:
     registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
     repository: grafana/pyroscope
     tag: 2.0.3
-  imagePullSecrets:
-    - name: ecr-registry
   extraArgs:
     log.level: info
   persistence:

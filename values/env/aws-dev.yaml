@@ -4,9 +4,6 @@ image:
   registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
   pullPolicy: Always
 
-imagePullSecrets:
-  - name: ecr-registry
-
 deployment:
   replicas: 2
   strategy:
