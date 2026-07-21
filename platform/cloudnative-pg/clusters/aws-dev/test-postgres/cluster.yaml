@@ -37,3 +37,5 @@ spec:
     enablePodAntiAffinity: true
     podAntiAffinityType: preferred
     topologyKey: kubernetes.io/hostname
+    nodeSelector:
+      medikong.io/workload: data
