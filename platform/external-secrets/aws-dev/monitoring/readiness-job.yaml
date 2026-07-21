@@ -21,17 +21,41 @@ spec:
         medikong.io/workload: platform
       restartPolicy: Never
       serviceAccountName: grafana-external-secret-readiness
-      containers:
-        - name: wait
+      initContainers:
+        - name: wait-secret-store
           image: registry.k8s.io/kubectl:v1.34.0
           imagePullPolicy: IfNotPresent
           command:
-            - /bin/sh
-            - -ec
-            - |
-              kubectl wait --for=condition=Ready secretstore/aws-secrets-manager --namespace=monitoring --timeout=240s
-              kubectl wait --for=condition=Ready externalsecret/grafana-admin-credentials --namespace=monitoring --timeout=240s
-              kubectl get secret grafana-admin-credentials --namespace=monitoring --output=name >/dev/null
+            - kubectl
+          args:
+            - wait
+            - --for=condition=Ready
+            - secretstore/aws-secrets-manager
+            - --namespace=monitoring
+            - --timeout=240s
+        - name: wait-external-secret
+          image: registry.k8s.io/kubectl:v1.34.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - kubectl
+          args:
+            - wait
+            - --for=condition=Ready
+            - externalsecret/grafana-admin-credentials
+            - --namespace=monitoring
+            - --timeout=240s
+      containers:
+        - name: verify-generated-secret
+          image: registry.k8s.io/kubectl:v1.34.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - kubectl
+          args:
+            - get
+            - secret
+            - grafana-admin-credentials
+            - --namespace=monitoring
+            - --output=name
           resources:
             requests:
               cpu: 10m

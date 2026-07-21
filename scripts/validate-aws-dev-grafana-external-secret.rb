@@ -89,10 +89,33 @@ readiness_job = load_yaml("platform/external-secrets/aws-dev/monitoring/readines
   assert_equal("Grafana readiness #{label}", values[0], values[1])
 end
 
-readiness_command = readiness_job.dig("spec", "template", "spec", "containers", 0, "command", 2)
-unless readiness_command.include?("secretstore/aws-secrets-manager") &&
-    readiness_command.include?("externalsecret/grafana-admin-credentials") &&
-    readiness_command.include?("secret grafana-admin-credentials")
+readiness_pod_spec = readiness_job.dig("spec", "template", "spec")
+readiness_commands = Array(readiness_pod_spec["initContainers"]).filter_map do |container|
+  next unless container["command"] == ["kubectl"]
+
+  container["args"]
+end
+readiness_commands << readiness_pod_spec.dig("containers", 0, "args")
+
+unless readiness_commands.include?([
+    "wait",
+    "--for=condition=Ready",
+    "secretstore/aws-secrets-manager",
+    "--namespace=monitoring",
+    "--timeout=240s",
+  ]) && readiness_commands.include?([
+    "wait",
+    "--for=condition=Ready",
+    "externalsecret/grafana-admin-credentials",
+    "--namespace=monitoring",
+    "--timeout=240s",
+  ]) && readiness_commands.include?([
+    "get",
+    "secret",
+    "grafana-admin-credentials",
+    "--namespace=monitoring",
+    "--output=name",
+  ])
   warn "Grafana readiness Job must wait for the store, ExternalSecret, and generated Secret"
   exit 2
 end
