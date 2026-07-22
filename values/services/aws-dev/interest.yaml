@@ -1,6 +1,7 @@
 deployment:
   podLabels:
     sidecar.istio.io/inject: "true"
+    version: v1
   podAnnotations:
     sidecar.istio.io/inject: "true"
     sidecar.istio.io/proxyCPU: 25m
@@ -14,8 +15,20 @@ deployment:
       maxSurge: 0
       maxUnavailable: 1
 
+# 카나리 실험용. 처음엔 v1과 동일 이미지로 라우팅 배선(subset/weight)만 검증하고,
+# 실제 신버전으로 테스트할 때 canary.image.tag를 새 버전으로 지정한다.
 canary:
-  enabled: false
+  enabled: true
+  version: v2
+  replicas: 1
+  podLabels:
+    sidecar.istio.io/inject: "true"
+  podAnnotations:
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/proxyCPU: 25m
+    sidecar.istio.io/proxyMemory: 64Mi
+    sidecar.istio.io/proxyCPULimit: 200m
+    sidecar.istio.io/proxyMemoryLimit: 256Mi
 
 container:
   resources:
