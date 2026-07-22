@@ -1,5 +1,9 @@
 profile: local
 
+pgadmin:
+  ingress:
+    enabled: true
+
 postgresql:
   image: postgres:15
   pgData: /var/lib/postgresql/data/pgdata

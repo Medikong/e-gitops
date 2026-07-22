@@ -129,6 +129,7 @@ spec:
     - name: http
       port: 80
       targetPort: http
+{{- if .Values.pgadmin.ingress.enabled }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -152,3 +153,4 @@ spec:
                 name: pgadmin
                 port:
                   number: 80
+{{- end }}

@@ -16,6 +16,7 @@ spec:
           - $values/values/env/aws-dev.yaml
           - $values/values/services/interest.yaml
           - $values/values/services/aws-dev/interest.yaml
+          - $values/values/services/aws-dev/ingress-disabled.yaml
     - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       ref: values

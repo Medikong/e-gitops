@@ -10,7 +10,7 @@ spec:
   sources:
     - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
-      path: platform/monitoring
+      path: platform/monitoring-aws-dev
     - repoURL: https://prometheus-community.github.io/helm-charts
       chart: kube-prometheus-stack
       targetRevision: 86.1.0

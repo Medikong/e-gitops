@@ -23,6 +23,7 @@ spec:
           - $values/platform/data/aws-dev/postgres-user.yaml
           - $values/platform/data/aws-dev/postgres-interest.yaml
           - $values/platform/data/aws-dev/valkey-auth.yaml
+          - $values/platform/data/aws-dev/no-kong-ingress.yaml
     - repoURL: https://github.com/Medikong/e-gitops.git
       targetRevision: HEAD
       ref: values
