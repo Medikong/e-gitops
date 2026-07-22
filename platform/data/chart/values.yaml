@@ -59,8 +59,8 @@ valkey:
     enabled: false
     secretName: ""
     passwordKey: password
-  allowedPodSelector:
-    matchLabels:
-      app: coupon-service
+  allowedPodSelectors:
+    - matchLabels:
+        app: coupon-service
   nodeSelector: {}
   networkPolicyName: ""

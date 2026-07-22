@@ -9,13 +9,11 @@ valkey:
     enabled: true
     secretName: auth-valkey-credentials
     passwordKey: password
-  allowedPodSelector:
-    matchExpressions:
-      - key: app
-        operator: In
-        values:
-          - auth-service
-          - auth-service-worker
+  allowedPodSelectors:
+    - matchLabels:
+        app: auth-service
+    - matchLabels:
+        app: auth-service-worker
   nodeSelector:
     medikong.io/workload: data
   networkPolicyName: allow-auth-valkey-ingress
