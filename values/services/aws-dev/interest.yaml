@@ -15,12 +15,18 @@ deployment:
       maxSurge: 0
       maxUnavailable: 1
 
-# 카나리 실험용. 처음엔 v1과 동일 이미지로 라우팅 배선(subset/weight)만 검증하고,
-# 실제 신버전으로 테스트할 때 canary.image.tag를 새 버전으로 지정한다.
+# 카나리 실험용. 트래픽 분배 배선은 v1과 동일 이미지로 검증 완료.
+# 2026-07-22: base(v1)가 deploy tag push로 v0.2.1(SERVICE_VERSION 헤더 포함)로
+# 자동 승격됐으므로, v2엔 직전까지 v1이 쓰던 v0.2.0(정상 동작 확인된 버전)을
+# 지정해 실제로 다른, 둘 다 건강한 버전 간 카나리를 검증한다.
+# v0.1.1/v0.1.2는 uv.lock 의존성 누락(f43c0980 이전 빌드)으로 CrashLoopBackOff
+# 나므로 쓰지 않는다 — 자세한 내용은 커밋 이력(revert 4cdadac) 참고.
 canary:
   enabled: true
   version: v2
   replicas: 1
+  image:
+    tag: v0.2.0
   podLabels:
     sidecar.istio.io/inject: "true"
   podAnnotations:
