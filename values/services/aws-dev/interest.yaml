@@ -36,10 +36,15 @@ container:
     # 우선으로 CPU request/limit 비활성화. requests.cpu는 실측 기준 100m로 통일.
     # requests:
     #   cpu: 100m
+    # memory.limit이 null이 아니면 K8s가 memory request를 limit과 동일하게 자동 설정함
+    # (requests: null이어도 마찬가지) — 실측 사용량(2026-07-22, Prometheus
+    # container_memory_working_set_bytes 최대치 약 85Mi) 대비 768Mi는 과도하게
+    # 예약되고 있었음. 카나리 실험(v1+v2 동시 기동)에 필요한 스케줄링 여유 확보 위해
+    # 실측치의 약 3배 여유를 두고 256Mi로 낮춤.
     requests: null
     limits:
       cpu: null
-      memory: 768Mi
+      memory: 256Mi
 
 database:
   sqlalchemy:
