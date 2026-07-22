@@ -22,7 +22,7 @@ spec:
         autoscaling:
           enabled: false
         service:
-          type: ClusterIP
+          type: NodePort
           ports:
             - name: status-port
               port: 15021
@@ -32,6 +32,7 @@ spec:
               port: 80
               protocol: TCP
               targetPort: 80
+              nodePort: 32080
         resources:
           requests:
             cpu: 100m
