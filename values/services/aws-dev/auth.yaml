@@ -94,8 +94,21 @@ container:
       value: "false"
     - name: AUTH_VIRTUAL_ADAPTERS_ENABLED
       value: "false"
+    - name: REDIS_URL
+      valueFrom:
+        secretKeyRef:
+          name: auth-valkey-credentials
+          key: redis-url
     - name: AUTH_SESSION_STATUS_ENABLED
-      value: "false"
+      value: "true"
+    - name: AUTH_SESSION_STATUS_TIMEOUT
+      value: 200ms
+    - name: AUTH_SESSION_STATUS_DB_TIMEOUT
+      value: 100ms
+    - name: AUTH_SESSION_STATUS_CACHE_TTL
+      value: 5m
+    - name: AUTH_SESSION_STATUS_TOMBSTONE_TTL
+      value: 20m
   resources:
     # TODO(운영 전환 시 재활성화, 2026-07-20 팀 합의): 개발단계엔 스케줄링 유연성
     # 우선으로 CPU request/limit 비활성화. requests.cpu는 실측 기준 100m로 통일.
@@ -129,6 +142,61 @@ database:
     maxOverflow: 0
     poolTimeoutSeconds: 15
     poolRecycleSeconds: 1800
+
+networkPolicy:
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: auth-db
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: auth-valkey
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: opentelemetry-collector
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+          podSelector:
+            matchLabels:
+              app: istiod
+      ports:
+        - protocol: TCP
+          port: 15012
+        - protocol: TCP
+          port: 15010
+        - protocol: TCP
+          port: 443
 
 pdb:
   enabled: false
