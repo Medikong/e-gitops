@@ -138,6 +138,7 @@ spec:
   policyTypes:
     - Ingress
     - Egress
+{{- if .Values.pgadmin.networkPolicy.allowKongIngress }}
   ingress:
     - from:
         - namespaceSelector:
@@ -146,6 +147,9 @@ spec:
       ports:
         - protocol: TCP
           port: 80
+{{- else }}
+  ingress: []
+{{- end }}
   egress:
     - to:
         - namespaceSelector:

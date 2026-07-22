@@ -3,6 +3,8 @@ profile: local
 pgadmin:
   ingress:
     enabled: true
+  networkPolicy:
+    allowKongIngress: true
 
 postgresql:
   image: postgres:15

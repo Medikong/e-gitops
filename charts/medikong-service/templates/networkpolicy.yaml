@@ -20,9 +20,31 @@ spec:
 {{- $prometheusScrapePort := default .Values.serviceMonitor.port $serviceMonitorNetworkPolicy.port }}
 {{- $extraPrometheusScrapePorts := default (list) $serviceMonitorNetworkPolicy.extraPorts }}
 {{- $prometheusPodSelector := default dict $serviceMonitorNetworkPolicy.podSelector }}
-{{- if or .Values.networkPolicy.ingress $allowPrometheusScrape }}
+{{- $excludedIngressNamespaces := default (list) .Values.networkPolicy.excludeIngressNamespaces }}
+{{- $renderedIngress := list }}
+{{- range $rule := default (list) .Values.networkPolicy.ingress }}
+  {{- if and (hasKey $rule "from") $excludedIngressNamespaces }}
+    {{- $filteredFrom := list }}
+    {{- range $peer := get $rule "from" }}
+      {{- $namespaceSelector := default dict (get $peer "namespaceSelector") }}
+      {{- $matchLabels := default dict (get $namespaceSelector "matchLabels") }}
+      {{- $namespace := default "" (get $matchLabels "kubernetes.io/metadata.name") }}
+      {{- if not (has $namespace $excludedIngressNamespaces) }}
+        {{- $filteredFrom = append $filteredFrom $peer }}
+      {{- end }}
+    {{- end }}
+    {{- if $filteredFrom }}
+      {{- $filteredRule := deepCopy $rule }}
+      {{- $_ := set $filteredRule "from" $filteredFrom }}
+      {{- $renderedIngress = append $renderedIngress $filteredRule }}
+    {{- end }}
+  {{- else }}
+    {{- $renderedIngress = append $renderedIngress $rule }}
+  {{- end }}
+{{- end }}
+{{- if or $renderedIngress $allowPrometheusScrape }}
   ingress:
-{{- with .Values.networkPolicy.ingress }}
+{{- with $renderedIngress }}
 {{ toYaml . | nindent 4 }}
 {{- end }}
 {{- if $allowPrometheusScrape }}

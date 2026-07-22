@@ -1,2 +1,6 @@
 ingress:
   enabled: false
+
+networkPolicy:
+  excludeIngressNamespaces:
+    - kong
