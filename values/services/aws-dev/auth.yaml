@@ -114,10 +114,16 @@ container:
     # 우선으로 CPU request/limit 비활성화. requests.cpu는 실측 기준 100m로 통일.
     # requests:
     #   cpu: 100m
+    # 2026-07-22: Prometheus 실측(container_memory_working_set_bytes) 기준
+    # auth-service/worker 실사용 약 5~11Mi인데 768Mi로 예약돼있어 노드 스케줄링을
+    # 막고 있었음 — 실측치의 약 6배 여유로 재조정. 이 값은 worker Deployment에도
+    # 그대로 적용됨(worker.resources가 기본으로 이 값을 상속).
+    # ⚠️ 부하테스트(GOAL.md 9장) 전에 반드시 재검토 — 동시 요청 증가 시 이 여유로
+    # 부족할 수 있음, idle 트래픽 기준으로 잡은 값임.
     requests: null
     limits:
       cpu: null
-      memory: 768Mi
+      memory: 64Mi
 
 migration:
   enabled: true
