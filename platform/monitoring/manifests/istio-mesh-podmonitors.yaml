@@ -31,15 +31,56 @@ metadata:
 spec:
   namespaceSelector:
     matchNames:
+      - dropmong-auth
+      - dropmong-user
+      - dropmong-catalog
+      - dropmong-coupon
+      - dropmong-interest
+      - dropmong-order
       - dropmong-payment
       - dropmong-notification
+      - dropmong-web
   selector:
     matchExpressions:
       - key: app
         operator: In
         values:
+          - auth-service
+          - user-service
+          - catalog-service
+          - coupon-service
+          - interest-service
+          - order-service
           - payment-service
           - notification-service
+          - dropmong-web
+  podMetricsEndpoints:
+    - port: http-envoy-prom
+      path: /stats/prometheus
+      interval: 30s
+      relabelings:
+        - action: keep
+          sourceLabels:
+            - __meta_kubernetes_pod_container_name
+          regex: istio-proxy
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: istio-ingressgateway
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: istio-ingressgateway
+    app.kubernetes.io/part-of: dropmong-platform
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - istio-system
+  selector:
+    matchLabels:
+      app: istio-ingressgateway
+      istio: ingressgateway
   podMetricsEndpoints:
     - port: http-envoy-prom
       path: /stats/prometheus

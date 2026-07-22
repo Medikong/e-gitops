@@ -820,6 +820,7 @@ tasks:
       - '{{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}} >/dev/null'
       - '{{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/notification >/dev/null'
       - 'uv run scripts/validate-istio-routing.py'
+      - 'uv run scripts/validate-istio-observability.py'
 
   dev:istio:
     desc: 현재 Kubernetes 컨텍스트에 Istio platform ArgoCD Application을 등록하고 상태 확인 명령을 안내합니다.

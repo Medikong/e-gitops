@@ -10,6 +10,11 @@ interest-service, order-service, payment-service,
 notification-service, dropmong-web
 ```
 
+각 애플리케이션의 PodMonitor namespace는 각각 `dropmong-auth`, `dropmong-user`,
+`dropmong-catalog`, `dropmong-coupon`, `dropmong-interest`, `dropmong-order`,
+`dropmong-payment`, `dropmong-notification`, `dropmong-web`이다. Istio sidecar 정적
+coverage는 이 9개 쌍을 정확히 포함하고, Coupon은 runtime waiver만 허용한다.
+
 저장소 정적 검증만으로 실제 요청 표본, 30일 달성률, 남은 Error Budget은 알 수 없다. 현재 상태는 **미검증**이며 수집된 요청이 없는 경우 `100% 달성`이나 `예산 전부 남음`으로 표시하지 않는다.
 
 ## SLI
@@ -40,7 +45,9 @@ labels
   http_response_status_code
 ```
 
-요청 ID, trace/span ID, 사용자·업무 객체 ID, raw path는 metric label로 사용하지 않는다.
+요청 ID(`request_id`/`x-request-id`), trace/span ID, 사용자·업무 객체 ID, raw path는
+metric label로 사용하지 않는다. ID는 HTTP header 전파·응답과 구조화 로그 본문에서만
+검색한다.
 
 ## SLO 정책값과 실측값 구분
 
@@ -116,9 +123,14 @@ multi-window 경보:
 
 ## Ingress와 mesh decision point
 
-Kong 전용 ServiceMonitor는 신규 진입점 계약으로 승계하지 않는다. 교체 Ingress Controller의 request/error/latency metric 이름과 label이 아직 확정되지 않았으므로 ingress SLI나 fallback query를 만들지 않는다. 현재 SLO의 진실은 각 애플리케이션 `/metrics`다.
+Kong 전용 ServiceMonitor는 신규 진입점 계약으로 승계하지 않는다. 교체 Ingress Controller의 request/error/latency metric 이름과 label이 아직 확정되지 않았으므로 ingress SLI나 fallback query를 만들지 않는다. 현재 SLO의 진실은 각 애플리케이션 `/metrics`다. AWS dev uses Istio-only ingress이며 private-dev Kong 구성은 별도 이전 범위다.
 
-Istio Envoy metric은 values에서 sidecar injection이 확인된 `payment-service`, `notification-service`만 PodMonitor 대상으로 둔다. 나머지 7개는 app metric/trace 대상이지만 Envoy metric은 미계측이다.
+Istio PodMonitor는 `istiod` 1개와 `istio-ingressgateway` 1개 target, 위 9개 애플리케이션의
+`istio-proxy` sidecar를 대상으로 한다. 요청 rate/5xx/latency PromQL은 반드시
+`reporter="destination"`을 사용해 destination-only 의미를 유지하고 source proxy와의
+이중 집계를 막는다. Coupon은 정적 coverage에서 유지하되 알려진 외부 adapter CrashLoop의
+runtime waiver만 허용한다. Coupon이 복구되기 전에는 **Task 6 remains partial**이며, 이 문서는
+이를 완료로 표시하지 않는다.
 
 ## 검증 게이트
 
@@ -128,3 +140,4 @@ Istio Envoy metric은 values에서 sidecar injection이 확인된 `payment-servi
 - 5xx와 1초 이상 요청을 통제된 환경에서 만들고 recording rule/alert/log/trace 연결을 확인한다.
 - 30일 표본이 없으면 달성률과 남은 budget을 발표하지 않는다.
 - live cluster 검증을 실행하지 않았다면 정적 render 통과와 런타임 성공을 구분한다.
+- 이번 Istio dashboard/Prometheus runtime verification is deferred; 정적 계약만으로 live 결과나 SLO 달성을 주장하지 않는다.

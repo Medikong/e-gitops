@@ -56,7 +56,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "No Kong request metric is assumed. Istio metrics are limited to the tracked PodMonitor contract for payment-service and notification-service; an empty panel means the sidecar target is not active in that environment."
+        "content": "Kong request metrics are not used here. AWS dev uses Istio-only ingress; private-dev Kong is a separate migration scope. Istio monitoring follows one istiod target and one istio-ingressgateway target in istio-system, plus the exact nine sidecar app/namespace pairs: auth-service/dropmong-auth, user-service/dropmong-user, catalog-service/dropmong-catalog, coupon-service/dropmong-coupon, interest-service/dropmong-interest, order-service/dropmong-order, payment-service/dropmong-payment, notification-service/dropmong-notification, and dropmong-web/dropmong-web. Coupon stays in static coverage; its known runtime waiver means Task 6 remains partial until the owner recovers it. Request IDs belong in x-request-id headers and structured logs, never metric labels."
       },
       "id": 1,
       "gridPos": {
@@ -77,8 +77,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (job, instance) (up{namespace=\"istio-system\"})",
-          "legendFormat": "{{service_name}}",
+          "expr": "sum by (namespace, pod) (up{namespace=\"istio-system\",pod=~\"istiod-.*\"})",
+          "legendFormat": "{{namespace}}/{{pod}}",
           "range": true,
           "refId": "A"
         }
@@ -107,7 +107,7 @@
       }
     },
     {
-      "title": "Envoy Scrape Targets",
+      "title": "Envoy Sidecar Scrape Targets",
       "type": "stat",
       "description": null,
       "targets": [
@@ -117,8 +117,8 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (namespace, pod) (up{namespace=~\"dropmong-(payment|notification)\",container=\"istio-proxy\"})",
-          "legendFormat": "{{service_name}}",
+          "expr": "sum by (namespace, pod) (up{namespace=~\"(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment|dropmong-notification|dropmong-web)\",container=\"istio-proxy\"})",
+          "legendFormat": "{{namespace}}/{{pod}}",
           "range": true,
           "refId": "A"
         }
@@ -147,6 +147,46 @@
       }
     },
     {
+      "title": "Istio Ingress Gateway Scrape Targets",
+      "type": "stat",
+      "description": "The istio-ingressgateway PodMonitor is the single ingress target; only its istio-proxy metrics endpoint is expected.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (namespace, pod) (up{namespace=\"istio-system\",pod=~\"istio-ingressgateway-.*\",container=\"istio-proxy\"})",
+          "legendFormat": "{{namespace}}/{{pod}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "links": [
+
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": [
+
+        ]
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 7
+      }
+    },
+    {
       "title": "Mesh Request Rate",
       "type": "timeseries",
       "description": null,
@@ -157,7 +197,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (destination_service_name, response_code) (rate(istio_requests_total{destination_workload_namespace=~\"dropmong-(payment|notification)\"}[$__rate_interval]))",
+          "expr": "sum by (destination_service_name, response_code) (rate(istio_requests_total{destination_workload_namespace=~\"(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment|dropmong-notification|dropmong-web)\",reporter=\"destination\"}[$__rate_interval]))",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -178,10 +218,10 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 4,
+      "id": 5,
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 17,
         "w": 12,
         "h": 7
       }
@@ -197,7 +237,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "100 * sum(rate(istio_requests_total{destination_workload_namespace=~\"dropmong-(payment|notification)\",response_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum(rate(istio_requests_total{destination_workload_namespace=~\"dropmong-(payment|notification)\"}[$__rate_interval])), 0.001)",
+          "expr": "100 * sum(rate(istio_requests_total{destination_workload_namespace=~\"(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment|dropmong-notification|dropmong-web)\",response_code=~\"5..\",reporter=\"destination\"}[$__rate_interval])) / clamp_min(sum(rate(istio_requests_total{destination_workload_namespace=~\"(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment|dropmong-notification|dropmong-web)\",reporter=\"destination\"}[$__rate_interval])), 0.001)",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -218,10 +258,10 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 5,
+      "id": 6,
       "gridPos": {
         "x": 12,
-        "y": 10,
+        "y": 17,
         "w": 12,
         "h": 7
       }
@@ -237,7 +277,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (destination_service_name, le) (rate(istio_request_duration_milliseconds_bucket{destination_workload_namespace=~\"dropmong-(payment|notification)\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (destination_service_name, le) (rate(istio_request_duration_milliseconds_bucket{destination_workload_namespace=~\"(dropmong-auth|dropmong-user|dropmong-catalog|dropmong-coupon|dropmong-interest|dropmong-order|dropmong-payment|dropmong-notification|dropmong-web)\",reporter=\"destination\"}[$__rate_interval])))",
           "legendFormat": "{{service_name}}",
           "range": true,
           "refId": "A"
@@ -258,10 +298,10 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 6,
+      "id": 7,
       "gridPos": {
         "x": 0,
-        "y": 17,
+        "y": 24,
         "w": 12,
         "h": 7
       }
@@ -298,10 +338,10 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "id": 7,
+      "id": 8,
       "gridPos": {
         "x": 12,
-        "y": 17,
+        "y": 24,
         "w": 12,
         "h": 7
       }

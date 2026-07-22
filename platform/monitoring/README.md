@@ -4,13 +4,14 @@
 
 ## 대상과 원칙
 
-- 대상은 `auth`, `user`, `catalog`, `coupon`, `interest`, `order`, `payment`, `notification`, `dropmong-web` 9개 서비스와 각각의 `dropmong-*` namespace다.
+- 대상은 다음 9개 애플리케이션/namespace 쌍이다: `auth-service/dropmong-auth`, `user-service/dropmong-user`, `catalog-service/dropmong-catalog`, `coupon-service/dropmong-coupon`, `interest-service/dropmong-interest`, `order-service/dropmong-order`, `payment-service/dropmong-payment`, `notification-service/dropmong-notification`, `dropmong-web/dropmong-web`.
 - Ops 11은 서비스 Pod를 반복하지 않고 `monitoring`, `observability`, `kong`, `kube-system`, `local-path-storage`, `dropmong-messaging`과 실제 DB·Valkey StatefulSet을 지원 Pod로 분리한다.
 - API 신호는 route template을 사용하는 공통 `http_server_request_duration_seconds` histogram과 `http_server_active_requests`를 기준으로 한다.
-- `request_id`, `trace_id`, `span_id`는 고카디널리티 metric label이 아니라 구조화 로그 본문에 둔다.
+- `request_id`, `trace_id`, `span_id`는 고카디널리티 metric label이 아니다. 요청 ID는 `x-request-id` HTTP header로 전달·응답하고 구조화 로그에서 검색하며, Prometheus label에는 넣지 않는다.
 - 실제 요청 자료가 없으면 SLO 달성률, Error Budget 잔여량, burn rate 실측값을 만들지 않는다.
-- Kong 전용 metric은 승계하지 않는다. 교체 Ingress Controller 계약이 정해질 때까지 애플리케이션 metric을 SLI 기준으로 사용한다.
-- Envoy PodMonitor는 추적 values에서 `http-envoy-prom` port가 확인된 `payment-service`, `notification-service`만 수집한다.
+- Kong 전용 metric은 승계하지 않는다. AWS dev uses Istio-only ingress이며 애플리케이션 metric을 SLI 기준으로 사용한다. private-dev Kong 구성은 별도 이전 범위다.
+- Istio PodMonitor 계약은 `istio-system` namespace의 `istiod` 1개와 `istio-ingressgateway` 1개, 그리고 위 9개 애플리케이션의 `istio-proxy` sidecar를 각각 수집한다. Sidecar endpoint는 `http-envoy-prom`/`/stats/prometheus`로 제한한다.
+- Coupon은 정적 sidecar coverage에서 제외하지 않는다. 알려진 외부 adapter CrashLoop에 대해서만 runtime waiver를 기록하며, 복구 전에는 **Task 6 remains partial**이다.
 
 ## Grafana 그룹
 
@@ -37,7 +38,7 @@ Ops의 `payment-service-metrics.json`은 현재 `/payments/*` route, payment Pos
 
 ## 신호가 없는 화면의 해석
 
-- Ops 03은 Kong 요청 metric을 사용하지 않는다. 추적 중인 PodMonitor가 명시한 `payment-service`, `notification-service` Envoy와 istiod만 다루며, 해당 workload에 sidecar가 없으면 `No data`가 정상이다.
+- Ops 03은 Kong 요청 metric을 사용하지 않는다. `istiod`와 단일 `istio-ingressgateway` target, 위 9개 namespace의 Envoy sidecar만 다룬다. Istio 요청 rate/5xx/latency는 `reporter="destination"`만 집계해 source/destination proxy 이중 집계를 막는다. Coupon의 `No data`는 기록된 runtime waiver 범위에서만 정상이며, 그 밖의 sidecar나 ingress target 누락은 계약 위반이다.
 - Load 60은 k6 stdout JSON 로그만 사용한다. k6 Prometheus remote-write가 비활성인 상태에서 VU나 dropped iteration 수치를 만들지 않는다.
 - 업무 화면은 공통 HTTP route 완료량과 Kafka 완료 로그를 운영 근거로 사용한다. 이를 주문 성공률이나 결제 성공률 같은 업무 성과로 표현하지 않는다.
 - DB 30은 실제 PostgreSQL exporter와 Tempo PostgreSQL span을 사용한다. 별도 slow-query metric이 없으면 이를 가정하지 않는다.
@@ -77,4 +78,4 @@ Alertmanager는 cluster 내부 adapter만 호출한다. 외부 webhook 원문은
 
 ## 검증 경계
 
-정적 검증은 29개 dashboard JSON 문법, UID 고유성, 이전·다음 UID 링크, Kustomize/Helm render, Prometheus rule 문법과 참조 연결을 확인한다. 이는 live cluster의 ServiceMonitor `up`, 실제 log/trace 수집, 알림 전달, SLO 달성을 증명하지 않는다. 런타임 검증에서는 비밀값이나 개인정보를 출력하지 않고 ConfigMap key, Grafana 검색 결과, target 상태와 통제된 비민감 요청만 사용한다.
+정적 검증은 29개 dashboard JSON 문법, UID 고유성, 이전·다음 UID 링크, Kustomize/Helm render, Prometheus rule 문법과 참조 연결을 확인한다. 이는 live cluster의 ServiceMonitor `up`, 실제 log/trace 수집, 알림 전달, SLO 달성을 증명하지 않는다. 이번 Istio dashboard/Prometheus runtime verification is deferred; 정적 계약 통과를 live Grafana/Prometheus 결과로 해석하지 않는다. 런타임 검증에서는 비밀값이나 개인정보를 출력하지 않고 ConfigMap key, Grafana 검색 결과, target 상태와 통제된 비민감 요청만 사용한다.
