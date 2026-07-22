@@ -1,0 +1,24 @@
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: medikong-aws-protected-routes
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      app: istio-ingressgateway
+      istio: ingressgateway
+  action: CUSTOM
+  provider:
+    name: medikong-authz-http
+  rules:
+    - to:
+        - operation:
+            paths:
+              - /api/v1/users/me*
+              - /v1/operator*
+              - /v1/users*
+              - /v1/drops*
+              - /notifications*
+              - /orders*
+              - /payments*
