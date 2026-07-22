@@ -72,13 +72,13 @@ spec:
             subset: v1
             port:
               number: 8085
-          weight: 0
+          weight: 100
         - destination:
             host: interest-service.dropmong-interest.svc.cluster.local
             subset: v2
             port:
               number: 8085
-          weight: 100
+          weight: 0
 
     - name: interest-rankings
       match:
@@ -90,13 +90,13 @@ spec:
             subset: v1
             port:
               number: 8085
-          weight: 0
+          weight: 100
         - destination:
             host: interest-service.dropmong-interest.svc.cluster.local
             subset: v2
             port:
               number: 8085
-          weight: 100
+          weight: 0
 
     - name: interest-users
       match:
@@ -108,13 +108,13 @@ spec:
             subset: v1
             port:
               number: 8085
-          weight: 0
+          weight: 100
         - destination:
             host: interest-service.dropmong-interest.svc.cluster.local
             subset: v2
             port:
               number: 8085
-          weight: 100
+          weight: 0
 
     - name: interest-drops
       match:
@@ -126,13 +126,13 @@ spec:
             subset: v1
             port:
               number: 8085
-          weight: 0
+          weight: 100
         - destination:
             host: interest-service.dropmong-interest.svc.cluster.local
             subset: v2
             port:
               number: 8085
-          weight: 100
+          weight: 0
 
     - name: auth
       match:
