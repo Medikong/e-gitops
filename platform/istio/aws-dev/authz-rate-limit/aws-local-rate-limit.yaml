@@ -29,8 +29,7 @@ spec:
       match:
         context: GATEWAY
         routeConfiguration:
-          gateway: istio-system/medikong-internal
-          portNumber: 80
+          name: http.80
           vhost:
             route:
               name: order
@@ -59,8 +58,7 @@ spec:
       match:
         context: GATEWAY
         routeConfiguration:
-          gateway: istio-system/medikong-internal
-          portNumber: 80
+          name: http.80
           vhost:
             route:
               name: payment
@@ -89,8 +87,7 @@ spec:
       match:
         context: GATEWAY
         routeConfiguration:
-          gateway: istio-system/medikong-internal
-          portNumber: 80
+          name: http.80
           vhost:
             route:
               name: notification
