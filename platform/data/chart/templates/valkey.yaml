@@ -122,8 +122,7 @@ spec:
   ingress:
     - from:
         - podSelector:
-            matchLabels:
-{{ toYaml .Values.valkey.allowedPodSelector | nindent 14 }}
+{{ toYaml .Values.valkey.allowedPodSelector | nindent 12 }}
       ports:
         - protocol: TCP
           port: {{ .Values.valkey.port }}

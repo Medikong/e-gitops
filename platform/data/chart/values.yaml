@@ -60,6 +60,7 @@ valkey:
     secretName: ""
     passwordKey: password
   allowedPodSelector:
-    app: coupon-service
+    matchLabels:
+      app: coupon-service
   nodeSelector: {}
   networkPolicyName: ""

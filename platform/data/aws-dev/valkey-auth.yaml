@@ -10,7 +10,12 @@ valkey:
     secretName: auth-valkey-credentials
     passwordKey: password
   allowedPodSelector:
-    app: auth-service
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - auth-service
+          - auth-service-worker
   nodeSelector:
     medikong.io/workload: data
   networkPolicyName: allow-auth-valkey-ingress
