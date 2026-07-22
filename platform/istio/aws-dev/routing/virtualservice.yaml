@@ -181,8 +181,16 @@ spec:
       route:
         - destination:
             host: order-service.dropmong-order.svc.cluster.local
+            subset: v1
             port:
               number: 8082
+          weight: 100
+        - destination:
+            host: order-service.dropmong-order.svc.cluster.local
+            subset: v2
+            port:
+              number: 8082
+          weight: 0
 
     - name: payment
       match:

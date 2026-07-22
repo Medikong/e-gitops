@@ -1,6 +1,7 @@
 deployment:
   podLabels:
     sidecar.istio.io/inject: "true"
+    version: v1
   podAnnotations:
     sidecar.istio.io/inject: "true"
     sidecar.istio.io/proxyCPU: 25m
@@ -14,8 +15,27 @@ deployment:
       maxSurge: 0
       maxUnavailable: 1
 
+# 카나리/블루그린 배포전략 비교 실험용 (2026-07-22, R24/R25 — 서비스 선정 근거는
+# Deployment-analysis.md 참고: order-service는 재고 오버셀 방지 로직이 실제로 있고
+# GOAL.md 핵심 과제와 직결돼서 interest-service 다음 대상으로 선정함).
+# 1단계(지금): base(v1)와 동일한 v0.1.2를 v2에도 지정해서 배선(DestinationRule/
+# VirtualService/두 Pod 기동) 자체가 정상 동작하는지부터 검증.
+# 2단계(다음): experiment/order-service-synthetic-regression 브랜치에서 빌드할
+# 오버셀 유발 버그 이미지로 v2 태그를 교체해서 실제 실측 진행.
 canary:
-  enabled: false
+  enabled: true
+  version: v2
+  replicas: 1
+  image:
+    tag: v0.1.2
+  podLabels:
+    sidecar.istio.io/inject: "true"
+  podAnnotations:
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/proxyCPU: 25m
+    sidecar.istio.io/proxyMemory: 64Mi
+    sidecar.istio.io/proxyCPULimit: 200m
+    sidecar.istio.io/proxyMemoryLimit: 256Mi
 
 container:
   resources:
