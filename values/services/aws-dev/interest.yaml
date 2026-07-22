@@ -15,26 +15,6 @@ deployment:
       maxSurge: 0
       maxUnavailable: 1
 
-# 카나리/블루그린 배포전략 비교 실험용 (2026-07-22).
-# base(v1)는 v0.2.1(정상)에 고정. v2엔 experiment/interest-service-synthetic-regression
-# 브랜치에서 빌드한 v0.2.2를 지정 — /v1/rankings/drops/trending에 +500ms 지연과
-# 20% 500 에러를 인위적으로 심어놓은 버전. main엔 merge 안 된 실험 코드이며,
-# 카나리/블루그린이 실제 회귀를 얼마나 빨리·적게 노출시키는지 수치로 비교하기 위함.
-canary:
-  enabled: true
-  version: v2
-  replicas: 1
-  image:
-    tag: v0.2.2
-  podLabels:
-    sidecar.istio.io/inject: "true"
-  podAnnotations:
-    sidecar.istio.io/inject: "true"
-    sidecar.istio.io/proxyCPU: 25m
-    sidecar.istio.io/proxyMemory: 64Mi
-    sidecar.istio.io/proxyCPULimit: 200m
-    sidecar.istio.io/proxyMemoryLimit: 256Mi
-
 container:
   resources:
     # TODO(운영 전환 시 재활성화, 2026-07-20 팀 합의): 개발단계엔 스케줄링 유연성
