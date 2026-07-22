@@ -15,18 +15,17 @@ deployment:
       maxSurge: 0
       maxUnavailable: 1
 
-# 카나리 실험용. 트래픽 분배 배선은 v1과 동일 이미지로 검증 완료.
-# 2026-07-22: base(v1)가 deploy tag push로 v0.2.1(SERVICE_VERSION 헤더 포함)로
-# 자동 승격됐으므로, v2엔 직전까지 v1이 쓰던 v0.2.0(정상 동작 확인된 버전)을
-# 지정해 실제로 다른, 둘 다 건강한 버전 간 카나리를 검증한다.
-# v0.1.1/v0.1.2는 uv.lock 의존성 누락(f43c0980 이전 빌드)으로 CrashLoopBackOff
-# 나므로 쓰지 않는다 — 자세한 내용은 커밋 이력(revert 4cdadac) 참고.
+# 카나리/블루그린 배포전략 비교 실험용 (2026-07-22).
+# base(v1)는 v0.2.1(정상)에 고정. v2엔 experiment/interest-service-synthetic-regression
+# 브랜치에서 빌드한 v0.2.2를 지정 — /v1/rankings/drops/trending에 +500ms 지연과
+# 20% 500 에러를 인위적으로 심어놓은 버전. main엔 merge 안 된 실험 코드이며,
+# 카나리/블루그린이 실제 회귀를 얼마나 빨리·적게 노출시키는지 수치로 비교하기 위함.
 canary:
   enabled: true
   version: v2
   replicas: 1
   image:
-    tag: v0.2.0
+    tag: v0.2.2
   podLabels:
     sidecar.istio.io/inject: "true"
   podAnnotations:
