@@ -23,10 +23,12 @@ container:
     # 우선으로 CPU request/limit 비활성화. requests.cpu는 실측 기준 100m로 통일.
     # requests:
     #   cpu: 100m
+    # 2026-07-22: Prometheus 실측 기준 실사용 약 134Mi — 실측치의 약 3배 여유로 재조정.
+    # ⚠️ 부하테스트(GOAL.md 9장) 전에 반드시 재검토 — idle 트래픽 기준 값임.
     requests: null
     limits:
       cpu: null
-      memory: 512Mi
+      memory: 448Mi
 
 migration:
   enabled: true
