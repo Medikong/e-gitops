@@ -24,9 +24,17 @@ spec:
           name: envoy.filters.http.lua
           typed_config:
             "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+            # TEMP(2026-07-23, R24/R25 카나리/블루그린 부하테스트 기간 한정): /orders와
+            # /payments는 지금 ext_authz 보호 목록에서도 임시로 빠져있고(같은 커밋 세트),
+            # k6가 직접 X-User-Id를 실어 보내는 걸 그대로 통과시켜야 부하테스트가 가능함.
+            # 부하테스트 끝나는 대로 이 경로 예외 원복할 것.
             inlineCode: |
               function envoy_on_request(request_handle)
                 local headers = request_handle:headers()
+                local path = headers:get(":path") or ""
+                if string.find(path, "^/orders") or string.find(path, "^/payments") then
+                  return
+                end
                 headers:remove("x-user-id")
                 headers:remove("x-user-email")
                 headers:remove("x-user-role")
