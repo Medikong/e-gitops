@@ -30,6 +30,7 @@
 
 - 개발환경 API 테스트에서는 회원가입, 로그인, OTP 인증 대신 Auth 서비스의 `POST /api/v1/dev/auth/test-tokens/bulk`를 사용한다.
 - `X-Dev-Access-Token`과 `count`를 전달하고, 응답의 `tokens[].accessToken`을 `Authorization: Bearer <token>`으로 사용한다. `count`는 최대 10,000이며 `ttlSeconds` 기본값은 86,400초다.
+- 실제 Ingress 호출 예제와 테스트 코드는 `platform/istio/tests/e2e/`에서 확인한다.
 - 요청과 응답의 자세한 계약은 `archive` repo의 `../archive/blueprint/50-service-design/A_300_auth/A_300_40-api/openapi/paths/API_A_300_34_issue_development_bulk_tokens.yaml`을 확인한다.
 - 이 API는 Auth 사용자와 Session만 생성한다. 대상 서비스의 프로필이나 권한 데이터가 필요하면 별도 fixture를 준비한다.
 
