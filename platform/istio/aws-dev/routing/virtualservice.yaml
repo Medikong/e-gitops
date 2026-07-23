@@ -216,6 +216,34 @@ spec:
             port:
               number: 8080
 
+    - name: auth-registration
+      match:
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/auth/registrations
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/registrations/[^/]+/challenges$
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/registrations/[^/]+/challenges/[^/]+/verify$
+        - method:
+            exact: POST
+          uri:
+            regex: ^/api/v1/auth/registrations/[^/]+/complete$
+        - method:
+            exact: GET
+          uri:
+            regex: ^/api/v1/auth/registrations/[^/]+$
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+
     # Catch-all은 반드시 마지막에 둔다.
     - name: web
       match:
