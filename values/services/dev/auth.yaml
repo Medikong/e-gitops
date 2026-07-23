@@ -2,6 +2,8 @@ container:
   env:
     - name: DATABASE_URL
       value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
+    - name: AUDIT_SINK_DATABASE_URL
+      value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
     - name: AUTH_TOKEN_TTL_SECONDS
       value: "900"
     - name: AUTH_REFRESH_TOKEN_TTL_SECONDS
@@ -23,7 +25,33 @@ container:
           key: jwt-issuer
     - name: AUTH_JWT_AUDIENCES
       value: dropmong-api
-    - name: AUTH_DEV_TEST_TOKEN_ENABLED
+    - name: AUTH_ALLOWED_ORIGINS
+      value: http://localhost
+    - name: AUTH_COOKIE_SECURE
+      value: "false"
+    - name: AUTH_SESSION_COOKIE_NAME
+      value: dm_refresh
+    - name: AUTH_FLOW_COOKIE_NAME
+      value: dm_auth
+    - name: AUTH_DEVELOPMENT_ENABLED
+      value: "true"
+    - name: AUTH_DEV_ROUTE_ENABLED
+      value: "true"
+    - name: AUTH_VIRTUAL_ADAPTERS_ENABLED
+      value: "true"
+    - name: AUTH_DEV_ACCESS_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: dev-access-token
+    - name: AUTH_VIRTUAL_MESSAGE_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: virtual-message-key
+    - name: REDIS_URL
+      value: redis://shared-redis.dropmong-system.svc.cluster.local:6379/1
+    - name: AUTH_SESSION_STATUS_ENABLED
       value: "true"
   resources:
     requests:
@@ -32,3 +60,28 @@ container:
     limits:
       cpu: 300m
       memory: 384Mi
+
+migration:
+  env:
+    - name: DATABASE_URL
+      value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
+    - name: AUDIT_SINK_DATABASE_URL
+      value: postgres://user:password@auth-db:5432/auth_db?sslmode=disable
+    - name: SERVICE_ENVIRONMENT
+      value: development
+    - name: AUTH_DEVELOPMENT_ENABLED
+      value: "true"
+    - name: AUTH_DEV_ROUTE_ENABLED
+      value: "true"
+    - name: AUTH_VIRTUAL_ADAPTERS_ENABLED
+      value: "true"
+    - name: AUTH_DEV_ACCESS_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: dev-access-token
+    - name: AUTH_VIRTUAL_MESSAGE_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: virtual-message-key

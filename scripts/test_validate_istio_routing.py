@@ -116,6 +116,14 @@ def disable_private_session_status(repo: Path) -> None:
     )
 
 
+def disable_local_dev_session_status(repo: Path) -> None:
+    replace_once(
+        repo / "values/services/dev/auth.yaml",
+        '    - name: AUTH_SESSION_STATUS_ENABLED\n      value: "true"\n',
+        '    - name: AUTH_SESSION_STATUS_ENABLED\n      value: "false"\n',
+    )
+
+
 def shorten_private_tombstone_ttl(repo: Path) -> None:
     replace_once(
         repo / "values/services/private-dev/auth.yaml",
@@ -144,6 +152,7 @@ def override_worker_cache_ttl(repo: Path) -> None:
         (remove_kong_peer, "network_policy"),
         (add_aws_reference, "environment_isolation"),
         (use_legacy_provider_path, "provider_contract"),
+        (disable_local_dev_session_status, "auth_session_status"),
         (disable_private_session_status, "auth_session_status"),
         (shorten_private_tombstone_ttl, "auth_session_status"),
         (override_worker_cache_ttl, "auth_session_status"),

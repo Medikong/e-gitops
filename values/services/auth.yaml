@@ -214,6 +214,16 @@ networkPolicy:
     - to:
         - namespaceSelector:
             matchLabels:
+              kubernetes.io/metadata.name: dropmong-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: shared-redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
               kubernetes.io/metadata.name: observability
           podSelector:
             matchLabels:

@@ -125,6 +125,9 @@ spec:
         - podSelector:
 {{ toYaml . | nindent 12 }}
 {{ end }}
+{{- with .Values.valkey.allowedPeers }}
+{{ toYaml . | nindent 8 }}
+{{- end }}
       ports:
         - protocol: TCP
           port: {{ .Values.valkey.port }}

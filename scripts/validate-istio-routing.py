@@ -37,6 +37,7 @@ PUBLIC_HEADERS: Final = {"x-user-id", "x-session-id", "x-token-id", "x-user-role
 PROTECTED_HEADERS: Final = {"x-user-role", "x-user-email"}
 SESSION_STATUS_PATH: Final = "/internal/session/status"
 SESSION_STATUS_REDIS_URL: Final = "redis://auth-session-redis.dropmong-auth.svc.cluster.local:6379/0"
+LOCAL_SESSION_STATUS_REDIS_URL: Final = "redis://shared-redis.dropmong-system.svc.cluster.local:6379/1"
 SESSION_STATUS_CACHE_TTL: Final = "5m"
 SESSION_STATUS_TOMBSTONE_TTL: Final = "20m"
 SESSION_STATUS_ENV: Final = {
@@ -301,6 +302,10 @@ def validate_auth_session_status(repo: Path) -> None:
             "AUTH_SESSION_STATUS_DB_TIMEOUT": "100ms",
             "AUTH_SESSION_STATUS_CACHE_TTL": SESSION_STATUS_CACHE_TTL,
             "AUTH_SESSION_STATUS_TOMBSTONE_TTL": SESSION_STATUS_TOMBSTONE_TTL,
+        },
+        "values/services/dev/auth.yaml": {
+            "AUTH_SESSION_STATUS_ENABLED": "true",
+            "REDIS_URL": LOCAL_SESSION_STATUS_REDIS_URL,
         },
         "values/services/private-dev/auth.yaml": {
             "AUTH_SESSION_STATUS_ENABLED": "true",
