@@ -9,8 +9,8 @@ image:
   repository: order-service
   tag: ""
 
-  digest: "sha256:ad79f3ba6a526d73efe78359e27e59beea35360965b4e74579e9404e4c844d4b"
-  version: "v0.1.5"
+  digest: "sha256:85764b2fb2808799efd7359e1bd19c51e6b4af9df909932cd6f9465c5c743007"
+  version: "v0.1.4"
 deployment:
   replicas: 1
 
