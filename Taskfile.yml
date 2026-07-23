@@ -819,6 +819,7 @@ tasks:
     cmds:
       - '{{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}} >/dev/null'
       - '{{.KUBECTL}} kustomize {{.ISTIO_PLATFORM}}/traffic/notification >/dev/null'
+      - 'ruby scripts/validate-aws-dev-auth-public-routes.rb'
       - 'ruby scripts/validate-aws-dev-grafana-istio.rb'
       - 'uv run scripts/validate-istio-routing.py'
       - 'uv run scripts/validate-istio-observability.py'

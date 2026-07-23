@@ -202,6 +202,20 @@ spec:
             port:
               number: 8083
 
+    - name: public-auth-entrypoints
+      match:
+        - uri:
+            exact: /.well-known/jwks.json
+        - uri:
+            exact: /api/v1/auth/intents
+        - uri:
+            exact: /api/v1/auth/signins/email
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+
     # Catch-all은 반드시 마지막에 둔다.
     - name: web
       match:
