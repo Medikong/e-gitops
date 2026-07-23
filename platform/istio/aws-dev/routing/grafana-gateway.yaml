@@ -1,0 +1,18 @@
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: grafana-public
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/part-of: medikong
+    medikong.io/environment: aws-dev
+spec:
+  selector:
+    istio: grafana-ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"

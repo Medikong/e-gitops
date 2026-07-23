@@ -1,0 +1,23 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: grafana-public-aws-dev
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/part-of: medikong
+    medikong.io/environment: aws-dev
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - grafana-public
+  http:
+    - name: grafana
+      match:
+        - uri:
+            prefix: /grafana
+      route:
+        - destination:
+            host: kube-prometheus-stack-grafana.monitoring.svc.cluster.local
+            port:
+              number: 80
