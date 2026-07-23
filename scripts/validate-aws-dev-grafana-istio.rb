@@ -6,6 +6,8 @@ require "pathname"
 require "yaml"
 
 SHARED_VIRTUAL_SERVICE_SHA256 = "7cf27d78e97221693035787eab511b00848fc7a10bb833848e493d61eaef9742"
+GRAFANA_NLB_HOST = "graf-51ca5674fe76db4da774a53253-b75bc5128e983831.elb.ap-northeast-2.amazonaws.com"
+GRAFANA_PUBLIC_URL = "http://#{GRAFANA_NLB_HOST}/grafana/"
 
 class ContractError < StandardError; end
 
@@ -34,6 +36,12 @@ end
 
 def normalized_sha256(path)
   Digest::SHA256.hexdigest(File.binread(path).gsub("\r\n", "\n"))
+end
+
+def load_yaml(path)
+  YAML.safe_load(File.read(path, encoding: "utf-8"), aliases: true)
+rescue Errno::ENOENT, Psych::SyntaxError => error
+  raise ContractError, "#{path} is unreadable or malformed: #{error.message}"
 end
 
 repo = Pathname.new(ENV.fetch("REPO", Dir.pwd)).expand_path
@@ -150,9 +158,45 @@ begin
     candidate["kind"] == "Ingress" && candidate.dig("metadata", "name") == "grafana"
   end
   assert_contract(grafana_ingresses.empty?, "AWS overlay restored the old Kong Grafana Ingress")
+
+  monitoring_application = load_yaml(repo / "argo/applications/aws-dev/platform/monitoring.yaml")
+  monitoring_chart = monitoring_application.dig("spec", "sources").find do |candidate|
+    candidate["chart"] == "kube-prometheus-stack"
+  end
+  assert_contract(
+    monitoring_chart.dig("helm", "valueFiles") == ["$values/platform/monitoring/values/kube-prometheus-stack.yaml"],
+    "AWS monitoring Application must consume only the AWS Grafana values file",
+  )
+
+  aws_monitoring_values = load_yaml(repo / "platform/monitoring/values/kube-prometheus-stack.yaml")
+  aws_grafana_server = aws_monitoring_values.dig("grafana", "grafana.ini", "server")
+  assert_contract(aws_grafana_server["root_url"] == GRAFANA_PUBLIC_URL, "AWS Grafana root_url differs")
+  assert_contract(aws_grafana_server["serve_from_sub_path"] == true, "AWS Grafana sub-path serving must be enabled")
+
+  %w[
+    platform/monitoring/values/kube-prometheus-stack-private-dev.yaml
+    platform/monitoring/values/kube-prometheus-stack-local.yaml
+  ].each do |relative_path|
+    assert_contract(
+      !File.read(repo / relative_path, encoding: "utf-8").include?(GRAFANA_NLB_HOST),
+      "#{relative_path} must not contain the AWS NLB hostname",
+    )
+  end
+
+  monitoring_readme = File.read(repo / "platform/monitoring/README.md", encoding: "utf-8")
+  [
+    GRAFANA_PUBLIC_URL,
+    "127.0.0.1:13000",
+    "팀 공용 AWS URL",
+    "로그인",
+    "자격 증명",
+    "제거",
+  ].each do |marker|
+    assert_contract(monitoring_readme.include?(marker), "Grafana access documentation is missing #{marker.inspect}")
+  end
 rescue ContractError, Psych::SyntaxError, TypeError, NoMethodError => error
   warn "FAIL aws-dev Grafana Istio isolation: #{error.message}"
   exit 2
 end
 
-puts "PASS aws-dev Grafana Istio isolation: nodePorts=31836,32081 route=/grafana destination=monitoring/grafana sharedRoute=unchanged kongIngress=absent"
+puts "PASS aws-dev Grafana Istio isolation: nodePorts=31836,32081 route=/grafana rootUrl=#{GRAFANA_PUBLIC_URL} subPath=true sharedRoute=unchanged kongIngress=absent"

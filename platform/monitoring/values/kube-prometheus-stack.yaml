@@ -41,7 +41,8 @@ grafana:
   enabled: true
   grafana.ini:
     server:
-      serve_from_sub_path: false
+      root_url: http://graf-51ca5674fe76db4da774a53253-b75bc5128e983831.elb.ap-northeast-2.amazonaws.com/grafana/
+      serve_from_sub_path: true
   admin:
     existingSecret: grafana-admin-credentials
     userKey: admin-user

@@ -15,6 +15,13 @@
 
 ## Grafana 그룹
 
+### AWS Dev 접근 주소
+
+- 팀 공용 AWS URL은 `http://graf-51ca5674fe76db4da774a53253-b75bc5128e983831.elb.ap-northeast-2.amazonaws.com/grafana/`다. Grafana 전용 Istio Gateway의 `/grafana` 경로만 사용하며 애플리케이션 route와 공유하지 않는다.
+- 이 주소는 발표 기간에만 사용하는 public HTTP endpoint다. 전송 구간이 암호화되지 않으므로 반드시 Grafana 로그인 화면을 거쳐야 하며, 관리자 자격 증명을 Git, 문서, 메신저에 기록하거나 공유하지 않는다.
+- `http://127.0.0.1:13000/grafana/`는 SSM tunnel을 연 각 사용자 PC에서만 동작하는 로컬 주소다. 팀 공용 AWS URL이나 NLB 대상 port가 아니다.
+- 발표가 끝나면 표준 Terraform release로 public listener/NLB를 제거하거나 승인된 팀 CIDR로 제한하고 결과를 기록한다. 이 정리가 확인되기 전에는 임시 endpoint 작업이 완료된 것으로 보지 않는다.
+
 Grafana sidecar는 총 29개 화면을 `Ops` 9개, `Logs` 9개, `DB` 4개, `Load` 7개 폴더에 배치한다. 화면 수를 늘리는 것이 목적이 아니라, 첫 이상 감지 화면에서 구체적인 Pod·DB·로그·trace 증거까지 한 단계씩 내려가도록 역할을 분리하는 것이 목적이다.
 
 | 그룹 | 대표 화면 | 상세 조사 순서 |
