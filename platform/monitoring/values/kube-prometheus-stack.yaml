@@ -41,8 +41,7 @@ grafana:
   enabled: true
   grafana.ini:
     server:
-      root_url: http://medikong-default-kong-nlb-c17a54e23efd293c.elb.ap-northeast-2.amazonaws.com:32407/grafana/
-      serve_from_sub_path: true
+      serve_from_sub_path: false
   admin:
     existingSecret: grafana-admin-credentials
     userKey: admin-user
