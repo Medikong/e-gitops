@@ -79,7 +79,7 @@ spec:
 {{- end }}
 {{- $observabilityEnv := list
   (dict "name" "SERVICE_VERSION" "value" (include "medikong-service.imageVersion" $root))
-  (dict "name" "SERVICE_ENVIRONMENT" "value" $root.Values.environment)
+  (dict "name" "SERVICE_ENVIRONMENT" "value" (default $root.Values.environment $root.Values.container.serviceEnvironment))
 }}
 {{- $sqlalchemy := $root.Values.database.sqlalchemy }}
 {{- if ne $sqlalchemy.enabled false }}

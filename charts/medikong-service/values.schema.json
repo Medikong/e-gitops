@@ -86,6 +86,7 @@
       "properties": {
         "name": { "type": "string" },
         "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "serviceEnvironment": { "type": "string", "minLength": 1 },
         "ports": {
           "type": "array",
           "items": {

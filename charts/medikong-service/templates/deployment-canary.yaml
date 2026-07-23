@@ -81,7 +81,7 @@ spec:
 {{- end }}
 {{- $observabilityEnv := list
   (dict "name" "SERVICE_VERSION" "value" $serviceVersion)
-  (dict "name" "SERVICE_ENVIRONMENT" "value" .Values.environment)
+  (dict "name" "SERVICE_ENVIRONMENT" "value" (default .Values.environment .Values.container.serviceEnvironment))
 }}
 {{- $sqlalchemy := .Values.database.sqlalchemy }}
 {{- if ne $sqlalchemy.enabled false }}

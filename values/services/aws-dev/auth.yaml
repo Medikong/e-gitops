@@ -18,6 +18,10 @@ canary:
   enabled: false
 
 container:
+  # auth-service only permits virtual adapters in a development runtime.
+  # Kubernetes workload labels remain aws-dev; this overrides only
+  # SERVICE_ENVIRONMENT inside the auth server and inherited worker.
+  serviceEnvironment: development
   env:
     - name: DATABASE_URL
       value: postgresql+psycopg://user:password@auth-db:5432/auth_db
@@ -89,11 +93,25 @@ container:
     - name: AUTH_COOKIE_SECURE
       value: "true"
     - name: AUTH_DEVELOPMENT_ENABLED
-      value: "false"
+      value: "true"
     - name: AUTH_DEV_ROUTE_ENABLED
-      value: "false"
+      value: "true"
     - name: AUTH_VIRTUAL_ADAPTERS_ENABLED
-      value: "false"
+      value: "true"
+    # Runtime prerequisite: add these keys to the existing Secret without
+    # committing or logging their values. The synthetic client receives the
+    # matching access token and account credentials through a separate
+    # operator-controlled runtime channel.
+    - name: AUTH_DEV_ACCESS_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: dev-access-token
+    - name: AUTH_VIRTUAL_MESSAGE_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: virtual-message-key
     - name: REDIS_URL
       valueFrom:
         secretKeyRef:
@@ -134,6 +152,24 @@ migration:
       value: postgresql+psycopg://user:password@auth-db:5432/auth_db
     - name: AUDIT_SINK_DATABASE_URL
       value: postgresql+psycopg://user:password@auth-db:5432/auth_db
+    - name: SERVICE_ENVIRONMENT
+      value: development
+    - name: AUTH_DEVELOPMENT_ENABLED
+      value: "true"
+    - name: AUTH_DEV_ROUTE_ENABLED
+      value: "true"
+    - name: AUTH_VIRTUAL_ADAPTERS_ENABLED
+      value: "true"
+    - name: AUTH_DEV_ACCESS_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: dev-access-token
+    - name: AUTH_VIRTUAL_MESSAGE_KEY
+      valueFrom:
+        secretKeyRef:
+          name: auth-runtime-credentials
+          key: virtual-message-key
   resources:
     requests:
       cpu: 50m

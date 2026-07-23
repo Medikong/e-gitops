@@ -244,6 +244,21 @@ spec:
             port:
               number: 8080
 
+    - name: synthetic-auth-virtual-message
+      match:
+        - method:
+            exact: GET
+          uri:
+            regex: ^/api/v1/dev/auth/verification-messages/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+          headers:
+            x-dev-access-token:
+              regex: ^.+$
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+
     # Catch-all은 반드시 마지막에 둔다.
     - name: web
       match:
