@@ -120,7 +120,7 @@ spec:
 {{- $observabilityEnv = append $observabilityEnv (dict "name" "PYROSCOPE_TENANT_ID" "value" .) }}
 {{- end }}
 {{- end }}
-{{- $containerEnv := concat $observabilityEnv .Values.container.env (default (list) .Values.container.apiEnv) }}
+{{- $containerEnv := concat $observabilityEnv .Values.container.env (default (list) .Values.canary.env) (default (list) .Values.container.apiEnv) }}
 {{- with $containerEnv }}
           env:
 {{ toYaml . | nindent 12 }}

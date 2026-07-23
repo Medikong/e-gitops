@@ -27,6 +27,8 @@ canary:
   podLabels: {}
   podAnnotations: {}
   resources: {}
+  # base container.env에 추가로 얹히는 canary 전용 env var (base엔 영향 없음).
+  env: []
 
 image:
   registry: ""
