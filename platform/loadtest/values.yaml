@@ -1,0 +1,499 @@
+environment: local
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Use a unique Helm release and namespace per run. When name is empty, the
+# namespace passed to Helm is used.
+namespace:
+  create: true
+  name: ""
+  keep: true
+  labels: {}
+
+run:
+  id: local-dev
+  service: catalog-service
+  trialId: calibration-001
+  scenario: service-static-replica-capacity-load-test
+  replicas: 1
+  workload: drop-list-and-detail
+  loadSeed: "20260723"
+  profile:
+    service: catalog-service
+    workload: drop-list-and-detail
+    baseUrl: http://catalog-service.dropmong-catalog.svc.cluster.local:8081
+    endpointMix:
+      - name: catalog.drop-list
+        weight: 100
+    adaptive:
+      startRps: 1
+      trialMeasureSeconds: 1
+    thresholds:
+      errorRate: 0.01
+      checkPassRate: 1
+      p95Ms: 500
+      p99Ms: 1000
+  mode: static-replica-capacity
+  kubernetesContext: unknown
+  serviceGitSha: unknown
+  serviceGitDirty: "unknown"
+  gitopsGitSha: unknown
+  gitopsGitDirty: "unknown"
+  serviceImageId: unknown
+  k6ImageId: unknown
+  seederImageId: unknown
+  couponSecretName: dropmong-loadtest-coupon-codes
+  webOrigin: http://dropmong-web
+
+dataset:
+  profile: smoke
+  profileDocument: {}
+  seed: "20260723"
+  services: auth,user,catalog,coupon,interest,order,payment,notification
+  fixtureStrategy: disjoint-trial-ranges
+  revision: smoke-v1
+  cacheKey: "0000000000000000000000000000000000000000000000000000000000000000"
+  cacheMode: snapshot
+  generatorRevision: "0000000000000000000000000000000000000000000000000000000000000000"
+  schemaHashes: {}
+
+adaptive:
+  phase: calibration
+  startRps: "1"
+  maxRps: "100"
+  targetCpuUtilization: "0.70"
+  rpsTolerance: "0.05"
+  searchTolerance: "0.10"
+  warmup: 10s
+  measure: 20s
+  warmupSeconds: "10"
+  measureSeconds: "20"
+  cooldown: 10s
+  repetitions: "1"
+  writeSliceStart: "0"
+  writeSliceSize: "100"
+  writeAllocations: {}
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 12345
+  runAsGroup: 12345
+  fsGroup: 12345
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 12345
+  runAsGroup: 12345
+  capabilities:
+    drop:
+      - ALL
+
+scheduling:
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+reportArchive:
+  enabled: true
+  existingClaim: ""
+  storageClassName: ""
+  size: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  mountPath: /loadtest/reports
+  keep: true
+
+couponSecret:
+  existingSecret: ""
+  key: coupon-codes.json
+  mountPath: /var/run/dropmong-loadtest-coupon
+
+accessTokenSecret:
+  existingSecret: ""
+  key: access-tokens.json
+  mountPath: /var/run/dropmong-loadtest-tokens
+
+datasetJob:
+  enabled: false
+  image:
+    registry: localhost:5001
+    repository: dropmong-dataset-seeder
+    tag: dev
+    digest: ""
+    pullPolicy: Always
+  # The seeder image owns the JavaScript entrypoint.
+  command: []
+  args:
+    - --profile-json
+    - $(LOADTEST_DATASET_PROFILE_JSON)
+    - --seed
+    - $(LOADTEST_DATASET_SEED)
+    - --revision
+    - $(LOADTEST_DATASET_REVISION)
+    - --services
+    - $(LOADTEST_DATASET_SERVICES)
+    - --output-dir
+    - $(LOADTEST_REPORT_DIR)/raw/dataset
+    - --cache-key
+    - $(LOADTEST_DATASET_CACHE_KEY)
+    - --cache-dir
+    - $(LOADTEST_REPORT_DIR)/dataset-cache
+    - --cache-mode
+    - $(LOADTEST_DATASET_CACHE_MODE)
+    - --generator-revision
+    - $(LOADTEST_DATASET_GENERATOR_REVISION)
+    - --schema-hashes
+    - $(LOADTEST_DATASET_SCHEMA_HASHES)
+    - --run-id
+    - $(LOADTEST_RUN_ID)
+    - --coupon-secret-name
+    - $(LOADTEST_COUPON_SECRET_NAME)
+  existingSecrets: []
+  annotations: {}
+  activeDeadlineSeconds: 1800
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  terminationGracePeriodSeconds: 30
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+k6Job:
+  enabled: false
+  image:
+    registry: localhost:5001
+    repository: dropmong-loadtest-runner
+    tag: dev
+    digest: ""
+    pullPolicy: Always
+  command: []
+  args:
+    - run
+    - --log-format=raw
+    - --out
+    - json=$(LOADTEST_REPORT_DIR)/raw/k6/$(LOADTEST_SERVICE)/$(LOADTEST_TRIAL_ID).samples.json
+    - /loadtest/workloads/$(LOADTEST_SERVICE).js
+  existingSecrets: []
+  annotations: {}
+  activeDeadlineSeconds: 1800
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  terminationGracePeriodSeconds: 30
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+
+# Notification writes enter through Kafka rather than an HTTP endpoint. This
+# optional Job keeps event production outside k6 latency measurements.
+eventProducerJob:
+  enabled: false
+  bootstrap: kafka.dropmong-messaging.svc.cluster.local:9092
+  topic: notification.requested
+  # Empty values inherit the adaptive trial's non-overlapping write slice.
+  # Set either value explicitly only for a deliberately narrower event probe.
+  start: ""
+  count: ""
+  image:
+    registry: localhost:5001
+    repository: dropmong-loadtest-tools
+    tag: dev
+    digest: ""
+    pullPolicy: Always
+  command:
+    - node
+  args:
+    - /loadtest/scripts/notification-event-producer.js
+    - --fixture-manifest
+    - $(LOADTEST_FIXTURE_MANIFEST)
+    - --bootstrap
+    - $(LOADTEST_KAFKA_BOOTSTRAP)
+    - --topic
+    - $(LOADTEST_EVENT_TOPIC)
+    - --run-id
+    - $(LOADTEST_RUN_ID)
+    - --trial-id
+    - $(LOADTEST_TRIAL_ID)
+    - --service
+    - $(LOADTEST_SERVICE)
+    - --start
+    - $(LOADTEST_EVENT_START)
+    - --count
+    - $(LOADTEST_EVENT_COUNT)
+    - --duration-seconds
+    - $(LOADTEST_MEASURE_SECONDS)
+    - --start-marker
+    - $(LOADTEST_REPORT_DIR)/control/$(LOADTEST_SERVICE)/$(LOADTEST_TRIAL_ID).started
+    - --start-timeout-seconds
+    - "120"
+    - --report-dir
+    - $(LOADTEST_REPORT_DIR)
+  existingSecrets: []
+  annotations: {}
+  activeDeadlineSeconds: 600
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  terminationGracePeriodSeconds: 30
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+reportJob:
+  enabled: false
+  image:
+    registry: localhost:5001
+    repository: dropmong-loadtest-tools
+    tag: dev
+    digest: ""
+    pullPolicy: Always
+  command:
+    - node
+  args:
+    - /loadtest/scenarios/service-static-replica-capacity-load-test/report.js
+    - --run-dir
+    - $(LOADTEST_REPORT_DIR)
+  existingSecrets: []
+  annotations: {}
+  activeDeadlineSeconds: 600
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  terminationGracePeriodSeconds: 30
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+artifactPod:
+  enabled: false
+  image:
+    registry: ""
+    repository: busybox
+    tag: "1.36.1"
+    digest: ""
+    pullPolicy: IfNotPresent
+  command:
+    - sh
+    - -ec
+  args:
+    - sleep "${ARTIFACT_POD_LIFETIME_SECONDS}"
+  lifetimeSeconds: "86400"
+  existingSecrets: []
+  annotations: {}
+  terminationGracePeriodSeconds: 5
+  resources:
+    requests:
+      cpu: 5m
+      memory: 16Mi
+    limits:
+      cpu: 50m
+      memory: 64Mi
+
+# These policies are created in the target namespaces. They add only an
+# ingress allowance from this run's namespace and run/role-labelled pods.
+crossNamespaceAccess:
+  enabled: false
+  targets:
+    - name: auth-service
+      namespace: dropmong-auth
+      podSelector:
+        app: auth-service
+      allowedRoles:
+        - k6
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9090
+    - name: user-service
+      namespace: dropmong-user
+      podSelector:
+        app: user-service
+      allowedRoles:
+        - k6
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9090
+    - name: catalog-service
+      namespace: dropmong-catalog
+      podSelector:
+        app: catalog-service
+      allowedRoles:
+        - k6
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 8081
+    - name: coupon-service
+      namespace: dropmong-coupon
+      podSelector:
+        app: coupon-service
+      allowedRoles:
+        - k6
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9090
+    - name: interest-service
+      namespace: dropmong-interest
+      podSelector:
+        app: interest-service
+      allowedRoles:
+        - k6
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 8085
+    - name: order-service
+      namespace: dropmong-order
+      podSelector:
+        app: order-service
+      allowedRoles:
+        - k6
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 8082
+    - name: payment-service
+      namespace: dropmong-payment
+      podSelector:
+        app: payment-service
+      allowedRoles:
+        - k6
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 8083
+    - name: notification-service
+      namespace: dropmong-notification
+      podSelector:
+        app: notification-service
+      allowedRoles:
+        - k6
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 8084
+    - name: dropmong-web
+      namespace: dropmong-web
+      podSelector:
+        app: dropmong-web
+      allowedRoles:
+        - k6
+      ports:
+        - protocol: TCP
+          port: 3000
+    - name: auth-db
+      namespace: dropmong-auth
+      podSelector:
+        app.kubernetes.io/name: auth-db
+      allowedRoles:
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 5432
+    - name: user-db
+      namespace: dropmong-user
+      podSelector:
+        app.kubernetes.io/name: user-db
+      allowedRoles:
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 5432
+    - name: catalog-db
+      namespace: dropmong-catalog
+      podSelector:
+        app.kubernetes.io/name: catalog-db
+      allowedRoles:
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 5432
+    - name: coupon-db
+      namespace: dropmong-coupon
+      podSelector:
+        app.kubernetes.io/name: coupon-db
+      allowedRoles:
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 5432
+    - name: interest-db
+      namespace: dropmong-interest
+      podSelector:
+        app.kubernetes.io/name: interest-db
+      allowedRoles:
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 5432
+    - name: order-db
+      namespace: dropmong-order
+      podSelector:
+        app.kubernetes.io/name: order-db
+      allowedRoles:
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 5432
+    - name: payment-db
+      namespace: dropmong-payment
+      podSelector:
+        app.kubernetes.io/name: payment-db
+      allowedRoles:
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 5432
+    - name: notification-db
+      namespace: dropmong-notification
+      podSelector:
+        app.kubernetes.io/name: notification-db
+      allowedRoles:
+        - dataset
+      ports:
+        - protocol: TCP
+          port: 5432
+    - name: kafka
+      namespace: dropmong-messaging
+      podSelector:
+        app.kubernetes.io/name: kafka
+      allowedRoles:
+        - dataset
+        - event-producer
+      ports:
+        - protocol: TCP
+          port: 9092
