@@ -7,7 +7,7 @@ deployment:
     sidecar.istio.io/proxyMemory: 64Mi
     sidecar.istio.io/proxyCPULimit: 200m
     sidecar.istio.io/proxyMemoryLimit: 256Mi
-  replicas: 3
+  replicas: 5
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -131,14 +131,16 @@ container:
     # 2026-07-24: R24/R25 부하테스트(GOAL.md 9장) 개시로 위 TODO 재검토 완료.
     # ext_authz 동시 검증 10건에서 200ms 타임아웃을 넘겨 503 ext_authz_error가
     # 나는 걸 확인해서, CPU request를 팀이 남겨둔 실측값(100m)으로 재활성화함.
-    # limit은 계속 null 유지(부하테스트 중 스로틀링 방지, 클러스터 여유 충분 — 이
-    # 노드들 CPU request 할당률 26~28%로 확인함).
+    # VUS=10은 이걸로 해결됐으나 VUS=50(스파이크)에서 다시 재현돼서, replicas
+    # 3→5·cpu 100m→200m로 추가 증설(총 300m→1000m). limit은 계속 null 유지
+    # (부하테스트 중 스로틀링 방지). 노드 여유 충분 확인함(worker-app-1/2 CPU
+    # request 할당률 42%/35%, 증설분 반영해도 노드당 여유 50%+ 남음).
     # 2026-07-22: Prometheus 실측(container_memory_working_set_bytes) 기준
     # auth-service/worker 실사용 약 5~11Mi인데 768Mi로 예약돼있어 노드 스케줄링을
     # 막고 있었음 — 실측치의 약 6배 여유로 재조정. 이 값은 worker Deployment에도
     # 그대로 적용됨(worker.resources가 기본으로 이 값을 상속).
     requests:
-      cpu: 100m
+      cpu: 200m
       memory: null
     limits:
       cpu: null
