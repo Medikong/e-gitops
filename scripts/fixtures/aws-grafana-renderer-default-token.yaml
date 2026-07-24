@@ -1,0 +1,6 @@
+base_fixture: aws-grafana-renderer-valid.yaml
+patch:
+  values:
+    grafana:
+      imageRenderer:
+        token: "-"

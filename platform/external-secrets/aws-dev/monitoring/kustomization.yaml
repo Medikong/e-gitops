@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
   - secret-store.yaml
   - grafana-admin-credentials.yaml
+  - grafana-renderer-token.yaml
   - readiness-rbac.yaml
   - readiness-job.yaml

@@ -1,0 +1,19 @@
+base_fixture: aws-grafana-renderer-valid.yaml
+append_resources:
+  - apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: grafana-image-renderer-public
+      namespace: monitoring
+    spec:
+      rules:
+        - host: renderer.example.com
+          http:
+            paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: kube-prometheus-stack-grafana-image-renderer
+                    port:
+                      number: 8081

@@ -51,6 +51,38 @@ grafana:
     registry: docker.io
     repository: grafana/grafana
     tag: "13.0.1"
+  imageRenderer:
+    enabled: true
+    replicas: 1
+    autoscaling:
+      enabled: false
+    serverURL: http://kube-prometheus-stack-grafana-image-renderer.monitoring.svc.cluster.local:8081/render
+    renderingCallbackURL: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80/grafana/
+    existingSecret: grafana-renderer-token
+    image:
+      registry: docker.io
+      repository: grafana/grafana-image-renderer
+      tag: v5.8.11
+      pullPolicy: IfNotPresent
+    service:
+      enabled: true
+      type: ClusterIP
+    networkPolicy:
+      limitIngress: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    nodeSelector:
+      medikong.io/workload: observability
+    tolerations:
+      - key: medikong.io/workload
+        operator: Equal
+        value: observability
+        effect: NoSchedule
   initChownData:
     image:
       registry: docker.io

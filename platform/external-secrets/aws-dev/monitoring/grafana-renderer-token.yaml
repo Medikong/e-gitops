@@ -1,0 +1,26 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: grafana-renderer-token
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  refreshPolicy: CreatedOnce
+  refreshInterval: 1h0m0s
+  secretStoreRef:
+    kind: SecretStore
+    name: aws-secrets-manager
+  target:
+    name: grafana-renderer-token
+    creationPolicy: Owner
+    deletionPolicy: Retain
+    immutable: true
+  data:
+    - secretKey: token
+      remoteRef:
+        key: dropmong/aws-dev/monitoring/grafana-renderer-token
+        property: token
+        conversionStrategy: Default
+        decodingStrategy: None
+        metadataPolicy: None

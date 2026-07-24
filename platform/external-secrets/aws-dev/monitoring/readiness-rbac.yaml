@@ -25,6 +25,7 @@ rules:
       - secrets
     resourceNames:
       - grafana-admin-credentials
+      - grafana-renderer-token
     verbs:
       - get
 ---

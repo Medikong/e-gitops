@@ -1,0 +1,112 @@
+values:
+  grafana:
+    grafana.ini:
+      server:
+        root_url: http://graf-example.internal/grafana/
+        serve_from_sub_path: true
+    imageRenderer:
+      enabled: true
+      replicas: 1
+      serverURL: http://kube-prometheus-stack-grafana-image-renderer.monitoring.svc.cluster.local:8081/render
+      renderingCallbackURL: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80/grafana/
+      existingSecret: grafana-renderer-token
+      image:
+        registry: docker.io
+        repository: grafana/grafana-image-renderer
+        tag: 5.0.0
+        pullPolicy: IfNotPresent
+      envValueFrom:
+        AUTH_TOKEN:
+          secretKeyRef:
+            name: grafana-renderer-token
+            key: token
+      service:
+        enabled: true
+        type: ClusterIP
+      networkPolicy:
+        limitIngress: true
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+      nodeSelector:
+        medikong.io/workload: observability
+      tolerations:
+        - key: medikong.io/workload
+          operator: Equal
+          value: observability
+          effect: NoSchedule
+external_secrets:
+  - apiVersion: external-secrets.io/v1beta1
+    kind: ExternalSecret
+    metadata:
+      name: grafana-renderer-token
+      namespace: monitoring
+    spec:
+      refreshPolicy: CreatedOnce
+      target:
+        name: grafana-renderer-token
+        creationPolicy: Owner
+        immutable: true
+      data:
+        - secretKey: token
+          remoteRef:
+            key: dropmong/aws-dev/monitoring/grafana-renderer-token
+resources:
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: kube-prometheus-stack-grafana-image-renderer
+      namespace: monitoring
+    spec:
+      replicas: 1
+      template:
+        spec:
+          nodeSelector:
+            medikong.io/workload: observability
+          tolerations:
+            - key: medikong.io/workload
+              operator: Equal
+              value: observability
+              effect: NoSchedule
+          containers:
+            - name: grafana-image-renderer
+              image: docker.io/grafana/grafana-image-renderer:5.0.0
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 1Gi
+              env:
+                - name: AUTH_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: grafana-renderer-token
+                      key: token
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: kube-prometheus-stack-grafana-image-renderer
+      namespace: monitoring
+    spec:
+      type: ClusterIP
+      ports:
+        - name: http
+          port: 8081
+          targetPort: 8081
+routes: []
+capture:
+  base_url: http://127.0.0.1:13000/grafana/
+  uids:
+    - dropmong-ops-03-gateway-mesh
+    - dropmong-load-30-saturation
+    - dropmong-ops-10-kubernetes
+  window:
+    from_ms: 1784879925000
+    to_ms: 1784880120000
+  verdict: OBSERVABILITY_BLOCKED

@@ -44,6 +44,17 @@ spec:
             - externalsecret/grafana-admin-credentials
             - --namespace=monitoring
             - --timeout=240s
+        - name: wait-renderer-external-secret
+          image: registry.k8s.io/kubectl:v1.34.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - kubectl
+          args:
+            - wait
+            - --for=condition=Ready
+            - externalsecret/grafana-renderer-token
+            - --namespace=monitoring
+            - --timeout=240s
       containers:
         - name: verify-generated-secret
           image: registry.k8s.io/kubectl:v1.34.0
@@ -54,6 +65,24 @@ spec:
             - get
             - secret
             - grafana-admin-credentials
+            - --namespace=monitoring
+            - --output=name
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+        - name: verify-renderer-secret
+          image: registry.k8s.io/kubectl:v1.34.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - kubectl
+          args:
+            - get
+            - secret
+            - grafana-renderer-token
             - --namespace=monitoring
             - --output=name
           resources:
