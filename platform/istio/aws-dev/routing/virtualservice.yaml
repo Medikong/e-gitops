@@ -179,22 +179,21 @@ spec:
         - uri:
             prefix: /orders
       route:
-        # 2026-07-24: R24/R25 카나리 비교 실험(GOAL.md 9장) 개시로 90/10 활성화.
-        # v2 표본이 VUS=25(게이트웨이 검증 안전선) x 10%로 적어서, 여러 라운드
-        # 반복 실행해서 v2 표본을 누적시키는 방식으로 진행함(사용자 합의).
-        # 실험 종료 후 100/0으로 원복 필요.
+        # 2026-07-24: R24/R25 배포전략 비교 실험(GOAL.md 9장). 카나리(90/10) 라운드
+        # 완료(6라운드, v2 표본 15건 누적, 오버셀 반복 재현 확인) 후 블루그린(0/100)
+        # 라운드로 전환. 실험 종료 후 100/0으로 원복 필요.
         - destination:
             host: order-service.dropmong-order.svc.cluster.local
             subset: v1
             port:
               number: 8082
-          weight: 90
+          weight: 0
         - destination:
             host: order-service.dropmong-order.svc.cluster.local
             subset: v2
             port:
               number: 8082
-          weight: 10
+          weight: 100
 
     - name: payment
       match:
