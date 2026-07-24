@@ -53,7 +53,7 @@ container:
       value: kafka.dropmong-messaging.svc.cluster.local:9092
     - name: ORDER_EXTRA_PRODUCTS_JSON
       value: >-
-        [{"drop_id":"opaque-drop-45faeaea","product_id":"opaque-product-45faeaea","unit_price":50000}]
+        [{"drop_id":"opaque-drop-45faeaea","product_id":"opaque-product-45faeaea","unit_price":50000},{"drop_id":"opaque-drop-45faeaea","product_id":"opaque-product-s06-45faeaea","unit_price":50000}]
   resources:
     # TODO(운영 전환 시 재활성화, 2026-07-20 팀 합의): 개발단계엔 스케줄링 유연성
     # 우선으로 CPU request/limit 비활성화. requests.cpu는 실측 기준 100m로 통일.
