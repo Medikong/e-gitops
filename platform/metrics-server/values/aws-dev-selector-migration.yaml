@@ -1,0 +1,2 @@
+deploymentAnnotations:
+  argocd.argoproj.io/sync-options: Force=true,Replace=true

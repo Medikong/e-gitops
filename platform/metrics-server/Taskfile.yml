@@ -12,6 +12,8 @@ vars:
   METRICS_SERVER_CHART_VERSION: '{{default "3.13.1" .METRICS_SERVER_CHART_VERSION}}'
   METRICS_SERVER_VALUES: '{{default "platform/metrics-server/values/aws-dev.yaml" .METRICS_SERVER_VALUES}}'
   METRICS_SERVER_LOCAL_VALUES: '{{default "platform/metrics-server/values/local.yaml" .METRICS_SERVER_LOCAL_VALUES}}'
+  METRICS_SERVER_MIGRATION_VALUES: '{{default "platform/metrics-server/values/aws-dev-selector-migration.yaml" .METRICS_SERVER_MIGRATION_VALUES}}'
+  METRICS_SERVER_MIGRATION_VALIDATOR: '{{default "platform/metrics-server/validate-migration.rb" .METRICS_SERVER_MIGRATION_VALIDATOR}}'
 
 tasks:
   repo:
@@ -22,9 +24,27 @@ tasks:
   render:
     desc: metrics-server aws-dev/local Helm values를 렌더링합니다.
     cmds:
+      - task migration:cleanup:validate
       - task repo
       - '{{.HELM}} template {{.METRICS_SERVER_RELEASE}} {{.METRICS_SERVER_CHART}} --version {{.METRICS_SERVER_CHART_VERSION}} --namespace {{.METRICS_SERVER_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.METRICS_SERVER_VALUES}} >/dev/null'
       - '{{.HELM}} template {{.METRICS_SERVER_RELEASE}} {{.METRICS_SERVER_CHART}} --version {{.METRICS_SERVER_CHART_VERSION}} --namespace {{.METRICS_SERVER_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.METRICS_SERVER_LOCAL_VALUES}} >/dev/null'
+
+  migration:enable:render:
+    desc: Render the bounded phase-one selector replacement overlay before a temporary Argo sync.
+    cmds:
+      - 'ruby {{.GITOPS_ROOT}}/{{.METRICS_SERVER_MIGRATION_VALIDATOR}} --repo {{.GITOPS_ROOT}} --phase enable'
+      - task repo
+      - '{{.HELM}} template {{.METRICS_SERVER_RELEASE}} {{.METRICS_SERVER_CHART}} --version {{.METRICS_SERVER_CHART_VERSION}} --namespace {{.METRICS_SERVER_NAMESPACE}} -f {{.GITOPS_ROOT}}/{{.METRICS_SERVER_VALUES}} -f {{.GITOPS_ROOT}}/{{.METRICS_SERVER_MIGRATION_VALUES}} >/dev/null'
+
+  migration:cleanup:validate:
+    desc: Required phase-two gate; ordinary Argo sync must not retain the force-replace overlay.
+    cmds:
+      - 'ruby {{.GITOPS_ROOT}}/{{.METRICS_SERVER_MIGRATION_VALIDATOR}} --repo {{.GITOPS_ROOT}} --phase cleanup'
+
+  migration:verify:
+    desc: Read-only post-sync gate for Argo, APIService, EndpointSlice, selector, and metrics API health.
+    cmds:
+      - 'ruby {{.GITOPS_ROOT}}/{{.METRICS_SERVER_MIGRATION_VALIDATOR}} --repo {{.GITOPS_ROOT}} --phase verify --kubectl {{.KUBECTL}}'
 
   up:
     desc: Docker Desktop dev에 metrics-server를 배포합니다.
