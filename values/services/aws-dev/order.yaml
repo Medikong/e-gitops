@@ -1,3 +1,13 @@
+# 2026-07-24: base(v1)는 배포 파이프라인이 갱신하는 공용 image(현재 v0.1.7)를 그대로
+# 따라가지 않고 마지막 검증된 안정 버전(v0.1.6)에 고정한다. 그래야 canary(v2,
+# v0.1.7)가 "다음에 승격할 새 릴리스"로서 base와 실제로 구분됨 — 안 그러면 deploy:tag가
+# 공용 values/services/order.yaml을 갱신할 때마다 v1도 같이 최신 태그로 따라가버려서
+# 카나리가 아무 차이 없는 트래픽 분할이 돼버린다. v1을 v0.1.7로 승격하려면(카나리 성공
+# 확정 시) 이 오버라이드를 지우거나 v0.1.7로 갱신한다.
+image:
+  digest: "sha256:85c601ce6691dcdcd276a04311f9e080d114a0ae4ad00a147b2b076a6a9347d2"
+  version: "v0.1.6"
+
 deployment:
   podLabels:
     sidecar.istio.io/inject: "true"
@@ -15,14 +25,26 @@ deployment:
       maxSurge: 0
       maxUnavailable: 1
 
-# 카나리/블루그린 배포전략 비교 실험용 (2026-07-22~24, R24/R25 — 서비스 선정 근거는
-# Deployment-analysis.md 참고: order-service는 재고 오버셀 방지 로직이 실제로 있고
-# GOAL.md 핵심 과제와 직결돼서 선정함). 실험 완료: 카나리(90/10) 6라운드 + 블루그린
-# (0/100) 라운드 모두 오버셀 재현/DB로 확정, 결과 비교 완료. 실험 종료로 카나리
-# 비활성화(원복) — SYNTHETIC_REGRESSION_SKIP_LOCK 버그 스위치가 켜진 채로 남아있지
-# 않도록 배포 자체를 끔.
+# 2026-07-24: R24/R25 PoC(Deployment-analysis.md 5~9장) 결과에 따라 order-service의
+# 실제 배포 전략으로 Istio 가중치 기반 카나리를 채택. 합성 결함 스위치
+# (SYNTHETIC_REGRESSION_SKIP_LOCK 등)는 비교실험 전용이었고 여기엔 없음 — canary는
+# base와 동일한 코드베이스의 새 릴리스(v0.1.7)일 뿐, 버그 주입 없음. 신규 배포 시
+# 이 canary 슬롯에 새 버전을 얹고 트래픽 10%로 관찰 후, 문제없으면 v1로 승격(현재는
+# 수동 절차 — 5.4/5.5절 자동 분석/롤백 기준은 아직 설계 전).
 canary:
-  enabled: false
+  enabled: true
+  version: v2
+  replicas: 1
+  image:
+    tag: v0.1.7
+  podLabels:
+    sidecar.istio.io/inject: "true"
+  podAnnotations:
+    sidecar.istio.io/inject: "true"
+    sidecar.istio.io/proxyCPU: 25m
+    sidecar.istio.io/proxyMemory: 64Mi
+    sidecar.istio.io/proxyCPULimit: 200m
+    sidecar.istio.io/proxyMemoryLimit: 256Mi
 
 container:
   env:

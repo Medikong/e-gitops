@@ -179,20 +179,23 @@ spec:
         - uri:
             prefix: /orders
       route:
-        # 2026-07-24: R24/R25 배포전략 비교 실험(GOAL.md 9장) 완료. 카나리(90/10, 6
-        # 라운드) + 블루그린(0/100) 양쪽 모두 오버셀 재현/비교 끝나서 100/0으로 원복.
+        # 2026-07-24: R24/R25 PoC 결과로 order-service의 실제 배포 전략을 Istio
+        # 가중치 카나리로 채택(Deployment-analysis.md 5.1절). v2=v0.1.7 신규 릴리스를
+        # 10%로 개시. 문제 없으면 v1로 승격(weight 100/0 + v1 image.tag를 v0.1.7로),
+        # 문제 있으면 즉시 0/100으로 되돌림 — 승격/롤백 판단 기준은 아직 수동(5.4/5.5절
+        # 설계 전).
         - destination:
             host: order-service.dropmong-order.svc.cluster.local
             subset: v1
             port:
               number: 8082
-          weight: 100
+          weight: 90
         - destination:
             host: order-service.dropmong-order.svc.cluster.local
             subset: v2
             port:
               number: 8082
-          weight: 0
+          weight: 10
 
     - name: payment
       match:
