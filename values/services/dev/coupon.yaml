@@ -11,7 +11,7 @@ container:
     - name: COUPON_REDIS_GATE_IDEMPOTENCY_TTL
       value: 24h
     - name: REDIS_URL
-      value: redis://coupon-redis.dropmong-coupon.svc.cluster.local:6379
+      value: redis://shared-redis.dropmong-system.svc.cluster.local:6379/0
   resources:
     requests:
       cpu: 50m

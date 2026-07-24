@@ -68,5 +68,6 @@ valkey:
   allowedPodSelectors:
     - matchLabels:
         app: coupon-service
+  allowedPeers: []
   nodeSelector: {}
   networkPolicyName: ""

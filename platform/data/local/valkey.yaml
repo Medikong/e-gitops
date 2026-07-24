@@ -1,7 +1,26 @@
 valkey:
   enabled: true
-  name: coupon-redis
-  namespace: dropmong-coupon
+  name: shared-redis
+  namespace: dropmong-system
+  allowedPodSelectors: []
+  allowedPeers:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: dropmong-auth
+      podSelector:
+        matchExpressions:
+          - key: app
+            operator: In
+            values:
+              - auth-service
+              - auth-service-worker
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: dropmong-coupon
+      podSelector:
+        matchLabels:
+          app: coupon-service
+  networkPolicyName: allow-shared-redis-ingress
   resources:
     requests:
       cpu: 50m

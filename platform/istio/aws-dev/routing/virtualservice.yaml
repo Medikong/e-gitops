@@ -244,6 +244,21 @@ spec:
             port:
               number: 8080
 
+    - name: development-auth-bulk-tokens
+      match:
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/dev/auth/test-tokens/bulk
+          headers:
+            x-dev-access-token:
+              regex: ^.+$
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+
     - name: synthetic-auth-virtual-message
       match:
         - method:

@@ -29,6 +29,9 @@ vars:
   CNPG_TEST_CLUSTER: '{{default "platform/cloudnative-pg/clusters/aws-dev/test-postgres" .CNPG_TEST_CLUSTER}}'
 
 includes:
+  istio:
+    taskfile: platform/istio/Taskfile.yml
+    dir: platform/istio
   observability:
     taskfile: platform/observability/Taskfile.yml
     dir: platform/observability
@@ -96,30 +99,56 @@ tasks:
 
   dev:auth-secrets:
     internal: true
-    desc: 로컬 dev auth-service의 RSA JWT 서명키를 Kubernetes Secret으로 준비합니다.
+    desc: 로컬 dev auth-service의 JWT 서명키와 개발 API credential을 Kubernetes Secret으로 준비합니다.
     cmds:
       - |
         set -eu
         namespace='dropmong-auth'
         secret='auth-dev-jwt'
         {{.KUBECTL}} create namespace "${namespace}" --dry-run=client -o yaml | {{.KUBECTL}} apply -f - >/dev/null
-        if {{.KUBECTL}} get secret "${secret}" -n "${namespace}" -o json 2>/dev/null \
-          | jq -e '.data["jwt-private-key-pem"] and .data["jwt-key-id"] and .data["jwt-issuer"]' >/dev/null; then
-          exit 0
-        fi
         if ! command -v openssl >/dev/null 2>&1; then
-          printf '%s\n' 'openssl is required to generate the local dev JWT signing key.' >&2
+          printf '%s\n' 'openssl is required to generate local Auth credentials.' >&2
           exit 2
         fi
-        task_private_key_file="$(mktemp)"
-        trap 'rm -f "${task_private_key_file}"' EXIT
-        openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "${task_private_key_file}" 2>/dev/null
-        {{.KUBECTL}} create secret generic "${secret}" \
-          --namespace "${namespace}" \
-          --from-file=jwt-private-key-pem="${task_private_key_file}" \
-          --from-literal=jwt-key-id=local-dev \
-          --from-literal=jwt-issuer=auth-service \
-          --dry-run=client -o yaml | {{.KUBECTL}} apply -f - >/dev/null
+        task_secret_dir="$(mktemp -d)"
+        trap 'rm -rf "${task_secret_dir}"' EXIT
+        if ! {{.KUBECTL}} get secret "${secret}" -n "${namespace}" -o json 2>/dev/null \
+          | jq -e '.data["jwt-private-key-pem"] and .data["jwt-key-id"] and .data["jwt-issuer"]' >/dev/null; then
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "${task_secret_dir}/jwt-private-key-pem" 2>/dev/null
+          {{.KUBECTL}} create secret generic "${secret}" \
+            --namespace "${namespace}" \
+            --from-file=jwt-private-key-pem="${task_secret_dir}/jwt-private-key-pem" \
+            --from-literal=jwt-key-id=local-dev \
+            --from-literal=jwt-issuer=auth-service \
+            --dry-run=client -o yaml | {{.KUBECTL}} apply -f - >/dev/null
+        fi
+
+        runtime_secret='auth-runtime-credentials'
+        if ! {{.KUBECTL}} get secret "${runtime_secret}" -n "${namespace}" >/dev/null 2>&1; then
+          openssl rand -hex 32 > "${task_secret_dir}/dev-access-token"
+          openssl rand -hex 32 > "${task_secret_dir}/virtual-message-key"
+          {{.KUBECTL}} create secret generic "${runtime_secret}" \
+            --namespace "${namespace}" \
+            --from-file=dev-access-token="${task_secret_dir}/dev-access-token" \
+            --from-file=virtual-message-key="${task_secret_dir}/virtual-message-key" \
+            --dry-run=client -o yaml | {{.KUBECTL}} apply -f - >/dev/null
+        fi
+
+        ensure_runtime_key() {
+          key="$1"
+          if {{.KUBECTL}} get secret "${runtime_secret}" -n "${namespace}" -o json \
+            | jq -e --arg key "${key}" '.data[$key] | length > 0' >/dev/null; then
+            return
+          fi
+          openssl rand -hex 32 > "${task_secret_dir}/${key}"
+          encoded="$(base64 < "${task_secret_dir}/${key}" | tr -d '\n')"
+          jq -n --arg key "${key}" --arg value "${encoded}" '{data: {($key): $value}}' \
+            > "${task_secret_dir}/patch.json"
+          {{.KUBECTL}} patch secret "${runtime_secret}" -n "${namespace}" \
+            --type merge --patch-file "${task_secret_dir}/patch.json" >/dev/null
+        }
+        ensure_runtime_key dev-access-token
+        ensure_runtime_key virtual-message-key
 
   dev:services:
     desc: Docker Desktop dev에 로컬 dev 대상 서비스 Helm release를 병렬 배포하고 병렬로 rollout을 기다립니다.
@@ -738,7 +767,7 @@ tasks:
           dropmong-order/order-db \
           dropmong-payment/payment-db \
           dropmong-messaging/kafka \
-          dropmong-coupon/coupon-redis
+          dropmong-system/shared-redis
         do
           namespace="${item%%/*}"
           statefulset="${item##*/}"
