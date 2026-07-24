@@ -47,6 +47,10 @@ canary:
 
 container:
   env:
+    - name: DATABASE_URL
+      value: postgresql+psycopg://user:password@order-db:5432/order_db
+    - name: KAFKA_BOOTSTRAP_SERVERS
+      value: kafka.dropmong-messaging.svc.cluster.local:9092
     - name: ORDER_EXTRA_PRODUCTS_JSON
       value: >-
         [{"drop_id":"opaque-drop-45faeaea","product_id":"opaque-product-45faeaea","unit_price":50000}]
