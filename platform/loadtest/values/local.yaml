@@ -1,0 +1,30 @@
+environment: local
+
+namespace:
+  create: true
+  name: ""
+
+reportArchive:
+  enabled: true
+  storageClassName: ""
+  size: 2Gi
+
+datasetJob:
+  image:
+    registry: localhost:5001
+    repository: dropmong-dataset-seeder
+    tag: dev
+    pullPolicy: Always
+
+k6Job:
+  image:
+    registry: localhost:5001
+    repository: dropmong-loadtest-runner
+    tag: dev
+    pullPolicy: Always
+
+crossNamespaceAccess:
+  # The persistent namespace is labelled app.kubernetes.io/component=loadtest
+  # by prepare-local-inputs. Existing data policies allow that label; adding a
+  # second policy for an otherwise unisolated DB would block its own service.
+  enabled: false

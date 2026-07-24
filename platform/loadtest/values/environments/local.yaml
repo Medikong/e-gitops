@@ -1,0 +1,79 @@
+schemaVersion: dropmong.loadtest.environment/v1
+environment:
+  name: local
+  ingress:
+    baseUrl: http://istio-ingressgateway.istio-system.svc.cluster.local
+  gitops:
+    environment: dev
+    serviceReleaseSuffix: local-docker-desktop
+    chart: ../../../../charts/medikong-service
+    baseValues: ../../../../values/base.yaml
+    environmentValues: ../../../../values/env/dev.yaml
+    serviceValuesDirectory: ../../../../values/services
+    serviceEnvironmentValuesDirectory: ../../../../values/services/dev
+    serviceOverrideValuesDirectory: ../../../../values/overrides/dev
+    # A restore can require more than five minutes while local dependencies
+    # finish their readiness checks after the measurement replica override.
+    rolloutTimeoutSeconds: 600
+    # `task dev` clears the developer-machine selector for every service.
+    # It is a baseline local setting, not a measurement-specific override.
+    devHelmSet:
+      nodeSelector: {}
+      # Service values can pin a release digest. Local `task dev` deliberately
+      # clears it so Docker Desktop uses the locally prepared :dev image.
+      image.registry: localhost:5001
+      image.tag: dev
+      image.digest: ""
+      image.pullPolicy: Always
+  helm:
+    loadtestValues: ../local.yaml
+  loadtestImages:
+    k6: localhost:5001/dropmong-loadtest-runner:dev
+    tools: localhost:5001/dropmong-loadtest-tools:dev
+    seeder: localhost:5001/dropmong-dataset-seeder:dev
+  # `task loadtest:run`의 local 준비 단계가 만들고, 공통 실행기는 이름만 참조한다.
+  # Dataset/k6 입력은 fixture manifest(데이터 ID 목록)와 다르다.
+  loadtestNamespace: dropmong-loadtest-local
+  accessTokenInput:
+    existingSecret: dropmong-loadtest-k6-token-input
+    key: access-tokens.json
+    auth:
+      namespace: dropmong-auth
+      secretName: auth-runtime-credentials
+      secretKey: dev-access-token
+    ingress:
+      namespace: istio-system
+      service: istio-ingressgateway
+      port: 80
+  loadtestInputs:
+    auth-service:
+      dataset: { existingSecret: dropmong-loadtest-dataset-input }
+      k6: { existingSecret: dropmong-loadtest-auth-input }
+    user-service:
+      dataset: { existingSecret: dropmong-loadtest-dataset-input }
+    catalog-service:
+      dataset: { existingSecret: dropmong-loadtest-dataset-input }
+    coupon-service:
+      dataset: { existingSecret: dropmong-loadtest-dataset-input }
+      k6: { existingSecret: dropmong-loadtest-auth-input }
+      coupon: { existingSecret: dropmong-loadtest-coupon-input }
+    interest-service:
+      dataset: { existingSecret: dropmong-loadtest-dataset-input }
+    order-service:
+      dataset: { existingSecret: dropmong-loadtest-dataset-input }
+    payment-service:
+      dataset: { existingSecret: dropmong-loadtest-dataset-input }
+    notification-service:
+      dataset: { existingSecret: dropmong-loadtest-dataset-input }
+  safety:
+    remote: false
+    allowedKubernetesContexts: [docker-desktop, rancher-desktop]
+  observability:
+    prometheusService:
+      namespace: monitoring
+      name: kube-prometheus-stack-prometheus
+      port: 9090
+    tempoService:
+      namespace: observability
+      name: tempo
+      port: 3200

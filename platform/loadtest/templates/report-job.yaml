@@ -1,0 +1,50 @@
+{{- if .Values.reportJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "dropmong-loadtest.workloadName" (dict "root" . "role" "report") | quote }}
+  namespace: {{ include "dropmong-loadtest.namespace" . | quote }}
+  annotations:
+{{ toYaml .Values.reportJob.annotations | nindent 4 }}
+  labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "report") | nindent 4 }}
+spec:
+  activeDeadlineSeconds: {{ .Values.reportJob.activeDeadlineSeconds }}
+  backoffLimit: {{ .Values.reportJob.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.reportJob.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "report") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "dropmong-loadtest.serviceAccountName" . | quote }}
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: {{ .Values.reportJob.terminationGracePeriodSeconds }}
+      securityContext:
+{{ toYaml .Values.podSecurityContext | nindent 8 }}
+{{ include "dropmong-loadtest.imagePullSecrets" . | nindent 6 }}
+{{ include "dropmong-loadtest.scheduling" . | nindent 6 }}
+      containers:
+        - name: report
+          image: {{ include "dropmong-loadtest.image" (dict "image" .Values.reportJob.image) | quote }}
+          imagePullPolicy: {{ .Values.reportJob.image.pullPolicy | quote }}
+{{- with .Values.reportJob.command }}
+          command:
+{{ toYaml . | nindent 12 }}
+{{- end }}
+          args:
+{{ toYaml .Values.reportJob.args | nindent 12 }}
+          envFrom:
+{{ include "dropmong-loadtest.commonEnvFrom" (dict "root" . "existingSecrets" .Values.reportJob.existingSecrets) | nindent 12 }}
+          env:
+{{ include "dropmong-loadtest.commonEnv" (dict "root" .) | nindent 12 }}
+          resources:
+{{ toYaml .Values.reportJob.resources | nindent 12 }}
+          securityContext:
+{{ toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+{{ include "dropmong-loadtest.commonVolumeMounts" . | nindent 12 }}
+      volumes:
+{{ include "dropmong-loadtest.commonVolumes" . | nindent 8 }}
+{{- end }}

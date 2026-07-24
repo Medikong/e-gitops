@@ -1,0 +1,18 @@
+{
+  "name": "@dropmong/loadtest",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node --check datasets/*.js lib/*.js scenarios/*.js scenarios/*/*.js scripts/*.js scripts/lib/*.js tests/*.test.js"
+  },
+  "dependencies": {
+    "pg": "^8.16.3",
+    "pg-copy-streams": "^7.0.0",
+    "yaml": "2.9.0"
+  }
+}

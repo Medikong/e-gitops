@@ -1,0 +1,103 @@
+version: "3"
+
+vars:
+  NODE: '{{default "node" .NODE}}'
+  RUN: '{{default "local-smoke-replicas-1" .RUN}}'
+  SERVICE: '{{default "all" .SERVICE}}'
+  RUN_ID: '{{default "" .RUN_ID}}'
+  CACHE_KEY: '{{default "" .CACHE_KEY}}'
+
+tasks:
+  prepare:local:
+    internal: true
+    cmds:
+      - |
+        set -eu
+        run='{{.RUN}}'
+        run_file="values/runs/${run%.yaml}.yaml"
+        if [ ! -f "${run_file}" ]; then
+          printf 'Unknown RUN=%s (expected a file under values/runs).\n' '{{.RUN}}' >&2
+          exit 2
+        fi
+        {{.NODE}} scripts/prepare-local-inputs.js --run "${run_file}"
+      - |
+        set -eu
+        run='{{.RUN}}'
+        run_file="values/runs/${run%.yaml}.yaml"
+        environment_name="$({{.NODE}} --input-type=module -e "import {loadExperiment} from './scenarios/registry.js'; console.log(loadExperiment(process.argv[1]).environment.name)" "${run_file}")"
+        if [ "${environment_name}" != 'local' ]; then
+          exit 0
+        fi
+        docker build -f runner/Dockerfile -t localhost:5001/dropmong-loadtest-runner:dev .
+        docker build -f tools/Dockerfile -t localhost:5001/dropmong-loadtest-tools:dev .
+        docker build -f datasets/Dockerfile -t localhost:5001/dropmong-dataset-seeder:dev .
+        docker push localhost:5001/dropmong-loadtest-runner:dev
+        docker push localhost:5001/dropmong-loadtest-tools:dev
+        docker push localhost:5001/dropmong-dataset-seeder:dev
+
+  cache:clean:
+    desc: SHA-256 cache key 하나에 해당하는 로컬 dataset cache만 삭제합니다.
+    requires:
+      vars: [CACHE_KEY]
+    cmds:
+      - '{{.NODE}} datasets/cache-clean.js {{.CACHE_KEY}}'
+
+  export:
+    internal: true
+    requires:
+      vars: [RUN_ID]
+    cmds:
+      - '{{.NODE}} scripts/export.js --run-id {{.RUN_ID}}'
+
+  validate:
+    internal: true
+    cmds:
+      - |
+        set -eu
+        run='{{.RUN}}'
+        run_file="values/runs/${run%.yaml}.yaml"
+        loadtest_values="$({{.NODE}} --input-type=module -e "import {loadExperiment} from './scenarios/registry.js'; console.log(loadExperiment(process.argv[1]).environment.helm.loadtestValuesPath)" "${run_file}")"
+        helm lint . -f "${loadtest_values}"
+        helm template dropmong-loadtest . -f "${loadtest_values}" >/dev/null
+      - npm test
+      - npm run check
+      - |
+        set -eu
+        run='{{.RUN}}'
+        run_file="values/runs/${run%.yaml}.yaml"
+        token_input="$(mktemp)"
+        trap 'rm -f "${token_input}"' EXIT HUP INT TERM
+        printf '%s\n' '{"schemaVersion":1,"dataset":{"profile":"inspect-only","profileHash":"not-a-runtime-fixture","seed":"0"},"tokens":[{"userId":"user-inspect","accessToken":"inspect-only"}]}' > "${token_input}"
+        for workload in workloads/*.js; do
+          service="${workload##*/}"
+          service="${service%.js}"
+          profile_json="$({{.NODE}} --input-type=module -e "import {loadExperiment,workloadProfile} from './scenarios/registry.js'; console.log(JSON.stringify(workloadProfile(loadExperiment(process.argv[2]), process.argv[1])))" "${service}" "${run_file}")"
+          k6 inspect \
+            -e LOADTEST_PROFILE_JSON="${profile_json}" \
+            -e LOADTEST_FIXTURE_MANIFEST=../fixtures/inspect.json \
+            -e LOADTEST_ACCESS_TOKEN_FILE="${token_input}" \
+            -e LOADTEST_TRIAL_ID=inspect \
+            -e LOADTEST_TARGET_RPS=1 \
+            -e LOADTEST_MEASURE_SECONDS=1 \
+            "${workload}" >/dev/null
+        done
+      - k6 run --quiet tests/runtime-contract.js
+      - jq empty fixtures/inspect.json
+      - task --taskfile ../monitoring/Taskfile.yml render
+
+  run:
+    desc: 로컬 RUN의 입력·이미지를 준비한 뒤 선택한 시나리오를 서비스별로 순차 실행합니다.
+    cmds:
+      - task: prepare:local
+      - task: validate
+      - |
+        set -eu
+        run='{{.RUN}}'
+        run_file="values/runs/${run%.yaml}.yaml"
+        if [ ! -f "${run_file}" ]; then
+          printf 'Unknown RUN=%s (expected a file under values/runs).\n' "${run}" >&2
+          exit 2
+        fi
+        set -- --run "${run_file}" --services '{{.SERVICE}}'
+        if [ -n '{{.RUN_ID}}' ]; then set -- "$@" --run-id '{{.RUN_ID}}'; fi
+        {{.NODE}} scripts/orchestrate.js "$@"

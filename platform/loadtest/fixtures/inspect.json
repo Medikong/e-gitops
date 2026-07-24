@@ -1,0 +1,68 @@
+{
+  "manifestVersion": 1,
+  "dataset": {
+    "profile": "inspect-only",
+    "seed": 0,
+    "profileHash": "not-a-runtime-fixture"
+  },
+  "credentials": {
+    "authPasswordRef": "kubernetes-secret://dropmong-loadtest-credentials/auth-password"
+  },
+  "allocation": {
+    "strategy": "deterministic-contiguous-index-ranges",
+    "trialSlices": {
+      "profileWrite": [{ "sliceIndex": 0, "start": 0, "endExclusive": 1, "count": 1 }],
+      "couponClaim": [{ "sliceIndex": 0, "start": 0, "endExclusive": 1, "count": 1 }],
+      "couponRedeem": [{ "sliceIndex": 0, "start": 0, "endExclusive": 1, "count": 1 }],
+      "viewEvents": [{ "sliceIndex": 0, "start": 0, "endExclusive": 1, "count": 1 }],
+      "interestAdd": [{ "sliceIndex": 0, "start": 0, "endExclusive": 1, "count": 1 }],
+      "existingInterests": [{ "sliceIndex": 0, "start": 0, "endExclusive": 1, "count": 1 }],
+      "orderCreate": [{ "sliceIndex": 0, "start": 0, "endExclusive": 1, "count": 1 }],
+      "orderCancel": [{ "sliceIndex": 0, "start": 0, "endExclusive": 1, "count": 1 }],
+      "paymentReady": [{ "sliceIndex": 0, "start": 0, "endExclusive": 2, "count": 2 }],
+      "notificationEvents": [{ "sliceIndex": 0, "start": 0, "endExclusive": 1, "count": 1 }],
+      "webCheckouts": [{ "sliceIndex": 0, "start": 0, "endExclusive": 1, "count": 1 }]
+    }
+  },
+  "pools": {
+    "authUsers": [{ "userId": "user-inspect", "email": "inspect@example.invalid" }],
+    "profileRead": [{ "userId": "user-inspect", "version": 1 }],
+    "profileWrite": [{ "userId": "user-inspect", "version": 1 }],
+    "drops": [{ "dropId": "drop-inspect", "productIds": ["product-inspect"] }],
+    "interestAdd": [{ "userId": "user-inspect", "dropId": "drop-inspect" }],
+    "existingInterests": [{ "userId": "user-inspect", "dropId": "drop-inspect" }],
+    "viewEvents": [{ "userId": "user-inspect", "dropId": "drop-inspect" }],
+    "orderCreate": [{ "userId": "user-inspect", "dropId": "drop-inspect", "productId": "product-inspect", "quantity": 1 }],
+    "orderRead": [{ "userId": "user-inspect", "orderId": "order-inspect" }],
+    "orderCancel": [{ "userId": "user-inspect", "orderId": "order-inspect" }],
+    "paymentReady": [
+      { "userId": "user-inspect", "orderId": "order-ready-approve-inspect", "amount": 1000 },
+      { "userId": "user-inspect", "orderId": "order-ready-fail-inspect", "amount": 1000 }
+    ],
+    "paymentRead": [{ "userId": "user-inspect", "paymentId": "payment-inspect" }],
+    "couponClaim": [{ "userId": "user-inspect", "campaignId": "campaign-inspect" }],
+    "couponWallet": [{ "userId": "user-inspect", "userCouponId": "user-coupon-inspect" }],
+    "couponRedeem": [{ "userId": "user-inspect", "codeRef": "secretFileRef:dropmong-loadtest-coupon-codes/coupon-codes.json#code-000000" }],
+    "notificationRead": [{ "userId": "user-inspect" }],
+    "notificationEvents": [{
+      "eventId": "event-inspect",
+      "userId": "user-inspect",
+      "sourceId": "source-inspect",
+      "occurredAt": "2026-01-01T00:00:00Z",
+      "producer": "loadtest-inspect",
+      "notificationId": "notification-inspect",
+      "orderId": "order-inspect",
+      "notificationType": "ORDER_CONFIRMED",
+      "channel": "IN_APP",
+      "title": "Inspect notification",
+      "message": "Synthetic fixture for k6 inspect"
+    }],
+    "webProducts": [{ "dropId": "drop-inspect", "productId": "product-inspect" }],
+    "webCheckouts": [{
+      "checkoutId": "dev.eyJkcm9wSWQiOiJkcm9wLWluc3BlY3QiLCJvcHRpb24iOiJNIiwicHJvZHVjdElkIjoicHJvZHVjdC1pbnNwZWN0IiwicXVhbnRpdHkiOjF9",
+      "dropId": "drop-inspect",
+      "productId": "product-inspect",
+      "quantity": 1
+    }]
+  }
+}

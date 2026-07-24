@@ -1,0 +1,12 @@
+.DS_Store
+.git/
+.gitignore
+node_modules/
+profiles/
+reports/
+tmp/
+tests/
+scripts/__pycache__/
+tests/__pycache__/
+scripts/*.pyc
+tests/*.pyc

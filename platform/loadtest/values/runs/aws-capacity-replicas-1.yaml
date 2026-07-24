@@ -1,0 +1,12 @@
+schemaVersion: dropmong.loadtest.run/v1
+run:
+  name: aws-capacity-replicas-1
+  verification_only: false
+  scenario: ../scenarios/service-static-replica-capacity-load-test.yaml
+  preset: ../presets/service-static-replica-capacity-load-test/aws-baseline-90days-replicas-1.yaml
+  environment: ../environments/aws-dev.yaml
+  dataset: ../datasets/baseline-90days.yaml
+  deployment:
+    replicas: 1
+  lifecycle:
+    cleanup: true

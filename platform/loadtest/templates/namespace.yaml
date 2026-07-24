@@ -1,0 +1,21 @@
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "dropmong-loadtest.namespace" . | quote }}
+{{- if .Values.namespace.keep }}
+  annotations:
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false
+{{- end }}
+  labels:
+    app.kubernetes.io/part-of: dropmong
+    app.kubernetes.io/component: loadtest
+    loadtest.dropmong.io/run-id: {{ required "run.id is required" .Values.run.id | quote }}
+    loadtest.dropmong.io/service: {{ required "run.service is required" .Values.run.service | quote }}
+    loadtest.dropmong.io/trial-id: {{ required "run.trialId is required" .Values.run.trialId | quote }}
+    loadtest.dropmong.io/role: namespace
+{{- with .Values.namespace.labels }}
+{{ toYaml . | nindent 4 }}
+{{- end }}
+{{- end }}

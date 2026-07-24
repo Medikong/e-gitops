@@ -1,0 +1,23 @@
+{{- if and .Values.reportArchive.enabled (not .Values.reportArchive.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "dropmong-loadtest.reportClaimName" . | quote }}
+  namespace: {{ include "dropmong-loadtest.namespace" . | quote }}
+  annotations:
+{{- if .Values.reportArchive.keep }}
+    helm.sh/resource-policy: keep
+    argocd.argoproj.io/sync-options: Prune=false
+{{- end }}
+  labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "report-archive") | nindent 4 }}
+spec:
+  accessModes:
+{{ toYaml .Values.reportArchive.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.reportArchive.size | quote }}
+{{- with .Values.reportArchive.storageClassName }}
+  storageClassName: {{ . | quote }}
+{{- end }}
+{{- end }}

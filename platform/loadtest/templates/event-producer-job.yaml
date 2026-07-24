@@ -1,0 +1,60 @@
+{{- if .Values.eventProducerJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "dropmong-loadtest.workloadName" (dict "root" . "role" "event-producer") | quote }}
+  namespace: {{ include "dropmong-loadtest.namespace" . | quote }}
+  annotations:
+{{ toYaml .Values.eventProducerJob.annotations | nindent 4 }}
+  labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "event-producer") | nindent 4 }}
+spec:
+  activeDeadlineSeconds: {{ .Values.eventProducerJob.activeDeadlineSeconds }}
+  backoffLimit: {{ .Values.eventProducerJob.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.eventProducerJob.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "event-producer") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "dropmong-loadtest.serviceAccountName" . | quote }}
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: {{ .Values.eventProducerJob.terminationGracePeriodSeconds }}
+      securityContext:
+{{ toYaml .Values.podSecurityContext | nindent 8 }}
+{{ include "dropmong-loadtest.imagePullSecrets" . | nindent 6 }}
+{{ include "dropmong-loadtest.scheduling" . | nindent 6 }}
+      containers:
+        - name: notification-event-producer
+          image: {{ include "dropmong-loadtest.image" (dict "image" .Values.eventProducerJob.image) | quote }}
+          imagePullPolicy: {{ .Values.eventProducerJob.image.pullPolicy | quote }}
+{{- with .Values.eventProducerJob.command }}
+          command:
+{{ toYaml . | nindent 12 }}
+{{- end }}
+          args:
+{{ toYaml .Values.eventProducerJob.args | nindent 12 }}
+          envFrom:
+{{ include "dropmong-loadtest.commonEnvFrom" (dict "root" . "existingSecrets" .Values.eventProducerJob.existingSecrets) | nindent 12 }}
+          env:
+{{ include "dropmong-loadtest.commonEnv" (dict "root" .) | nindent 12 }}
+            - name: LOADTEST_FIXTURE_MANIFEST
+              value: {{ printf "%s/fixture-manifest.json" (include "dropmong-loadtest.reportDir" .) | quote }}
+            - name: LOADTEST_KAFKA_BOOTSTRAP
+              value: {{ .Values.eventProducerJob.bootstrap | quote }}
+            - name: LOADTEST_EVENT_TOPIC
+              value: {{ .Values.eventProducerJob.topic | quote }}
+            - name: LOADTEST_EVENT_START
+              value: {{ default .Values.adaptive.writeSliceStart .Values.eventProducerJob.start | quote }}
+            - name: LOADTEST_EVENT_COUNT
+              value: {{ default .Values.adaptive.writeSliceSize .Values.eventProducerJob.count | quote }}
+          resources:
+{{ toYaml .Values.eventProducerJob.resources | nindent 12 }}
+          securityContext:
+{{ toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+{{ include "dropmong-loadtest.commonVolumeMounts" . | nindent 12 }}
+      volumes:
+{{ include "dropmong-loadtest.commonVolumes" . | nindent 8 }}
+{{- end }}

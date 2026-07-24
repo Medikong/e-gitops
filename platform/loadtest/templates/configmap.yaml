@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dropmong-loadtest.fullname" . | quote }}
+  namespace: {{ include "dropmong-loadtest.namespace" . | quote }}
+  labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "metadata") | nindent 4 }}
+data:
+  LOADTEST_ENVIRONMENT: {{ required "environment is required" .Values.environment | quote }}
+  LOADTEST_RUN_ID: {{ required "run.id is required" .Values.run.id | quote }}
+  LOADTEST_SERVICE: {{ required "run.service is required" .Values.run.service | quote }}
+  LOADTEST_TRIAL_ID: {{ required "run.trialId is required" .Values.run.trialId | quote }}
+  LOADTEST_SCENARIO: {{ required "run.scenario is required" .Values.run.scenario | quote }}
+  LOADTEST_REPLICAS: {{ required "run.replicas is required" .Values.run.replicas | quote }}
+  LOADTEST_WORKLOAD: {{ required "run.workload is required" .Values.run.workload | quote }}
+  LOADTEST_LOAD_SEED: {{ required "run.loadSeed is required" .Values.run.loadSeed | quote }}
+  LOADTEST_PROFILE_JSON: {{ toJson .Values.run.profile | quote }}
+  LOADTEST_MODE: {{ required "run.mode is required" .Values.run.mode | quote }}
+  LOADTEST_KUBERNETES_CONTEXT: {{ .Values.run.kubernetesContext | quote }}
+  LOADTEST_NAMESPACE: {{ include "dropmong-loadtest.namespace" . | quote }}
+  LOADTEST_RELEASE: {{ .Release.Name | quote }}
+  LOADTEST_SERVICE_GIT_SHA: {{ .Values.run.serviceGitSha | quote }}
+  LOADTEST_SERVICE_GIT_DIRTY: {{ .Values.run.serviceGitDirty | quote }}
+  LOADTEST_SERVICE_DIRTY: {{ .Values.run.serviceGitDirty | quote }}
+  LOADTEST_GITOPS_GIT_SHA: {{ .Values.run.gitopsGitSha | quote }}
+  LOADTEST_GITOPS_GIT_DIRTY: {{ .Values.run.gitopsGitDirty | quote }}
+  LOADTEST_GITOPS_DIRTY: {{ .Values.run.gitopsGitDirty | quote }}
+  LOADTEST_SERVICE_IMAGE_ID: {{ .Values.run.serviceImageId | quote }}
+  LOADTEST_SERVICE_IMAGE: {{ .Values.run.serviceImageId | quote }}
+  LOADTEST_K6_IMAGE_ID: {{ .Values.run.k6ImageId | quote }}
+  LOADTEST_K6_IMAGE: {{ .Values.run.k6ImageId | quote }}
+  LOADTEST_SEEDER_IMAGE_ID: {{ .Values.run.seederImageId | quote }}
+  LOADTEST_SEEDER_IMAGE: {{ .Values.run.seederImageId | quote }}
+  LOADTEST_COUPON_SECRET_NAME: {{ .Values.run.couponSecretName | quote }}
+  LOADTEST_WEB_ORIGIN: {{ .Values.run.webOrigin | quote }}
+  LOADTEST_REPORT_ROOT: {{ .Values.reportArchive.mountPath | quote }}
+  LOADTEST_DATASET_PROFILE: {{ required "dataset.profile is required" .Values.dataset.profile | quote }}
+  LOADTEST_DATASET_PROFILE_JSON: {{ toJson .Values.dataset.profileDocument | quote }}
+  LOADTEST_DATASET_SEED: {{ required "dataset.seed is required" .Values.dataset.seed | quote }}
+  LOADTEST_DATASET_REVISION: {{ required "dataset.revision is required" .Values.dataset.revision | quote }}
+  LOADTEST_DATASET_CACHE_KEY: {{ required "dataset.cacheKey is required" .Values.dataset.cacheKey | quote }}
+  LOADTEST_DATASET_CACHE_MODE: {{ required "dataset.cacheMode is required" .Values.dataset.cacheMode | quote }}
+  LOADTEST_DATASET_GENERATOR_REVISION: {{ required "dataset.generatorRevision is required" .Values.dataset.generatorRevision | quote }}
+  LOADTEST_DATASET_SCHEMA_HASHES: {{ toJson .Values.dataset.schemaHashes | quote }}
+  LOADTEST_DATASET_SERVICES: {{ required "dataset.services is required" .Values.dataset.services | quote }}
+  LOADTEST_FIXTURE_STRATEGY: {{ required "dataset.fixtureStrategy is required" .Values.dataset.fixtureStrategy | quote }}
+  LOADTEST_ADAPTIVE_PHASE: {{ required "adaptive.phase is required" .Values.adaptive.phase | quote }}
+  LOADTEST_START_RPS: {{ .Values.adaptive.startRps | quote }}
+  LOADTEST_MAX_RPS: {{ .Values.adaptive.maxRps | quote }}
+  LOADTEST_TARGET_CPU_UTILIZATION: {{ .Values.adaptive.targetCpuUtilization | quote }}
+  LOADTEST_RPS_TOLERANCE: {{ .Values.adaptive.rpsTolerance | quote }}
+  LOADTEST_SEARCH_TOLERANCE: {{ .Values.adaptive.searchTolerance | quote }}
+  LOADTEST_WARMUP: {{ .Values.adaptive.warmup | quote }}
+  LOADTEST_MEASURE: {{ .Values.adaptive.measure | quote }}
+  LOADTEST_WARMUP_SECONDS: {{ .Values.adaptive.warmupSeconds | quote }}
+  LOADTEST_MEASURE_SECONDS: {{ .Values.adaptive.measureSeconds | quote }}
+  LOADTEST_COOLDOWN: {{ .Values.adaptive.cooldown | quote }}
+  LOADTEST_REPETITIONS: {{ .Values.adaptive.repetitions | quote }}
+  LOADTEST_WRITE_SLICE_START: {{ .Values.adaptive.writeSliceStart | quote }}
+  LOADTEST_WRITE_SLICE_SIZE: {{ .Values.adaptive.writeSliceSize | quote }}
+  LOADTEST_WRITE_ALLOCATIONS: {{ toJson .Values.adaptive.writeAllocations | quote }}

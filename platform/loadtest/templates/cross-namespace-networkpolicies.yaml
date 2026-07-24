@@ -1,0 +1,39 @@
+{{- if .Values.crossNamespaceAccess.enabled }}
+{{- range $index, $target := .Values.crossNamespaceAccess.targets }}
+{{- if gt $index 0 }}
+---
+{{- end }}
+{{- $policyName := printf "allow-%s-%s" (include "dropmong-loadtest.fullname" $) (required "crossNamespaceAccess.targets[].name is required" $target.name) }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ if gt (len $policyName) 63 }}{{ printf "%s-%s" ($policyName | trunc 54 | trimSuffix "-") ($policyName | sha256sum | trunc 8) | quote }}{{ else }}{{ $policyName | quote }}{{ end }}
+  namespace: {{ required "crossNamespaceAccess.targets[].namespace is required" $target.namespace | quote }}
+  labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" $ "role" "network-access") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+{{ toYaml (required "crossNamespaceAccess.targets[].podSelector is required" $target.podSelector) | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ include "dropmong-loadtest.namespace" $ | quote }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ $.Release.Name | quote }}
+              loadtest.dropmong.io/run-id: {{ $.Values.run.id | quote }}
+{{- with $target.allowedRoles }}
+            matchExpressions:
+              - key: loadtest.dropmong.io/role
+                operator: In
+                values:
+{{ toYaml . | nindent 18 }}
+{{- end }}
+      ports:
+{{ toYaml (required "crossNamespaceAccess.targets[].ports is required" $target.ports) | nindent 8 }}
+{{- end }}
+{{- end }}

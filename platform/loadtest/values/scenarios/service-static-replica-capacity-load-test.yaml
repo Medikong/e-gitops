@@ -1,0 +1,206 @@
+schemaVersion: dropmong.loadtest.scenario/v1
+scenario: service-static-replica-capacity-load-test
+description: RUN에서 지정한 replica 수로 각 서비스의 안전 처리량과 최초 병목 후보를 측정한다.
+
+serviceOrder:
+  - auth-service
+  - user-service
+  - catalog-service
+  - coupon-service
+  - interest-service
+  - order-service
+  - payment-service
+  - notification-service
+  - dropmong-web
+
+fixedComparisonConditions:
+  serviceImage: runtime-image-id
+  podResources: scenario-service-config
+  requireSameImageDigest: true
+  requireSameDatasetRevision: true
+  requireSamePodResources: true
+  traceSamplingPolicy: environment-observability-values
+  profilingPolicy: environment-service-values
+  requireSameTraceSampling: true
+  requireSameProfiling: true
+
+# preset이 없는 이전 RUN만 이 fallback을 사용한다. 새 RUN의 조건은 values/presets에 둔다.
+legacyFallback:
+  execution:
+    warmupSeconds: 60
+    measureSeconds: 120
+    confirmationMeasureSeconds: 300
+    cooldownSeconds: 20
+    repetitions: 3
+    searchTolerance: 0.10
+    maxSearchTrials: 10
+    independentTrials: true
+    serviceConcurrency: 1
+    backlogStability: { consecutiveChecks: 3, checkIntervalSeconds: 5, timeoutSeconds: 120, maxKafkaLagGrowth: 0, requireNoPendingPods: true }
+  capacity:
+    default: { startRps: 2, maxRps: 50 }
+    services:
+      auth-service: { startRps: 2, maxRps: 80 }
+      user-service: { startRps: 5, maxRps: 100 }
+      catalog-service: { startRps: 10, maxRps: 300 }
+      coupon-service: { startRps: 3, maxRps: 60 }
+      interest-service: { startRps: 8, maxRps: 160 }
+      order-service: { startRps: 3, maxRps: 70 }
+      payment-service: { startRps: 2, maxRps: 50 }
+      notification-service: { startRps: 8, maxRps: 150 }
+      dropmong-web: { startRps: 5, maxRps: 100 }
+
+observability:
+  snapshot:
+    timing: once-after-k6
+    source: gitops-prometheus-read-only
+    unavailableValue: null-with-unavailable-status
+  metricSpecs:
+    - id: cpu_utilization
+      query: '100 * sum(rate(container_cpu_usage_seconds_total{namespace="{{namespace}}",pod=~"{{service}}-.*",container!="",container!="POD",image!=""}[1m])) / clamp_min(sum(kube_pod_container_resource_limits{namespace="{{namespace}}",pod=~"{{service}}-.*",resource="cpu",unit="core",container!="",container!="POD"}), 0.001)'
+      unit: percent
+      required: false
+    - id: memory_utilization
+      query: '100 * sum(container_memory_working_set_bytes{namespace="{{namespace}}",pod=~"{{service}}-.*",container!="",container!="POD",image!=""}) / clamp_min(sum(kube_pod_container_resource_limits{namespace="{{namespace}}",pod=~"{{service}}-.*",resource="memory",unit="byte",container!="",container!="POD"}), 1)'
+      unit: percent
+      required: false
+    - id: pod_restarts
+      query: 'sum(increase(kube_pod_container_status_restarts_total{namespace="{{namespace}}",pod=~"{{service}}-.*",container!="",container!="POD"}[{{window}}]))'
+      unit: restarts
+      required: false
+
+acceptance:
+  droppedIterations: 0
+  requireK6Thresholds: true
+  preserveK6ExitCodes: [99, 201]
+
+artifacts:
+  pvc: true
+  localExport: reports/local
+  required: [result.json, analysis.md, evidence.tar.gz]
+  cleanup:
+    exportBeforeCleanup: true
+    deleteOwnedRunNamespace: true
+    preserveOnExportFailure: true
+    continueAfterServiceFailure: true
+    finalExitNonZeroOnAnyFailure: true
+
+services:
+  auth-service:
+    service: auth-service
+    runtime: go
+    workload: auth-intent-and-email-signin
+    authentication: { method: email-password-secret, secretRef: loadtest-auth-password }
+    dependencies: { postgresql: [auth-db], kafka: false, redis: true, redisNamespaces: [dropmong-system], workers: [] }
+    slo: &default-slo { errorRate: 0.01, actualRpsTolerance: 0.05, droppedIterations: 0, checkPassRate: 1.0, p95Ms: 750, p99Ms: 1500, maxCpuUtilization: 0.90, maxCpuThrottleRatio: 0.10, maxMemoryUtilization: 0.90 }
+    podResources: &default-resources { requests: { cpu: 250m, memory: 256Mi }, limits: { cpu: "1", memory: 1Gi } }
+    endpointMix:
+      - { name: auth.intent, method: POST, route: POST /api/v1/auth/intents, classification: state_change, weight: 50, expectedStatuses: [201] }
+      - { name: auth.methods, method: GET, route: GET /api/v1/auth/methods, classification: read, weight: 20, expectedStatuses: [200] }
+      - { name: auth.email-signin, method: POST, route: POST /api/v1/auth/signins/email, classification: state_change, weight: 30, expectedStatuses: [200], fixturePool: authUsers, fixtureAccess: read, p95Ms: 900, p99Ms: 1800 }
+
+  user-service:
+    service: user-service
+    runtime: go
+    workload: profile-read-and-update
+    authentication: { method: x-principal-fixture }
+    dependencies: { postgresql: [user-db], kafka: false, redis: false, workers: [] }
+    slo: { <<: *default-slo, p95Ms: 250, p99Ms: 500 }
+    podResources: *default-resources
+    endpointMix:
+      - { name: user.profile-read, method: GET, route: GET /api/v1/users/me/profile, classification: read, weight: 75, expectedStatuses: [200], fixturePool: profileRead, fixtureAccess: read }
+      - { name: user.profile-update, method: PATCH, route: PATCH /api/v1/users/me/profile, classification: state_change, weight: 25, expectedStatuses: [200], fixturePool: profileWrite, fixtureAccess: write }
+
+  catalog-service:
+    service: catalog-service
+    runtime: python
+    workload: drop-list-and-detail
+    authentication: { method: none }
+    dependencies: { postgresql: [catalog-db], kafka: true, redis: false, workers: [inventory-consumer], requireKafkaLag: false }
+    slo: { <<: *default-slo, errorRate: 0.005, p95Ms: 150, p99Ms: 300 }
+    observability: { requireKafkaLag: false, requirePostgresqlPoolExhaustions: false }
+    podResources: *default-resources
+    endpointMix:
+      - { name: catalog.drop-list, method: GET, route: GET /drops, classification: read, weight: 60, expectedStatuses: [200] }
+      - { name: catalog.drop-detail, method: GET, route: "GET /drops/{dropId}", classification: read, weight: 40, expectedStatuses: [200], fixturePool: drops, fixtureAccess: read }
+
+  coupon-service:
+    service: coupon-service
+    runtime: go
+    workload: coupon-wallet-and-issuance
+    authentication: { method: x-user-id-fixture, couponCodeRef: kubernetes-secret-file }
+    dependencies: { postgresql: [coupon-db], kafka: false, redis: true, redisNamespaces: [dropmong-system], workers: [coupon-worker] }
+    slo: { <<: *default-slo, p95Ms: 400, p99Ms: 800 }
+    podResources: *default-resources
+    endpointMix:
+      - { name: coupon.wallet-list, method: GET, route: GET /api/v1/users/me/coupons, classification: read, weight: 50, expectedStatuses: [200], fixturePool: couponWallet, fixtureAccess: read }
+      - { name: coupon.wallet-detail, method: GET, route: "GET /api/v1/users/me/coupons/{userCouponId}", classification: read, weight: 25, expectedStatuses: [200], fixturePool: couponWallet, fixtureAccess: read }
+      - { name: coupon.claim, method: POST, route: "POST /api/v1/coupon-campaigns/{campaignId}/claims", classification: state_change, weight: 15, expectedStatuses: [202], fixturePool: couponClaim, fixtureAccess: write }
+      - { name: coupon.code-redeem, method: POST, route: POST /api/v1/coupon-code-redemptions, classification: state_change, weight: 10, expectedStatuses: [202], fixturePool: couponRedeem, fixtureAccess: write }
+
+  interest-service:
+    service: interest-service
+    runtime: python
+    workload: interest-and-ranking
+    authentication: { method: x-user-id-fixture }
+    dependencies: { postgresql: [interest-db], kafka: true, redis: false, workers: [], requireKafkaLag: false }
+    slo: { <<: *default-slo, p95Ms: 250, p99Ms: 500 }
+    podResources: *default-resources
+    endpointMix:
+      - { name: interest.list, method: GET, route: GET /v1/users/me/interests, classification: read, weight: 30, expectedStatuses: [200], fixturePool: existingInterests, fixtureAccess: read }
+      - { name: interest.ranking-upcoming, method: GET, route: GET /v1/rankings/drops/upcoming, classification: read, weight: 20, expectedStatuses: [200] }
+      - { name: interest.ranking-trending, method: GET, route: GET /v1/rankings/drops/trending, classification: read, weight: 20, expectedStatuses: [200] }
+      - { name: interest.view, method: POST, route: "POST /v1/drops/{dropId}/views", classification: state_change, weight: 15, expectedStatuses: [204], fixturePool: viewEvents, fixtureAccess: write }
+      - { name: interest.add, method: PUT, route: "PUT /v1/users/me/interests/{dropId}", classification: state_change, weight: 10, expectedStatuses: [200], fixturePool: interestAdd, fixtureAccess: write }
+      - { name: interest.remove, method: DELETE, route: "DELETE /v1/users/me/interests/{dropId}", classification: state_change, weight: 5, expectedStatuses: [204], fixturePool: existingInterests, fixtureAccess: write }
+
+  order-service:
+    service: order-service
+    runtime: python
+    workload: order-create-read-cancel
+    authentication: { method: x-user-id-fixture }
+    dependencies: { postgresql: [order-db], kafka: true, redis: false, workers: [outbox-relay, payment-refund-consumer], requireKafkaLag: true, kafkaLagQuery: 'sum(kafka_consumergroup_lag{consumergroup="order-service-payment-events"})', downstreamNamespaces: [dropmong-payment] }
+    slo: { <<: *default-slo, p95Ms: 450, p99Ms: 900, maxKafkaLagGrowth: 0 }
+    podResources: *default-resources
+    endpointMix:
+      - { name: order.read, method: GET, route: "GET /orders/{orderId}", classification: read, weight: 60, expectedStatuses: [200], fixturePool: orderRead, fixtureAccess: read }
+      - { name: order.create, method: POST, route: POST /orders, classification: state_change, weight: 25, expectedStatuses: [201], fixturePool: orderCreate, fixtureAccess: write }
+      - { name: order.cancel, method: POST, route: "POST /orders/{orderId}/cancellations", classification: state_change, weight: 15, expectedStatuses: [202], fixturePool: orderCancel, fixtureAccess: write }
+
+  payment-service:
+    service: payment-service
+    runtime: python
+    workload: payment-read-approve-fail
+    authentication: { method: x-user-id-fixture }
+    dependencies: { postgresql: [payment-db], kafka: true, redis: false, workers: [outbox-relay, refund-consumer], requireKafkaLag: true, kafkaLagQuery: 'sum(kafka_consumergroup_lag{consumergroup=~"payment-service-.*"})' }
+    slo: { <<: *default-slo, errorRate: 0.005, p95Ms: 400, p99Ms: 800, maxKafkaLagGrowth: 0 }
+    podResources: *default-resources
+    endpointMix:
+      - { name: payment.read, method: GET, route: "GET /payments/{paymentId}", classification: read, weight: 60, expectedStatuses: [200], fixturePool: paymentRead, fixtureAccess: read }
+      - { name: payment.approve, method: POST, route: POST /payments/mock-approvals, classification: state_change, weight: 25, expectedStatuses: [201], fixturePool: paymentReady, fixtureAccess: write }
+      - { name: payment.fail, method: POST, route: POST /payments/mock-failures, classification: state_change, weight: 15, expectedStatuses: [201], fixturePool: paymentReady, fixtureAccess: write }
+
+  notification-service:
+    service: notification-service
+    runtime: python
+    workload: notification-read-with-kafka-ingress
+    authentication: { method: x-user-id-fixture }
+    dependencies: { postgresql: [notification-db], kafka: true, redis: false, workers: [notification-consumer], requireKafkaLag: true, kafkaLagQuery: 'sum(kafka_consumergroup_lag{consumergroup="notification-service-notification-requested"})' }
+    slo: { <<: *default-slo, p95Ms: 250, p99Ms: 500, maxKafkaLagGrowth: 0 }
+    podResources: *default-resources
+    endpointMix:
+      - { name: notification.list, method: GET, route: GET /notifications, classification: read, weight: 100, expectedStatuses: [200], fixturePool: notificationRead, fixtureAccess: read }
+
+  dropmong-web:
+    service: dropmong-web
+    runtime: node
+    workload: web-home-product-development-checkout
+    authentication: { method: development-session-cookie }
+    dependencies: { postgresql: [], kafka: false, redis: false, workers: [], upstream: [catalog-service] }
+    slo: { <<: *default-slo, p95Ms: 500, p99Ms: 1000 }
+    podResources: *default-resources
+    endpointMix:
+      - { name: web.home, method: GET, route: GET /api/web/home, classification: read, weight: 45, expectedStatuses: [200] }
+      - { name: web.product, method: GET, route: "GET /api/web/products/{productId}", classification: read, weight: 35, expectedStatuses: [200], fixturePool: webProducts, fixtureAccess: read }
+      - { name: web.checkout, method: GET, route: "GET /api/web/checkouts/{checkoutId}", classification: development_mock, weight: 15, expectedStatuses: [200], fixturePool: webCheckouts, fixtureAccess: read }
+      - { name: web.checkout-confirm, method: POST, route: "POST /api/web/checkouts/{checkoutId}/confirm", classification: development_mock, weight: 5, expectedStatuses: [200], fixturePool: webCheckouts, fixtureAccess: write }

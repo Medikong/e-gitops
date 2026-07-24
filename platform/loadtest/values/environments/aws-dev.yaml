@@ -1,0 +1,27 @@
+schemaVersion: dropmong.loadtest.environment/v1
+environment:
+  name: aws-dev
+  ingress:
+    baseUrl: http://istio-ingressgateway.istio-system.svc.cluster.local
+  gitops:
+    environment: aws-dev
+    serviceReleaseSuffix: aws-dev
+    environmentValues: ../../../../values/env/aws-dev.yaml
+    serviceValuesDirectory: ../../../../values/services
+  helm:
+    loadtestValues: ../aws-dev.yaml
+  # 원격 환경에서도 loadtest가 Secret을 만들거나 복사하지 않는다.
+  loadtestFixtures: {}
+  safety:
+    remote: true
+    allowedKubernetesContexts: []
+    note: 실제 성능 클러스터 context를 확인한 뒤 명시적으로 allowlist에 추가한다.
+  observability:
+    prometheusService:
+      namespace: monitoring
+      name: kube-prometheus-stack-prometheus
+      port: 9090
+    tempoService:
+      namespace: observability
+      name: tempo
+      port: 3200

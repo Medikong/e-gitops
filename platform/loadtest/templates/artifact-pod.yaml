@@ -1,0 +1,44 @@
+{{- if .Values.artifactPod.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "dropmong-loadtest.workloadName" (dict "root" . "role" "artifact-export") | quote }}
+  namespace: {{ include "dropmong-loadtest.namespace" . | quote }}
+  annotations:
+{{ toYaml .Values.artifactPod.annotations | nindent 4 }}
+  labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "artifact-export") | nindent 4 }}
+spec:
+  serviceAccountName: {{ include "dropmong-loadtest.serviceAccountName" . | quote }}
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  terminationGracePeriodSeconds: {{ .Values.artifactPod.terminationGracePeriodSeconds }}
+  securityContext:
+{{ toYaml .Values.podSecurityContext | nindent 4 }}
+{{ include "dropmong-loadtest.imagePullSecrets" . | nindent 2 }}
+{{ include "dropmong-loadtest.scheduling" . | nindent 2 }}
+  containers:
+    - name: artifact-export
+      image: {{ include "dropmong-loadtest.image" (dict "image" .Values.artifactPod.image) | quote }}
+      imagePullPolicy: {{ .Values.artifactPod.image.pullPolicy | quote }}
+{{- with .Values.artifactPod.command }}
+      command:
+{{ toYaml . | nindent 8 }}
+{{- end }}
+      args:
+{{ toYaml .Values.artifactPod.args | nindent 8 }}
+      envFrom:
+{{ include "dropmong-loadtest.commonEnvFrom" (dict "root" . "existingSecrets" .Values.artifactPod.existingSecrets) | nindent 8 }}
+      env:
+{{ include "dropmong-loadtest.commonEnv" (dict "root" .) | nindent 8 }}
+        - name: ARTIFACT_POD_LIFETIME_SECONDS
+          value: {{ .Values.artifactPod.lifetimeSeconds | quote }}
+      resources:
+{{ toYaml .Values.artifactPod.resources | nindent 8 }}
+      securityContext:
+{{ toYaml .Values.containerSecurityContext | nindent 8 }}
+      volumeMounts:
+{{ include "dropmong-loadtest.commonVolumeMounts" . | nindent 8 }}
+  volumes:
+{{ include "dropmong-loadtest.commonVolumes" . | nindent 4 }}
+{{- end }}

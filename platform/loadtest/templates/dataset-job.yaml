@@ -1,0 +1,81 @@
+{{- if .Values.datasetJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "dropmong-loadtest.workloadName" (dict "root" . "role" "dataset") | quote }}
+  namespace: {{ include "dropmong-loadtest.namespace" . | quote }}
+  annotations:
+{{ toYaml .Values.datasetJob.annotations | nindent 4 }}
+  labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "dataset") | nindent 4 }}
+spec:
+  activeDeadlineSeconds: {{ .Values.datasetJob.activeDeadlineSeconds }}
+  backoffLimit: {{ .Values.datasetJob.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.datasetJob.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "dataset") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "dropmong-loadtest.serviceAccountName" . | quote }}
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: {{ .Values.datasetJob.terminationGracePeriodSeconds }}
+      securityContext:
+{{ toYaml .Values.podSecurityContext | nindent 8 }}
+{{ include "dropmong-loadtest.imagePullSecrets" . | nindent 6 }}
+{{ include "dropmong-loadtest.scheduling" . | nindent 6 }}
+      containers:
+        - name: dataset-seeder
+          image: {{ include "dropmong-loadtest.image" (dict "image" .Values.datasetJob.image) | quote }}
+          imagePullPolicy: {{ .Values.datasetJob.image.pullPolicy | quote }}
+{{- with .Values.datasetJob.command }}
+          command:
+{{ toYaml . | nindent 12 }}
+{{- end }}
+{{- with .Values.datasetJob.args }}
+          args:
+{{ toYaml . | nindent 12 }}
+{{- end }}
+          envFrom:
+{{ include "dropmong-loadtest.commonEnvFrom" (dict "root" . "existingSecrets" .Values.datasetJob.existingSecrets) | nindent 12 }}
+          env:
+{{ include "dropmong-loadtest.commonEnv" (dict "root" .) | nindent 12 }}
+            - name: SERVICE_GIT_SHA
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "dropmong-loadtest.fullname" . | quote }}
+                  key: LOADTEST_SERVICE_GIT_SHA
+            - name: SERVICE_GIT_DIRTY
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "dropmong-loadtest.fullname" . | quote }}
+                  key: LOADTEST_SERVICE_GIT_DIRTY
+            - name: SEEDER_IMAGE_DIGEST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "dropmong-loadtest.fullname" . | quote }}
+                  key: LOADTEST_SEEDER_IMAGE_ID
+          resources:
+{{ toYaml .Values.datasetJob.resources | nindent 12 }}
+          securityContext:
+{{ toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+{{ include "dropmong-loadtest.commonVolumeMounts" . | nindent 12 }}
+{{- with .Values.couponSecret.existingSecret }}
+            - name: coupon-codes
+              mountPath: {{ $.Values.couponSecret.mountPath | quote }}
+              readOnly: true
+{{- end }}
+      volumes:
+{{ include "dropmong-loadtest.commonVolumes" . | nindent 8 }}
+{{- with .Values.couponSecret.existingSecret }}
+        - name: coupon-codes
+          secret:
+            secretName: {{ . | quote }}
+            defaultMode: 288
+            items:
+              - key: {{ $.Values.couponSecret.key | quote }}
+                path: coupon-codes.json
+{{- end }}
+{{- end }}

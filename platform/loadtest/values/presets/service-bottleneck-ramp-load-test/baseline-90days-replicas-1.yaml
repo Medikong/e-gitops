@@ -1,0 +1,22 @@
+schemaVersion: dropmong.loadtest.preset/v1
+preset:
+  name: baseline-90days-replicas-1
+  scenario: service-bottleneck-ramp-load-test
+  dataset: { profile: baseline-90days }
+  deployment: { replicas: 1 }
+  ramp:
+    warmupSeconds: 0
+    increaseRpsPerSecond: 2
+    evaluationWindowSeconds: 10
+    minimumSamplesPerWindow: 50
+    consecutiveBreachWindows: 2
+    services:
+      auth-service: { startRps: 2, maxRps: 80, durationSeconds: 39 }
+      user-service: { startRps: 5, maxRps: 100, durationSeconds: 47.5 }
+      catalog-service: { startRps: 10, maxRps: 300, durationSeconds: 145 }
+      coupon-service: { startRps: 3, maxRps: 60, durationSeconds: 28.5 }
+      interest-service: { startRps: 8, maxRps: 160, durationSeconds: 76 }
+      order-service: { startRps: 3, maxRps: 70, durationSeconds: 33.5 }
+      payment-service: { startRps: 2, maxRps: 50, durationSeconds: 24 }
+      notification-service: { startRps: 8, maxRps: 150, durationSeconds: 71 }
+      dropmong-web: { startRps: 5, maxRps: 100, durationSeconds: 47.5 }

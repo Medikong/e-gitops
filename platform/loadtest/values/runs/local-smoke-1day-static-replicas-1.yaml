@@ -1,0 +1,12 @@
+schemaVersion: dropmong.loadtest.run/v1
+run:
+  name: local-smoke-1day-static-replicas-1
+  verification_only: true
+  scenario: ../scenarios/service-static-replica-capacity-load-test.yaml
+  preset: ../presets/service-static-replica-capacity-load-test/local-smoke-1day-low-rps.yaml
+  environment: ../environments/local.yaml
+  dataset: ../datasets/smoke-1day.yaml
+  deployment:
+    replicas: 1
+  lifecycle:
+    cleanup: true

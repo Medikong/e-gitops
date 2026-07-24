@@ -1,0 +1,12 @@
+schemaVersion: dropmong.loadtest.run/v1
+run:
+  name: local-bottleneck-ramp-replicas-1
+  verification_only: false
+  scenario: ../scenarios/service-bottleneck-ramp-load-test.yaml
+  preset: ../presets/service-bottleneck-ramp-load-test/baseline-90days-replicas-1.yaml
+  environment: ../environments/local.yaml
+  dataset: ../datasets/baseline-90days.yaml
+  deployment:
+    replicas: 1
+  lifecycle:
+    cleanup: true

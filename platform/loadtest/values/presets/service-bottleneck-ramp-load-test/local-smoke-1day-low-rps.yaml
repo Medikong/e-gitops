@@ -1,0 +1,22 @@
+schemaVersion: dropmong.loadtest.preset/v1
+preset:
+  name: local-smoke-1day-low-rps
+  scenario: service-bottleneck-ramp-load-test
+  dataset: { profile: smoke-1day }
+  deployment: { replicas: 1 }
+  ramp:
+    warmupSeconds: 0
+    increaseRpsPerSecond: 0.25
+    evaluationWindowSeconds: 5
+    minimumSamplesPerWindow: 3
+    consecutiveBreachWindows: 2
+    services:
+      auth-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
+      user-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
+      catalog-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
+      coupon-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
+      interest-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
+      order-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
+      payment-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
+      notification-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
+      dropmong-web: { startRps: 1, maxRps: 4, durationSeconds: 12 }

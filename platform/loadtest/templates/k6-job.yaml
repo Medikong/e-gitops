@@ -1,0 +1,110 @@
+{{- if .Values.k6Job.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "dropmong-loadtest.workloadName" (dict "root" . "role" "k6") | quote }}
+  namespace: {{ include "dropmong-loadtest.namespace" . | quote }}
+  annotations:
+{{ toYaml .Values.k6Job.annotations | nindent 4 }}
+  labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "k6") | nindent 4 }}
+spec:
+  activeDeadlineSeconds: {{ .Values.k6Job.activeDeadlineSeconds }}
+  backoffLimit: {{ .Values.k6Job.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.k6Job.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+{{ include "dropmong-loadtest.commonLabels" (dict "root" . "role" "k6") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "dropmong-loadtest.serviceAccountName" . | quote }}
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: {{ .Values.k6Job.terminationGracePeriodSeconds }}
+      securityContext:
+{{ toYaml .Values.podSecurityContext | nindent 8 }}
+{{ include "dropmong-loadtest.imagePullSecrets" . | nindent 6 }}
+{{ include "dropmong-loadtest.scheduling" . | nindent 6 }}
+      containers:
+        - name: k6
+          image: {{ include "dropmong-loadtest.image" (dict "image" .Values.k6Job.image) | quote }}
+          imagePullPolicy: {{ .Values.k6Job.image.pullPolicy | quote }}
+{{- with .Values.k6Job.command }}
+          command:
+{{ toYaml . | nindent 12 }}
+{{- end }}
+          args:
+{{ toYaml .Values.k6Job.args | nindent 12 }}
+          envFrom:
+{{ include "dropmong-loadtest.commonEnvFrom" (dict "root" . "existingSecrets" .Values.k6Job.existingSecrets) | nindent 12 }}
+          env:
+{{ include "dropmong-loadtest.commonEnv" (dict "root" .) | nindent 12 }}
+            - name: LOADTEST_FIXTURE_MANIFEST
+              value: {{ printf "%s/fixture-manifest.json" (include "dropmong-loadtest.reportDir" .) | quote }}
+            - name: LOADTEST_RUN_ID
+              value: {{ .Values.run.id | quote }}
+            - name: LOADTEST_SERVICE
+              value: {{ .Values.run.service | quote }}
+            - name: LOADTEST_TRIAL_ID
+              value: {{ .Values.run.trialId | quote }}
+            - name: LOADTEST_TARGET_RPS
+              value: {{ .Values.adaptive.startRps | quote }}
+            - name: LOADTEST_MEASURE_SECONDS
+              value: {{ .Values.adaptive.measureSeconds | quote }}
+            - name: LOADTEST_WARMUP_SECONDS
+              value: {{ .Values.adaptive.warmupSeconds | quote }}
+            - name: LOADTEST_PHASE
+              value: {{ .Values.adaptive.phase | quote }}
+            - name: LOADTEST_WRITE_SLICE_START
+              value: {{ .Values.adaptive.writeSliceStart | quote }}
+            - name: LOADTEST_WRITE_SLICE_SIZE
+              value: {{ .Values.adaptive.writeSliceSize | quote }}
+            - name: LOADTEST_WEB_ORIGIN
+              value: {{ .Values.run.webOrigin | quote }}
+{{- with .Values.couponSecret.existingSecret }}
+            - name: LOADTEST_COUPON_SECRET_FILE
+              value: {{ printf "%s/coupon-codes.json" $.Values.couponSecret.mountPath | quote }}
+{{- end }}
+{{- with .Values.accessTokenSecret.existingSecret }}
+            - name: LOADTEST_ACCESS_TOKEN_FILE
+              value: {{ printf "%s/%s" $.Values.accessTokenSecret.mountPath $.Values.accessTokenSecret.key | quote }}
+{{- end }}
+            - name: K6_NO_USAGE_REPORT
+              value: "true"
+          resources:
+{{ toYaml .Values.k6Job.resources | nindent 12 }}
+          securityContext:
+{{ toYaml .Values.containerSecurityContext | nindent 12 }}
+          volumeMounts:
+{{ include "dropmong-loadtest.commonVolumeMounts" . | nindent 12 }}
+{{- with .Values.couponSecret.existingSecret }}
+            - name: coupon-codes
+              mountPath: {{ $.Values.couponSecret.mountPath | quote }}
+              readOnly: true
+{{- end }}
+{{- with .Values.accessTokenSecret.existingSecret }}
+            - name: access-tokens
+              mountPath: {{ $.Values.accessTokenSecret.mountPath | quote }}
+              readOnly: true
+{{- end }}
+      volumes:
+{{ include "dropmong-loadtest.commonVolumes" . | nindent 8 }}
+{{- with .Values.couponSecret.existingSecret }}
+        - name: coupon-codes
+          secret:
+            secretName: {{ . | quote }}
+            defaultMode: 288
+            items:
+              - key: {{ $.Values.couponSecret.key | quote }}
+                path: coupon-codes.json
+{{- end }}
+{{- with .Values.accessTokenSecret.existingSecret }}
+        - name: access-tokens
+          secret:
+            secretName: {{ . | quote }}
+            defaultMode: 288
+            items:
+              - key: {{ $.Values.accessTokenSecret.key | quote }}
+                path: {{ $.Values.accessTokenSecret.key | quote }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,23 @@
+environment: aws-dev
+
+reportArchive:
+  enabled: true
+  storageClassName: medikong-aws-gp3
+  size: 20Gi
+
+datasetJob:
+  image:
+    registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
+    repository: dropmong-dataset-seeder
+    tag: dev
+    pullPolicy: Always
+
+k6Job:
+  image:
+    registry: 205623789422.dkr.ecr.ap-northeast-2.amazonaws.com
+    repository: dropmong-loadtest-runner
+    tag: dev
+    pullPolicy: Always
+
+crossNamespaceAccess:
+  enabled: true

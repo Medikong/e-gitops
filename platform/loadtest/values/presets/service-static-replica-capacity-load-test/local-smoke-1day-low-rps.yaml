@@ -1,0 +1,19 @@
+schemaVersion: dropmong.loadtest.preset/v1
+preset:
+  name: local-smoke-1day-low-rps
+  scenario: service-static-replica-capacity-load-test
+  dataset: { profile: smoke-1day }
+  deployment: { replicas: 1 }
+  execution:
+    warmupSeconds: 2
+    measureSeconds: 8
+    confirmationMeasureSeconds: 4
+    cooldownSeconds: 1
+    repetitions: 1
+    searchTolerance: 0.5
+    maxSearchTrials: 1
+    independentTrials: true
+    serviceConcurrency: 1
+    backlogStability: { consecutiveChecks: 1, checkIntervalSeconds: 1, timeoutSeconds: 15, maxKafkaLagGrowth: 0, requireNoPendingPods: true }
+  capacity:
+    default: { startRps: 1, maxRps: 2 }

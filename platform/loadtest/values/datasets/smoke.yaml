@@ -1,0 +1,61 @@
+schemaVersion: dropmong.loadtest.dataset/v1
+dataset:
+  profile: smoke
+  seed: "20260723"
+  revision: smoke-v1
+  parameters:
+    version: 1
+    as_of: "2026-07-23T00:00:00Z"
+    days: 2
+    initial_users: 126
+    daily_new_users: 1
+    daily_drops: 2
+    products_per_drop: 3
+    raw_view_hours: 6
+    active_inventory_per_product: 20
+    paymentReadyOrderCount: 128
+    couponClaimHeadroom: 128
+    couponCodeCount: 128
+    fixturePoolSize: 256
+    fixtureTrialCount: 3
+    tiers:
+      - name: general
+        share_percent: 50
+        views_per_drop: 100
+        interest_rate_percent: 50
+        buyer_conversion_percent: 50
+        orders_per_buyer: 1
+      - name: planned
+        share_percent: 25
+        views_per_drop: 120
+        interest_rate_percent: 50
+        buyer_conversion_percent: 60
+        orders_per_buyer: 1
+      - name: event
+        share_percent: 25
+        views_per_drop: 160
+        interest_rate_percent: 50
+        buyer_conversion_percent: 70
+        orders_per_buyer: 1
+    daily_coupon_campaigns: 2
+    seasonal_coupon_campaigns: 1
+    daily_coupon_issues: 20
+    event_coupon_issues: 10
+    coupon_redemption_percent: 30
+    notifications_per_order: 4
+    agreements: [terms-of-service:v1, privacy-policy:v1]
+  fixtureManifest: fixture-manifest.json
+  fixturePools:
+    auth-service: [authUsers]
+    user-service: [profileRead, profileWrite]
+    catalog-service: [drops]
+    coupon-service: [couponWallet, couponClaim, couponRedeem]
+    interest-service: [existingInterests, interestAdd, viewEvents]
+    order-service: [orderCreate, orderRead, orderCancel]
+    payment-service: [paymentReady, paymentRead]
+    notification-service: [notificationRead, notificationEvents]
+    dropmong-web: [webProducts, webCheckouts]
+  writeFixturePolicy:
+    strategy: reseed-before-each-independent-trial
+    reuseOnExhaustion: false
+    allocation: endpoint-weighted-disjoint-ranges
