@@ -1,4 +1,5 @@
-{{- if .Values.pdb.enabled }}
+{{- $pdb := default dict .Values.pdb }}
+{{- if default false $pdb.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -9,8 +10,33 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name | quote }}
     app.kubernetes.io/part-of: medikong
 spec:
-  minAvailable: {{ .Values.pdb.minAvailable }}
+  minAvailable: {{ $pdb.minAvailable }}
   selector:
     matchLabels:
       app: {{ .Values.app.name | quote }}
+{{- with $pdb.selectorLabels }}{{ toYaml . | nindent 6 }}
+{{- end }}
+{{- end }}
+{{- $canary := default dict .Values.canary }}
+{{- $canaryPdb := default dict $canary.pdb }}
+{{- if and (default false $canary.enabled) (default false $canaryPdb.enabled) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ printf "%s-%s" .Values.app.name (default "v2" $canary.nameSuffix) | quote }}
+  namespace: {{ .Values.app.namespace | quote }}
+  labels:
+    app.kubernetes.io/name: {{ printf "%s-%s" .Values.app.name (default "v2" $canary.nameSuffix) | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/part-of: medikong
+spec:
+  minAvailable: {{ default 1 $canaryPdb.minAvailable }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name | quote }}
+{{- with $canaryPdb.selectorLabels }}{{ toYaml . | nindent 6 }}
+{{- else }}
+      version: {{ default "v2" $canary.version | quote }}
+{{- end }}
 {{- end }}

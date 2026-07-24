@@ -22,6 +22,10 @@ canary:
   nameSuffix: v2
   version: v2
   replicas: 1
+  pdb:
+    enabled: false
+    minAvailable: 1
+    selectorLabels: {}
   image:
     tag: ""
   podLabels: {}
@@ -173,6 +177,7 @@ networkPolicy:
 pdb:
   enabled: false
   minAvailable: 1
+  selectorLabels: {}
 
 hpa:
   enabled: false

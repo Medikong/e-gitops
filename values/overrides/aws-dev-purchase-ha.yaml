@@ -1,0 +1,16 @@
+deployment:
+  replicas: 2
+
+canary:
+  replicas: 2
+  pdb:
+    enabled: true
+    minAvailable: 1
+    selectorLabels:
+      version: v2
+
+pdb:
+  enabled: true
+  minAvailable: 1
+  selectorLabels:
+    version: v1
