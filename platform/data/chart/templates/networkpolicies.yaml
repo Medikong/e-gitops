@@ -98,6 +98,7 @@ spec:
               - key: kubernetes.io/metadata.name
                 operator: In
                 values:
+                  - dropmong-catalog
                   - dropmong-payment
                   - dropmong-notification
                   - dropmong-order
@@ -107,6 +108,7 @@ spec:
               - key: dropmong.io/service
                 operator: In
                 values:
+                  - catalog
                   - payment
                   - notification
                   - order
