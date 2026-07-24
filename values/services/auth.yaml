@@ -9,8 +9,8 @@ image:
   repository: auth-service
   tag: ""
 
-  digest: "sha256:ef80bd77e95cba068ca1961f2ef93202b2056c8699cf39a1e71eb94975e82fbc"
-  version: "v0.9.13"
+  digest: "sha256:8ecc3b9594d84e875dde2b1dc29dd3776058a849f7f4c8d4acc3eff49f3f979a"
+  version: "v0.9.14"
 database:
   sqlalchemy:
     enabled: false
