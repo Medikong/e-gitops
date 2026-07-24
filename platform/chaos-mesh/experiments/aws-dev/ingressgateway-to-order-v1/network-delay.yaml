@@ -1,0 +1,46 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: ingressgateway-to-order-v1-delay
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/part-of: medikong
+    medikong.io/environment: aws-dev
+    medikong.io/test-only: "true"
+  annotations:
+    medikong.io/manual-one-round-only: replace-both-exact-pod-names-before-sync
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - istio-system
+    labelSelectors:
+      app: istio-ingressgateway
+      istio: ingressgateway
+    fieldSelectors:
+      metadata.name: replace-with-ready-istio-ingressgateway-pod-name
+    podPhaseSelectors:
+      - Running
+  direction: to
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - dropmong-order
+      labelSelectors:
+        app: order-service
+        app.kubernetes.io/instance: order-aws-dev
+        app.kubernetes.io/name: order-service
+        dropmong.io/service: order
+        dropmong.io/tier: api
+        version: v1
+      fieldSelectors:
+        metadata.name: replace-with-ready-order-v1-pod-name
+      podPhaseSelectors:
+        - Running
+  delay:
+    latency: 500ms
+    correlation: "0"
+    jitter: 50ms
+  duration: 30s

@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chaos-mesh-aws-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-20"
+    medikong.io/manual-sync-required: "accept-cluster-scoped-rbac-first"
+spec:
+  project: default
+  sources:
+    - repoURL: https://charts.chaos-mesh.org
+      chart: chaos-mesh
+      targetRevision: 2.8.3
+      helm:
+        releaseName: chaos-mesh
+        valueFiles:
+          - $values/platform/chaos-mesh/values/aws-dev.yaml
+    - repoURL: https://github.com/Medikong/e-gitops.git
+      targetRevision: HEAD
+      ref: values
+    - repoURL: https://github.com/Medikong/e-gitops.git
+      targetRevision: HEAD
+      path: platform/chaos-mesh/enabled-namespaces
+    - repoURL: https://github.com/Medikong/e-gitops.git
+      targetRevision: HEAD
+      path: platform/chaos-mesh/controller-rbac
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: chaos-mesh
+  syncPolicy:
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: medikong
+        pod-security.kubernetes.io/audit: privileged
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/warn: privileged
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

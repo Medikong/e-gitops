@@ -1,0 +1,46 @@
+clusterScoped: true
+enableProfiling: false
+
+rbac:
+  create: false
+
+controllerManager:
+  replicaCount: 1
+  leaderElection:
+    enabled: false
+  allowHostNetworkTesting: false
+  enableFilterNamespace: true
+  chaosdSecurityMode: true
+  enabledControllers:
+    - "*"
+  enabledWebhooks:
+    - networkchaos
+
+chaosDaemon:
+  runtime: containerd
+  socketPath: /run/containerd/containerd.sock
+  privileged: false
+  mtls:
+    enabled: true
+  service:
+    scrape:
+      enabled: false
+
+dashboard:
+  create: false
+
+dnsServer:
+  create: false
+
+prometheus:
+  create: false
+
+bpfki:
+  create: false
+
+chaosDlv:
+  enable: false
+
+webhook:
+  CRDS:
+    - networkchaos
