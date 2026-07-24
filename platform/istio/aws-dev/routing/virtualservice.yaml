@@ -179,21 +179,20 @@ spec:
         - uri:
             prefix: /orders
       route:
-        # 2026-07-24: R24/R25 배포전략 비교 실험(GOAL.md 9장). 카나리(90/10) 라운드
-        # 완료(6라운드, v2 표본 15건 누적, 오버셀 반복 재현 확인) 후 블루그린(0/100)
-        # 라운드로 전환. 실험 종료 후 100/0으로 원복 필요.
+        # 2026-07-24: R24/R25 배포전략 비교 실험(GOAL.md 9장) 완료. 카나리(90/10, 6
+        # 라운드) + 블루그린(0/100) 양쪽 모두 오버셀 재현/비교 끝나서 100/0으로 원복.
         - destination:
             host: order-service.dropmong-order.svc.cluster.local
             subset: v1
             port:
               number: 8082
-          weight: 0
+          weight: 100
         - destination:
             host: order-service.dropmong-order.svc.cluster.local
             subset: v2
             port:
               number: 8082
-          weight: 100
+          weight: 0
 
     - name: payment
       match:
