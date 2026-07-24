@@ -30,6 +30,8 @@ container:
   env:
     - name: DATABASE_URL
       value: postgresql+asyncpg://user:password@catalog-db:5432/catalog_db
+    - name: KAFKA_BOOTSTRAP_SERVERS
+      value: kafka.dropmong-messaging.svc.cluster.local:9092
   readinessProbe:
     httpGet:
       path: /readyz
@@ -107,6 +109,16 @@ networkPolicy:
       ports:
         - protocol: TCP
           port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: dropmong-messaging
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
     - to:
         - namespaceSelector:
             matchLabels:
