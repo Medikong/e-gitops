@@ -36,7 +36,7 @@ VIRTUAL_MESSAGE_MATCH = {
   "headers" => {"x-dev-access-token" => {"regex" => "^.+$"}},
 }.freeze
 INTERNAL_SESSION_PATH = "/internal/session/status"
-EXISTING_ROUTES_SHA256 = "4bc3149f0da9fe289e2772a96551d57319e50cdc57140db6cab6b5a65323070d"
+EXISTING_ROUTES_SHA256 = "811afd362a9c3125bca90b2bc2ff8905ba13162592e0de185a973c7c05dd69fd"
 
 class ContractError < StandardError; end
 

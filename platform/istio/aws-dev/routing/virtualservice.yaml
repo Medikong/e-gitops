@@ -202,22 +202,28 @@ spec:
         - uri:
             prefix: /payments
       route:
-        # 2026-07-25: R24/R25 패턴을 payment-service에 재사용하는 PoC 중 블루그린
-        # 비교 라운드 (Deployment-analysis.md). 카나리 90/10 6라운드 완료 후,
-        # 동일 조건을 0/100(블루그린)으로 바꿔서 비교. 카나리 라운드 종료 후
-        # 90/10으로 복귀 예정.
+        # 2026-07-25: R24/R25 PoC(카나리 90/10 vs 블루그린 0/100, 각 6라운드,
+        # Deployment-analysis.md) 완료 후 실험 종료 — 정리(revert). 카나리는
+        # v2가 경합에서 단 한 번도 못 이겼고(success=0/17) p95 349ms, 블루그린은
+        # p95 703ms에 일부 라운드 5xx까지 발생 — 카나리가 피해 노출을 훨씬 좁게
+        # 억제한다는 결론. 이 결과로 Istio 가중치 카나리를 payment-service의 실제
+        # 배포 전략으로 채택하기로 함(DestinationRule/payment-traffic Application은
+        # 유지). 다만 v2=synthetic-regression-20260725-01406eb는 실험용 버그 주입
+        # 이미지라 실 트래픽에 노출시키면 안 돼서 100/0으로 되돌림 — 다음 정상
+        # 릴리스가 나오면 그때 canary 슬롯에 얹고 order-service와 동일한 승격/
+        # 롤백 절차(5.4/5.5절)를 따른다.
         - destination:
             host: payment-service.dropmong-payment.svc.cluster.local
             subset: v1
             port:
               number: 8083
-          weight: 0
+          weight: 100
         - destination:
             host: payment-service.dropmong-payment.svc.cluster.local
             subset: v2
             port:
               number: 8083
-          weight: 100
+          weight: 0
 
     - name: public-auth-entrypoints
       match:

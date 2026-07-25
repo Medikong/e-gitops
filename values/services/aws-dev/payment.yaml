@@ -16,27 +16,14 @@ deployment:
       maxSurge: 0
       maxUnavailable: 1
 
-# 2026-07-25: order-service R24/R25 PoC와 동일 패턴을 payment-service에 적용
-# (Deployment-analysis.md, 다음 회차). canary(v2)는 experiment/payment-service-
-# synthetic-regression 브랜치(main엔 merge 안 함)에서 빌드한 실험 전용 이미지 —
-# _locked_known_order()의 행 잠금을 SYNTHETIC_REGRESSION_SKIP_LOCK로 우회하고
-# SYNTHETIC_REGRESSION_DELAY_SECONDS로 레이스 윈도우를 넓혀서, 동시 결제 승인/
-# 실패 요청이 같은 주문에 중복 결제를 만드는지 실측한다. 정식 태그 시퀀스와
-# 섞이지 않도록 semver가 아닌 식별 가능한 태그명(synthetic-regression-*)을 쓰고,
-# deploy_tag.sh 파이프라인을 거치지 않고 수동으로 build+push했다.
+# 2026-07-25: R24/R25 PoC(카나리 vs 블루그린, Deployment-analysis.md) 완료 후
+# 실험용 이미지(synthetic-regression-20260725-01406eb, 결제 중복 생성 회귀 토글
+# 포함)를 canary 슬롯에서 내리고 비활성화. Istio 가중치 카나리 자체는 실제
+# 배포 전략으로 채택됐고 DestinationRule/payment-traffic Application도 유지함 —
+# 다음 정상 릴리스가 나오면 여기 canary.enabled: true + image.tag를 채워서
+# 재사용한다(order-service 5.4/5.5절과 동일 승격/롤백 절차).
 canary:
-  enabled: true
-  version: v2
-  replicas: 1
-  image:
-    tag: synthetic-regression-20260725-01406eb
-  podLabels:
-    sidecar.istio.io/inject: "true"
-  env:
-    - name: SYNTHETIC_REGRESSION_SKIP_LOCK
-      value: "true"
-    - name: SYNTHETIC_REGRESSION_DELAY_SECONDS
-      value: "0.3"
+  enabled: false
 
 container:
   resources:
