@@ -9,8 +9,8 @@ image:
   repository: payment-service
   tag: ""
 
-  digest: "sha256:bdcf95de15d6f2a09ab2eff507320ae84a314ee39685f35d0fb548be2db6426f"
-  version: "v0.2.5"
+  digest: "sha256:50a5388d382f7562523c972cd4e753cb115be2ca18c9f824c16ace905dce751c"
+  version: "v0.2.6"
 deployment:
   replicas: 1
   podLabels:
