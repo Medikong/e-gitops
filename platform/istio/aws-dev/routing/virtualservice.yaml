@@ -202,10 +202,23 @@ spec:
         - uri:
             prefix: /payments
       route:
+        # 2026-07-25: R24/R25 패턴을 payment-service에 재사용하는 PoC 진행 중
+        # (Deployment-analysis.md, order-service 다음 회차). v1=v0.2.6(정상),
+        # v2=synthetic-regression-20260725-01406eb(실험 브랜치, 결제 중복 생성
+        # 회귀 토글 포함) — 카나리 90/10으로 시작해서 order-service와 동일하게
+        # 오버셀(중복결제)이 v1/v2에서 어떻게 다르게 노출되는지 실측 비교한다.
         - destination:
             host: payment-service.dropmong-payment.svc.cluster.local
+            subset: v1
             port:
               number: 8083
+          weight: 90
+        - destination:
+            host: payment-service.dropmong-payment.svc.cluster.local
+            subset: v2
+            port:
+              number: 8083
+          weight: 10
 
     - name: public-auth-entrypoints
       match:
