@@ -1,0 +1,7 @@
+deployment:
+  replicas: 2
+
+pdb:
+  enabled: true
+  minAvailable: 1
+  selectorLabels: {}
