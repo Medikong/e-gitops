@@ -4,4 +4,4 @@ deployment:
 pdb:
   enabled: true
   minAvailable: 1
-  selectorLabels: {}
+  selectorLabels: null
