@@ -1,0 +1,142 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: dropmong-local
+  namespace: istio-system
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - medikong-internal
+  http:
+    - name: development-auth-bulk-tokens
+      match:
+        - method:
+            exact: POST
+          uri:
+            exact: /api/v1/dev/auth/test-tokens/bulk
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+    - name: auth
+      match:
+        - uri:
+            prefix: /api/v1/auth
+        - uri:
+            prefix: /auth
+        - uri:
+            exact: /.well-known/jwks.json
+      route:
+        - destination:
+            host: auth-service.dropmong-auth.svc.cluster.local
+            port:
+              number: 8080
+    - name: coupon-api
+      match:
+        - uri:
+            prefix: /api/v1/users/me/coupons
+        - uri:
+            prefix: /api/v1/coupon-campaigns
+        - uri:
+            prefix: /api/v1/coupon-code-redemptions
+        - uri:
+            prefix: /coupons
+      headers:
+        request:
+          remove: [cookie, x-csrf-token]
+      route:
+        - destination:
+            host: coupon-service.dropmong-coupon.svc.cluster.local
+            port:
+              number: 8080
+    - name: user
+      match:
+        - uri:
+            prefix: /api/v1/users
+      headers:
+        request:
+          remove: [cookie, x-csrf-token]
+      route:
+        - destination:
+            host: user-service.dropmong-user.svc.cluster.local
+            port:
+              number: 8080
+    - name: interest
+      match:
+        - uri:
+            prefix: /v1
+      headers:
+        request:
+          remove: [cookie, x-csrf-token]
+      route:
+        - destination:
+            host: interest-service.dropmong-interest.svc.cluster.local
+            port:
+              number: 8085
+    - name: catalog
+      match:
+        - uri:
+            prefix: /drops
+      route:
+        - destination:
+            host: catalog-service.dropmong-catalog.svc.cluster.local
+            port:
+              number: 8081
+    - name: notification
+      match:
+        - uri:
+            prefix: /notifications
+      headers:
+        request:
+          remove: [cookie, x-csrf-token]
+      route:
+        - destination:
+            host: notification-service.dropmong-notification.svc.cluster.local
+            port:
+              number: 8084
+    - name: order
+      match:
+        - uri:
+            prefix: /orders
+        - uri:
+            prefix: /checkouts
+      headers:
+        request:
+          remove: [cookie, x-csrf-token]
+      route:
+        - destination:
+            host: order-service.dropmong-order.svc.cluster.local
+            port:
+              number: 8082
+    - name: payment
+      match:
+        - uri:
+            prefix: /payments
+      headers:
+        request:
+          remove: [cookie, x-csrf-token]
+      route:
+        - destination:
+            host: payment-service.dropmong-payment.svc.cluster.local
+            port:
+              number: 8083
+    - name: grafana
+      match:
+        - uri:
+            prefix: /grafana
+      route:
+        - destination:
+            host: kube-prometheus-stack-grafana.monitoring.svc.cluster.local
+            port:
+              number: 80
+    - name: web
+      match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: dropmong-web.dropmong-web.svc.cluster.local
+            port:
+              number: 80

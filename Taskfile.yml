@@ -90,12 +90,12 @@ tasks:
 
   dev:platform:
     internal: true
-    desc: Docker Desktop dev의 namespace, data, Kong 기반 리소스를 준비합니다.
+    desc: Docker Desktop dev의 namespace, data와 기존 Istio ingress 준비 상태를 확인합니다.
     cmds:
       - '{{.KUBECTL}} apply -k platform/namespaces'
       - task: dev:auth-secrets
       - task: dev:data
-      - task: dev:kong
+      - task: dev:istio:local
 
   dev:auth-secrets:
     internal: true
@@ -522,7 +522,7 @@ tasks:
     cmds:
       - task: helm:lint
       - task: platform:render
-      - task: dev:kong:check
+      - '{{.KUBECTL}} kustomize platform/istio/local >/dev/null'
       - task --taskfile platform/monitoring/Taskfile.yml render
       - task: observability:render
       - task: helm:template:env
@@ -865,6 +865,21 @@ tasks:
         printf '%s\n' '  kubectl get applications -n argocd istio-base istiod kiali'
         printf '%s\n' '  task mesh-check'
 
+  dev:istio:check:
+    internal: true
+    desc: 로컬 dev가 사용하는 Istio control plane과 DropMong ingress route를 확인합니다.
+    cmds:
+      - '{{.KUBECTL}} get deployment -n istio-system istiod istio-ingressgateway'
+      - '{{.KUBECTL}} get gateway.networking.istio.io -n istio-system medikong-internal'
+      - '{{.KUBECTL}} get virtualservice.networking.istio.io -n istio-system dropmong-local'
+
+  dev:istio:local:
+    internal: true
+    desc: Docker Desktop dev가 사용하는 Istio Gateway, API route와 browser Auth 정책을 적용합니다.
+    cmds:
+      - '{{.KUBECTL}} apply -k platform/istio/local'
+      - task: dev:istio:check
+
   mesh-check:
     desc: Istio control plane, Kiali, DropMong routing resource 상태를 확인합니다.
     cmds:
@@ -1013,7 +1028,7 @@ tasks:
     cmds:
       - '{{.KUBECTL}} get namespaces -l app.kubernetes.io/part-of=medikong'
       - '{{.HELM}} list --all-namespaces --filter "{{.LOCAL_DOCKER_DESKTOP_RELEASE_SUFFIX}}"'
-      - task: dev:kong:status
+      - task: dev:istio:check
       - task --taskfile platform/monitoring/Taskfile.yml status
       - task: observability:status
 

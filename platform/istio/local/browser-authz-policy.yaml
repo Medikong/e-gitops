@@ -1,0 +1,30 @@
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: dropmong-local-browser-routes
+  namespace: istio-system
+spec:
+  selector:
+    matchLabels:
+      app: istio-ingressgateway
+      istio: ingressgateway
+  action: CUSTOM
+  provider:
+    name: dropmong-browser-authz-http
+  rules:
+    - to:
+        - operation:
+            notMethods:
+              - OPTIONS
+            paths:
+              - /api/v1/users/me*
+              - /api/v1/users/me/coupons*
+              - /api/v1/coupon-campaigns*
+              - /api/v1/coupon-code-redemptions*
+              - /v1/operator*
+              - /v1/users*
+              - /v1/drops*
+              - /notifications*
+              - /orders*
+              - /checkouts*
+              - /payments*

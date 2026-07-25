@@ -152,7 +152,10 @@ def route_tuple(match_value: YamlValue) -> RouteTuple:
 def virtual_services(repo: Path) -> list[dict[str, YamlValue]]:
     private_child = repo / "platform/istio/private-dev/routing-authz"
     aws_child = repo / "platform/istio/aws-dev/routing"
-    allowed_gateway_roots = (private_child, aws_child)
+    # Docker Desktop local routing is applied only by `task dev`; it has its
+    # own Browser-auth contract and is not part of the private-dev route matrix.
+    local_child = repo / "platform/istio/local"
+    allowed_gateway_roots = (private_child, aws_child, local_child)
 
     services = [
         load(path)
