@@ -19,7 +19,7 @@ spec:
       app: istio-ingressgateway
       istio: ingressgateway
     fieldSelectors:
-      metadata.name: istio-ingressgateway-5cf9ff6f47-fjdhs
+      metadata.name: replace-with-ready-istio-ingressgateway-pod-name
     podPhaseSelectors:
       - Running
   direction: to
@@ -36,7 +36,7 @@ spec:
         dropmong.io/tier: api
         version: v1
       fieldSelectors:
-        metadata.name: order-service-745b87b597-glvg9
+        metadata.name: replace-with-ready-order-v1-pod-name
       podPhaseSelectors:
         - Running
   delay:
