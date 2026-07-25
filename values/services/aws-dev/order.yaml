@@ -13,6 +13,7 @@ deployment:
     sidecar.istio.io/inject: "true"
     version: v1
   podAnnotations:
+    medikong.io/runtime-recovery: "2026-07-25T15:00:00Z"
     sidecar.istio.io/inject: "true"
     sidecar.istio.io/proxyCPU: 25m
     sidecar.istio.io/proxyMemory: 64Mi
@@ -40,6 +41,7 @@ canary:
   podLabels:
     sidecar.istio.io/inject: "true"
   podAnnotations:
+    medikong.io/runtime-recovery: "2026-07-25T15:00:00Z"
     sidecar.istio.io/inject: "true"
     sidecar.istio.io/proxyCPU: 25m
     sidecar.istio.io/proxyMemory: 64Mi
