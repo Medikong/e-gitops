@@ -565,6 +565,7 @@ export class Orchestrator {
     const maximumRps = profile.ramp?.maxRps ?? profile.adaptive?.maxRps ?? targetRps;
     const rpsTolerance = profile.ramp ? 0 : profile.adaptive.rpsTolerance;
     const budget = iterationBudget ?? Math.max(1, Math.ceil(targetRps * measureSeconds));
+    const runtimePlan = { schemaVersion: 'dropmong.loadtest.runtime-plan/v1', iterationBudget: budget };
     const traceProbe = traceProbeFor(this.options.runId, service, trialId);
     const values = {
       'namespace.name': this.namespace,
@@ -613,7 +614,7 @@ export class Orchestrator {
     };
     const args = ['upgrade', '--install', this.release, ROOT, '--namespace', this.namespace, '--create-namespace', '-f', this.experiment.environment.helm.loadtestValuesPath];
     for (const [key, value] of Object.entries(values)) args.push(...helmOverrideArgs(key, value));
-    args.push('--set-json', `run.profile=${JSON.stringify(profile)}`);
+    args.push('--set-json', `run.profile=${JSON.stringify({ ...profile, runtimePlan })}`);
     args.push('--set-json', `dataset.profileDocument=${JSON.stringify(this.experiment.dataset.profileDocument)}`);
     args.push('--set-json', `dataset.schemaHashes=${JSON.stringify(this.datasetSchemaIdentifiers)}`);
     args.push('--set-json', `adaptive.writeAllocations=${JSON.stringify(writeAllocations)}`);

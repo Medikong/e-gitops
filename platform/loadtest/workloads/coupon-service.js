@@ -1,6 +1,7 @@
 import {
   buildOptions,
   bearerHeaders,
+  buildAuthTokenPlan,
   bootstrapAccessTokens,
   createServiceLifecycle,
   jsonData,
@@ -14,7 +15,12 @@ const profile = JSON.parse(__ENV.LOADTEST_PROFILE_JSON);
 const addresses = runtimeAddressing(profile);
 const auth = (setupData, userId) => bearerHeaders(setupData, userId);
 const lifecycle = createServiceLifecycle(profile, addresses, {
-  setup: () => bootstrapAccessTokens(profile, addresses),
+  // Write allocation is injected by the orchestrator only for a real run, so
+  // build this plan in setup rather than k6's inspect-time init context.
+  setup: () => bootstrapAccessTokens(profile, addresses, buildAuthTokenPlan(profile, (selection) => {
+    if (selection.endpoint.name === 'coupon.claim') return addresses.couponClaim(writeIndex('couponClaim', selection.occurrence)).userIndex;
+    return addresses.couponWallet(selection.occurrence).userIndex;
+  })),
   'coupon.wallet-list': (context) => {
     const fixture = addresses.couponWallet(context.occurrence);
     request(profile, context.endpoint, {

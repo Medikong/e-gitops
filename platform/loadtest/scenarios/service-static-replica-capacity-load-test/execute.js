@@ -358,6 +358,10 @@ export function workloadProfile(experiment, service) {
       seed: String(experiment.dataset.seed),
       parameters: experiment.dataset.profileDocument,
     },
+    runtimePlan: {
+      schemaVersion: 'dropmong.loadtest.runtime-plan/v1',
+      iterationBudget: Math.ceil(config.capacity.maxRps * experiment.execution.measureSeconds) + 2,
+    },
     adaptive: {
       startRps: config.capacity.startRps,
       maxRps: config.capacity.maxRps,

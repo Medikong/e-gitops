@@ -1,6 +1,7 @@
 import {
   buildOptions,
   bearerHeaders,
+  buildAuthTokenPlan,
   bootstrapAccessTokens,
   createServiceLifecycle,
   jsonData,
@@ -18,7 +19,13 @@ const user = (setupData, userId, occurrence, prefix) => ({
 });
 
 const lifecycle = createServiceLifecycle(profile, addresses, {
-  setup: () => bootstrapAccessTokens(profile, addresses),
+  setup: () => bootstrapAccessTokens(profile, addresses, buildAuthTokenPlan(profile, (selection) => {
+    if (selection.endpoint.name === 'order.read') {
+      return addresses.orderFact(addresses.sampleIndex('order-read', selection.occurrence, addresses.profile.orderCount)).userIndex;
+    }
+    if (selection.endpoint.name === 'order.create') return addresses.orderCreate(writeIndex('orderCreate', selection.occurrence)).userIndex;
+    return addresses.approvedOrderFact(writeIndex('orderCancel', selection.occurrence)).userIndex;
+  })),
   'order.read': (context) => {
     const fixture = addresses.orderFact(addresses.sampleIndex('order-read', context.occurrence, addresses.profile.orderCount));
     request(profile, context.endpoint, {

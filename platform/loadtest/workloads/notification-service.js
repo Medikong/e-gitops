@@ -1,6 +1,7 @@
 import {
   buildOptions,
   bearerHeaders,
+  buildAuthTokenPlan,
   bootstrapAccessTokens,
   createServiceLifecycle,
   jsonData,
@@ -12,7 +13,9 @@ const profile = JSON.parse(__ENV.LOADTEST_PROFILE_JSON);
 const addresses = runtimeAddressing(profile);
 
 const lifecycle = createServiceLifecycle(profile, addresses, {
-  setup: () => bootstrapAccessTokens(profile, addresses),
+  setup: () => bootstrapAccessTokens(profile, addresses, buildAuthTokenPlan(profile, (selection) => (
+    addresses.notificationUserIndex(selection.occurrence)
+  ))),
   'notification.list': (context) => {
     const userId = addresses.notificationUser(context.occurrence);
     request(profile, context.endpoint, {

@@ -1,6 +1,7 @@
 import {
   buildOptions,
   bearerHeaders,
+  buildAuthTokenPlan,
   bootstrapAccessTokens,
   createServiceLifecycle,
   jsonData,
@@ -24,7 +25,11 @@ function headers(setupData, userId, occurrence, mutation = false) {
 }
 
 const lifecycle = createServiceLifecycle(profile, addresses, {
-  setup: () => bootstrapAccessTokens(profile, addresses),
+  setup: () => bootstrapAccessTokens(profile, addresses, buildAuthTokenPlan(profile, (selection) => (
+    selection.endpoint.name === 'user.profile-update'
+      ? addresses.profileUserIndex(writeIndex('profileWrite', selection.occurrence))
+      : addresses.profileUserIndex(selection.occurrence)
+  ))),
   'user.profile-read': (context) => {
     const userId = addresses.profileUser(context.occurrence);
     request(profile, context.endpoint, {

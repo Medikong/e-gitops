@@ -14,6 +14,7 @@ const successfulRequests = new Counter('loadtest_successes');
 const failedRequests = new Counter('loadtest_errors');
 const errorRate = new Rate('loadtest_error_rate');
 const latency = new Trend('loadtest_latency', true);
+const AUTH_BATCH_SIZE = 64;
 
 function env(name, fallback = '') {
   const value = __ENV[name];
@@ -60,38 +61,54 @@ export function bearerHeaders(setupData, userId) {
   return { Authorization: `Bearer ${token}` };
 }
 
-function authIntent(profile, occurrence) {
-  const response = http.post(`${profile.baseUrl.replace(/\/+$/, '')}/api/v1/auth/intents`, JSON.stringify({ returnPath: '/loadtest', intentType: 'navigation' }), {
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Client-Channel': 'ios', 'Idempotency-Key': uniqueKey(`runtime-auth-intent-${occurrence}`, occurrence) },
-    redirects: 0,
-    timeout: env('LOADTEST_HTTP_TIMEOUT', '10s'),
-  });
+function authIntentData(response) {
   if (response.status !== 201) throw new Error(`runtime authentication intent failed with status ${response.status}`);
   const data = jsonData(response);
   if (!data?.authIntentId || !data?.authFlowToken) throw new Error('runtime authentication intent response is invalid');
   return data;
 }
 
-// k6 setup data is shared in memory with VUs and is not written to reports.
-// Each token is minted through the public auth contract after dataset seeding.
-export function bootstrapAccessTokens(profile, addresses) {
-  const accessTokens = {};
-  const password = datasetAuthPassword(profile);
-  for (let index = 0; index < addresses.profile.authUserPoolSize; index += 1) {
-    const intent = authIntent(profile, index);
-    const response = http.post(`${profile.baseUrl.replace(/\/+$/, '')}/api/v1/auth/signins/email`, JSON.stringify({
-      authIntentId: intent.authIntentId,
-      email: addresses.email(index),
-      password,
-      rememberMe: false,
-    }), {
+function authIntentRequest(profile, index) {
+  return {
+    method: 'POST',
+    url: `${profile.baseUrl.replace(/\/+$/, '')}/api/v1/auth/intents`,
+    body: JSON.stringify({ returnPath: '/loadtest', intentType: 'navigation' }),
+    params: {
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Client-Channel': 'ios', 'Idempotency-Key': uniqueKey(`runtime-auth-intent-${index}`, index) },
+      redirects: 0,
+      timeout: env('LOADTEST_HTTP_TIMEOUT', '10s'),
+    },
+  };
+}
+
+function authSignInRequest(profile, addresses, password, index, intent) {
+  return {
+    method: 'POST',
+    url: `${profile.baseUrl.replace(/\/+$/, '')}/api/v1/auth/signins/email`,
+    body: JSON.stringify({ authIntentId: intent.authIntentId, email: addresses.email(index), password, rememberMe: false }),
+    params: {
       headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-Auth-Flow-Token': intent.authFlowToken, 'Idempotency-Key': uniqueKey(`runtime-auth-signin-${index}`, index) },
       redirects: 0,
       timeout: env('LOADTEST_HTTP_TIMEOUT', '10s'),
-    });
-    const data = jsonData(response);
-    if (response.status !== 200 || !data?.tokens?.accessToken) throw new Error(`runtime authentication sign-in failed with status ${response.status}`);
-    accessTokens[addresses.user(index)] = data.tokens.accessToken;
+    },
+  };
+}
+
+// k6 setup data is shared in memory with VUs and is not written to reports.
+// Each token is minted through the public auth contract after dataset seeding.
+export function bootstrapAccessTokens(profile, addresses, runtimePlan = null) {
+  const accessTokens = {};
+  const password = datasetAuthPassword(profile);
+  const indexes = runtimePlan?.authUserIndexes ?? Array.from({ length: addresses.profile.authUserPoolSize }, (_, index) => index);
+  for (let start = 0; start < indexes.length; start += AUTH_BATCH_SIZE) {
+    const batch = indexes.slice(start, start + AUTH_BATCH_SIZE);
+    const intents = http.batch(batch.map((index) => authIntentRequest(profile, index))).map(authIntentData);
+    const responses = http.batch(batch.map((index, offset) => authSignInRequest(profile, addresses, password, index, intents[offset])));
+    for (let offset = 0; offset < batch.length; offset += 1) {
+      const data = jsonData(responses[offset]);
+      if (responses[offset].status !== 200 || !data?.tokens?.accessToken) throw new Error(`runtime authentication sign-in failed with status ${responses[offset].status}`);
+      accessTokens[addresses.user(batch[offset])] = data.tokens.accessToken;
+    }
   }
   return { accessTokens };
 }
@@ -244,6 +261,27 @@ function selectFromEndpointPlan(plan, iteration) {
 
 export function endpointSelectionAt(profile, iteration) {
   return selectFromEndpointPlan(buildEndpointPlan(profile), iteration);
+}
+
+// This is the shared execution contract between the dataset and k6 phases:
+// only users that the scheduled requests can actually address receive a token.
+// The resolver remains workload-specific because its routes own the data shape.
+export function buildAuthTokenPlan(profile, resolveUserIndex) {
+  const iterationBudget = Number(profile.runtimePlan?.iterationBudget);
+  if (!Number.isSafeInteger(iterationBudget) || iterationBudget < 1) {
+    throw new Error('runtime plan requires a positive iterationBudget');
+  }
+  const indexes = new Set();
+  for (let iteration = 0; iteration < iterationBudget; iteration += 1) {
+    const index = resolveUserIndex(endpointSelectionAt(profile, iteration));
+    // Public ranking routes do not require a user token.
+    if (index == null) continue;
+    if (!Number.isSafeInteger(index) || index < 0 || index >= profile.dataset.parameters.runtime_auth_user_pool_size) {
+      throw new Error('runtime plan resolved an invalid auth user index');
+    }
+    indexes.add(index);
+  }
+  return { schemaVersion: 'dropmong.loadtest.runtime-plan/v1', iterationBudget, authUserIndexes: [...indexes].sort((left, right) => left - right) };
 }
 
 let cachedWriteAllocations;

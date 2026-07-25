@@ -1,6 +1,7 @@
 import {
   buildOptions,
   bearerHeaders,
+  buildAuthTokenPlan,
   bootstrapAccessTokens,
   createServiceLifecycle,
   jsonData,
@@ -14,7 +15,13 @@ const addresses = runtimeAddressing(profile);
 const user = (setupData, userId) => bearerHeaders(setupData, userId);
 
 const lifecycle = createServiceLifecycle(profile, addresses, {
-  setup: () => bootstrapAccessTokens(profile, addresses),
+  setup: () => bootstrapAccessTokens(profile, addresses, buildAuthTokenPlan(profile, (selection) => {
+    if (selection.endpoint.name === 'interest.ranking-upcoming' || selection.endpoint.name === 'interest.ranking-trending') return null;
+    if (selection.endpoint.name === 'interest.list') return addresses.existingInterest(selection.occurrence).userIndex;
+    if (selection.endpoint.name === 'interest.view') return addresses.viewEvent(writeIndex('viewEvents', selection.occurrence)).userIndex;
+    if (selection.endpoint.name === 'interest.add') return addresses.newInterest(writeIndex('interestAdd', selection.occurrence)).userIndex;
+    return addresses.existingInterest(writeIndex('existingInterests', selection.occurrence)).userIndex;
+  })),
   'interest.list': (context) => {
     const fixture = addresses.existingInterest(context.occurrence);
     request(profile, context.endpoint, {

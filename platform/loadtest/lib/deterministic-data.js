@@ -127,7 +127,8 @@ export function createAddressBook(document, seed, hashes) {
     const productIndex = dropIndex * profile.productsPerDrop + withinDrop % profile.productsPerDrop;
     const rank = (index * coprimeStep(profile.orderCount, Math.floor(profile.orderCount / 2) + 1) + stableInt('approval', 0, profile.orderCount)) % profile.orderCount;
     const quantity = 1 + Number(stableInt('order-quantity', index, 10) === 0);
-    return { orderId: `order-${token}-${String(index).padStart(8, '0')}`, paymentId: `payment-${token}-${String(index).padStart(8, '0')}`, userId: user(memberIndex('order-user', dropIndex, withinDrop)), dropId: drop(dropIndex), productId: product(productIndex), quantity, amount: productPrice(productIndex) * quantity, approved: rank < profile.approvedPaymentCount };
+    const userIndex = memberIndex('order-user', dropIndex, withinDrop);
+    return { orderId: `order-${token}-${String(index).padStart(8, '0')}`, paymentId: `payment-${token}-${String(index).padStart(8, '0')}`, userId: user(userIndex), userIndex, dropId: drop(dropIndex), productId: product(productIndex), quantity, amount: productPrice(productIndex) * quantity, approved: rank < profile.approvedPaymentCount };
   };
   const approvalStep = coprimeStep(profile.orderCount, Math.floor(profile.orderCount / 2) + 1);
   const approvalOffset = stableInt('approval', 0, profile.orderCount);
@@ -144,7 +145,8 @@ export function createAddressBook(document, seed, hashes) {
     const dropIndex = profile.dropCount - 1 - (index % recent);
     const productIndex = dropIndex * profile.productsPerDrop + stableInt('payment-ready-product', index, profile.productsPerDrop);
     const quantity = 1 + Number(stableInt('payment-ready-quantity', index, 10) === 0);
-    return { orderId: `order-${token}-${String(globalIndex).padStart(8, '0')}`, userId: user(stableInt('payment-ready-user', index, profile.authUserPoolSize)), dropId: drop(dropIndex), productId: product(productIndex), quantity, amount: productPrice(productIndex) * quantity };
+    const userIndex = stableInt('payment-ready-user', index, profile.authUserPoolSize);
+    return { orderId: `order-${token}-${String(globalIndex).padStart(8, '0')}`, userId: user(userIndex), userIndex, dropId: drop(dropIndex), productId: product(productIndex), quantity, amount: productPrice(productIndex) * quantity };
   };
   const user = (index) => uuid('user', index);
   const drop = (index) => `drop-${token}-${String(index).padStart(6, '0')}`;
@@ -155,33 +157,39 @@ export function createAddressBook(document, seed, hashes) {
     profile, token, uuid, user, drop, product, productPrice, orderFact, approvedOrderFact, paymentReadyOrderFact, stableInt, sampleIndex,
     email: (index) => `loadtest-${token}-${String(index).padStart(6, '0')}@example.invalid`,
     authUser: (occurrence) => user(sampleIndex('auth-users', occurrence, profile.authUserPoolSize)),
+    profileUserIndex: (occurrence) => sampleIndex('profile-user', occurrence, profile.authUserPoolSize),
     profileUser: (occurrence) => user(sampleIndex('profile-user', occurrence, profile.authUserPoolSize)),
     existingInterest: (occurrence) => {
       const dropIndex = sampleIndex('existing-interest-drop', occurrence, profile.dropCount);
       const member = sampleIndex(`existing-interest-member:${dropIndex}`, occurrence, profile.interestsForDrop(dropIndex));
-      return { userId: user(memberIndex('interest-user', dropIndex, member)), dropId: drop(dropIndex) };
+      const userIndex = memberIndex('interest-user', dropIndex, member);
+      return { userId: user(userIndex), userIndex, dropId: drop(dropIndex) };
     },
     newInterest: (occurrence) => {
       const dropIndex = occurrence % profile.dropCount;
       const member = profile.interestsForDrop(dropIndex) + Math.floor(occurrence / profile.dropCount);
       if (member >= profile.authUserPoolSize) throw new RangeError('interest add addressing is exhausted');
-      return { userId: user(memberIndex('interest-user', dropIndex, member)), dropId: drop(dropIndex) };
+      const userIndex = memberIndex('interest-user', dropIndex, member);
+      return { userId: user(userIndex), userIndex, dropId: drop(dropIndex) };
     },
-    viewEvent: (occurrence) => ({ userId: user(sampleIndex('view-user', occurrence, profile.authUserPoolSize)), dropId: drop(sampleIndex('view-drop', occurrence, profile.dropCount)) }),
-    orderCreate: (occurrence) => ({ userId: user(sampleIndex('order-create-user', occurrence, profile.authUserPoolSize)), dropId: 'drop-001', productId: 'product-001', quantity: 1 }),
+    viewEvent: (occurrence) => { const userIndex = sampleIndex('view-user', occurrence, profile.authUserPoolSize); return { userId: user(userIndex), userIndex, dropId: drop(sampleIndex('view-drop', occurrence, profile.dropCount)) }; },
+    orderCreate: (occurrence) => { const userIndex = sampleIndex('order-create-user', occurrence, profile.authUserPoolSize); return { userId: user(userIndex), userIndex, dropId: 'drop-001', productId: 'product-001', quantity: 1 }; },
     couponWallet: (occurrence) => {
       const usable = Math.min(profile.userCouponCount - profile.couponRedemptionCount, 10_000);
       const index = profile.userCouponCount - 1 - sampleIndex('coupon-wallet', occurrence, usable);
-      return { userId: user(couponUserIndex(index)), userCouponId: `ucpn_${token}_${String(index).padStart(8, '0')}` };
+      const userIndex = couponUserIndex(index);
+      return { userId: user(userIndex), userIndex, userCouponId: `ucpn_${token}_${String(index).padStart(8, '0')}` };
     },
     couponClaim: (occurrence) => {
       const index = occurrence;
       if (index >= profile.couponClaimHeadroom) throw new RangeError('coupon claim addressing is exhausted');
       const campaign = index % profile.couponCampaignCount;
       const issued = Math.floor(profile.userCouponCount / profile.couponCampaignCount) + Number(campaign < profile.userCouponCount % profile.couponCampaignCount);
-      return { campaignId: `camp_${token}_${String(campaign).padStart(6, '0')}`, userId: user(memberIndex('coupon-user', campaign, issued + Math.floor(index / profile.couponCampaignCount))) };
+      const userIndex = memberIndex('coupon-user', campaign, issued + Math.floor(index / profile.couponCampaignCount));
+      return { campaignId: `camp_${token}_${String(campaign).padStart(6, '0')}`, userId: user(userIndex), userIndex };
     },
     notificationUser: (occurrence) => orderFact(sampleIndex('notification-read', occurrence, profile.orderCount)).userId,
+    notificationUserIndex: (occurrence) => orderFact(sampleIndex('notification-read', occurrence, profile.orderCount)).userIndex,
     notificationEvent: (index) => {
       const fact = orderFact(index % profile.orderCount);
       const eventId = uuid('notification-load-event', index);

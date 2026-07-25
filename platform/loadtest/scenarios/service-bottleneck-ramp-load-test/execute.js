@@ -172,6 +172,7 @@ export function workloadProfile(experiment, service) {
   const config = experiment.services[service];
   if (!config) throw new TypeError(`unknown service: ${service}`);
   const ramp = experiment.run.ramp;
+  const schedule = buildRampSchedule({ ...ramp.services[service], increaseRpsPerSecond: ramp.increaseRpsPerSecond });
   const { metricSpecs: _ignoredServiceMetricSpecs, ...serviceObservability } = config.observability ?? {};
   return {
     service: config.service,
@@ -187,6 +188,10 @@ export function workloadProfile(experiment, service) {
       seed: String(experiment.dataset.seed),
       parameters: experiment.dataset.profileDocument,
     },
+    runtimePlan: {
+      schemaVersion: 'dropmong.loadtest.runtime-plan/v1',
+      iterationBudget: Math.ceil(((schedule.startRps + schedule.maxRps) / 2) * schedule.durationSeconds) + 2,
+    },
     ramp: {
       ...ramp.services[service],
       warmupSeconds: ramp.warmupSeconds,
@@ -195,7 +200,7 @@ export function workloadProfile(experiment, service) {
       minimumSamplesPerWindow: ramp.minimumSamplesPerWindow,
       consecutiveBreachWindows: ramp.consecutiveBreachWindows,
       workerLatencyHintMs: ramp.workerLatencyHintMs,
-      schedule: buildRampSchedule({ ...ramp.services[service], increaseRpsPerSecond: ramp.increaseRpsPerSecond }),
+      schedule,
     },
     observability: {
       ...(experiment.observability ?? {}),

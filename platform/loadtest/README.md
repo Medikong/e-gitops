@@ -140,6 +140,14 @@ cache는 서비스 배포나 이미지 준비를 대신하지 않으며 Secret�
 
 전체 smoke는 Kubernetes Dataset Job, k6 Job, 기존 dev release의 replica 적용·원복이 필요하다. 따라서 Docker만으로는 전체 서비스를 실행할 수 없다. Kubernetes에 대한 create/apply/delete/scale/patch/exec가 금지된 환경에서는 이 RUN을 실행하지 않고, Docker 기반 데이터셋 테스트와 정적 검증만 수행한다.
 
+## 90일 데이터 저부하 smoke
+
+`local-smoke-90days-ramp-replicas-1`은 `baseline-90days` 데이터 생성·복원과 낮은 RPS의 ramp 경로를 함께 검증한다. 한계 처리량을 찾는 실험이 아니므로 `verification_only: true`이며, `local-smoke-90days-low-rps` preset의 1~4 RPS, 12초 조건을 사용한다.
+
+```bash
+task loadtest:run RUN=local-smoke-90days-ramp-replicas-1 SERVICE=coupon-service
+```
+
 ## 검증 범위
 
 `npm run check`, 순수 Node 테스트, Docker 기반 `npm test`, Helm lint/template, 모든 workload의 `k6 inspect`는 코드와 선언의 계약을 확인한다. 이 검증은 원격 Kubernetes, 실제 dev/production 서비스, 실제 Secret을 변경하지 않는다. 실제 cluster 실행은 허용된 환경에서 별도로 수행해야 한다.

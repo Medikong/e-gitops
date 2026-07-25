@@ -1,6 +1,7 @@
 import {
   buildOptions,
   bearerHeaders,
+  buildAuthTokenPlan,
   bootstrapAccessTokens,
   createServiceLifecycle,
   jsonData,
@@ -37,7 +38,14 @@ function paymentWrite(context, endpoint, poolName, offset = 0) {
 }
 
 const lifecycle = createServiceLifecycle(profile, addresses, {
-  setup: () => bootstrapAccessTokens(profile, addresses),
+  setup: () => bootstrapAccessTokens(profile, addresses, buildAuthTokenPlan(profile, (selection) => {
+    if (selection.endpoint.name === 'payment.read') {
+      return addresses.orderFact(addresses.sampleIndex('payment-read', selection.occurrence, addresses.profile.orderCount)).userIndex;
+    }
+    const offset = selection.endpoint.name === 'payment.fail' ? Math.floor(addresses.profile.paymentReadyOrderCount / 2) : 0;
+    const poolName = selection.endpoint.name === 'payment.fail' ? 'paymentReadyFail' : 'paymentReadyApprove';
+    return addresses.paymentReadyOrderFact(writeIndex(poolName, selection.occurrence) + offset).userIndex;
+  })),
   'payment.read': (context) => {
     const fixture = addresses.orderFact(addresses.sampleIndex('payment-read', context.occurrence, addresses.profile.orderCount));
     request(profile, context.endpoint, {
