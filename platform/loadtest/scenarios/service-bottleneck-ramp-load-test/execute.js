@@ -19,11 +19,11 @@ export const SCENARIO = 'service-bottleneck-ramp-load-test';
 
 const REQUIRED_WINDOW_METRICS = [
   'targetRps', 'actualRps', 'requestCount', 'errorRate', 'checkPassRate',
-  'droppedIterations', 'p50Ms', 'p95Ms', 'p99Ms',
+  'droppedIterations', 'p50Ms', 'p95Ms', 'p99Ms', 'referenceRps', 'peakActualRps',
 ];
 const REQUIRED_STOP_REASONS = [
-  'actual_rps_below_tolerance', 'dropped_iterations', 'error_rate_exceeded',
-  'check_pass_rate_below_minimum', 'p95_slo_exceeded', 'p99_slo_exceeded',
+  'actual_rps_stalled_against_reference', 'dropped_iterations_observed',
+  'http_error_observed', 'check_failure_observed',
 ];
 
 function validateRunRamp(run, serviceOrder) {
@@ -64,8 +64,9 @@ function rampPresetConditions(run, scenario, dataset, presetSource) {
   onlyKeys('preset.deployment', deployment, new Set(['replicas']));
   if (Number(deployment.replicas) !== Number(run.deployment?.replicas)) throw new TypeError('run.deployment.replicas must match preset.deployment.replicas');
   const ramp = requiredObject('preset.ramp', preset.ramp);
-  onlyKeys('preset.ramp', ramp, new Set(['warmupSeconds', 'increaseRpsPerSecond', 'evaluationWindowSeconds', 'minimumSamplesPerWindow', 'consecutiveBreachWindows', 'services']));
+  onlyKeys('preset.ramp', ramp, new Set(['warmupSeconds', 'increaseRpsPerSecond', 'evaluationWindowSeconds', 'minimumSamplesPerWindow', 'consecutiveBreachWindows', 'workerLatencyHintMs', 'services']));
   finite('preset.ramp.warmupSeconds', ramp.warmupSeconds, { minimum: 0 });
+  finite('preset.ramp.workerLatencyHintMs', ramp.workerLatencyHintMs, { minimum: 1 });
   const services = requiredObject('preset.ramp.services', ramp.services);
   for (const service of scenario.serviceOrder ?? []) {
     const values = requiredObject(`preset.ramp.services.${service}`, services[service]);
@@ -90,7 +91,7 @@ export function validateExperiment(document) {
   const supportedProfiles = document.rampContract?.supportedDatasetProfiles;
   if (!Array.isArray(supportedProfiles) || !supportedProfiles.includes(document.dataset.profile) || document.dataset.profileDocument?.name !== document.dataset.profile) throw new TypeError('bottleneck ramp dataset profile is not supported by the scenario');
   if (!document.dataset.revision || document.dataset.seed == null) throw new TypeError('dataset revision and seed are required');
-  if (!Array.isArray(document.serviceOrder) || document.serviceOrder.length !== 9 || new Set(document.serviceOrder).size !== 9) throw new TypeError('serviceOrder must contain nine unique services');
+  if (!Array.isArray(document.serviceOrder) || document.serviceOrder.length !== 8 || new Set(document.serviceOrder).size !== 8) throw new TypeError('serviceOrder must contain eight unique services');
   const ramp = validateRunRamp(run, document.serviceOrder);
   const window = requiredObject('rollingWindow', document.rollingWindow);
   for (const metric of REQUIRED_WINDOW_METRICS) if (!window.metrics?.includes(metric)) throw new TypeError(`rollingWindow.metrics is missing ${metric}`);
@@ -101,16 +102,9 @@ export function validateExperiment(document) {
     const config = requiredObject(`services.${service}`, document.services[service]);
     if (config.service !== service || !['go', 'python', 'node'].includes(config.runtime) || !config.workload || !config.baseUrl || !config.readinessUrl || !config.authentication?.method) throw new TypeError(`invalid service contract: ${service}`);
     if (!Array.isArray(config.endpointMix) || !config.endpointMix.length) throw new TypeError(`${service} endpointMix is required`);
-    const fixturePools = new Set(document.dataset.fixturePools?.[service] ?? []);
-    const unknownPools = config.endpointMix.map((endpoint) => endpoint.fixturePool).filter((pool) => pool && !fixturePools.has(pool));
-    if (unknownPools.length) throw new TypeError(`${service} dataset is missing fixture pools: ${[...new Set(unknownPools)].join(', ')}`);
+    if (config.endpointMix.some((endpoint) => endpoint.addressPool && !endpoint.addressAccess)) throw new TypeError(`${service} endpoint address access is required`);
     const weight = config.endpointMix.reduce((sum, endpoint) => sum + finite(`${service}.${endpoint.name}.weight`, endpoint.weight, { minimum: 1 }), 0);
     if (weight !== 100) throw new TypeError(`${service} endpoint weights must total 100`);
-    finite(`${service}.slo.errorRate`, config.slo?.errorRate, { maximum: 1 });
-    finite(`${service}.slo.actualRpsTolerance`, config.slo?.actualRpsTolerance, { maximum: 1 });
-    finite(`${service}.slo.checkPassRate`, config.slo?.checkPassRate, { maximum: 1 });
-    finite(`${service}.slo.p95Ms`, config.slo?.p95Ms, { minimum: 1 });
-    finite(`${service}.slo.p99Ms`, config.slo?.p99Ms, { minimum: config.slo.p95Ms });
     requiredObject(`${service}.podResources`, config.podResources);
     buildRampSchedule({ ...ramp.services[service], increaseRpsPerSecond: ramp.increaseRpsPerSecond });
   }
@@ -188,6 +182,11 @@ export function workloadProfile(experiment, service) {
     authentication: config.authentication,
     dependencies: config.dependencies,
     endpointMix: config.endpointMix,
+    dataset: {
+      profile: experiment.dataset.profile,
+      seed: String(experiment.dataset.seed),
+      parameters: experiment.dataset.profileDocument,
+    },
     ramp: {
       ...ramp.services[service],
       warmupSeconds: ramp.warmupSeconds,
@@ -195,20 +194,9 @@ export function workloadProfile(experiment, service) {
       evaluationWindowSeconds: ramp.evaluationWindowSeconds,
       minimumSamplesPerWindow: ramp.minimumSamplesPerWindow,
       consecutiveBreachWindows: ramp.consecutiveBreachWindows,
+      workerLatencyHintMs: ramp.workerLatencyHintMs,
       schedule: buildRampSchedule({ ...ramp.services[service], increaseRpsPerSecond: ramp.increaseRpsPerSecond }),
     },
-    thresholds: {
-      errorRate: config.slo.errorRate,
-      checkPassRate: config.slo.checkPassRate,
-      p95Ms: config.slo.p95Ms,
-      p99Ms: config.slo.p99Ms,
-      maxCpuUtilization: config.slo.maxCpuUtilization,
-      maxCpuThrottleRatio: config.slo.maxCpuThrottleRatio,
-      maxMemoryUtilization: config.slo.maxMemoryUtilization,
-      maxPostgresqlPoolExhaustions: config.slo.maxPostgresqlPoolExhaustions,
-      maxKafkaLagGrowth: config.slo.maxKafkaLagGrowth,
-    },
-    slo: config.slo,
     observability: {
       ...(experiment.observability ?? {}),
       ...serviceObservability,

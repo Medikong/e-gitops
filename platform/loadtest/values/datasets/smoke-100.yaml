@@ -15,9 +15,7 @@ dataset:
     active_inventory_per_product: 5
     paymentReadyOrderCount: 16
     couponClaimHeadroom: 16
-    couponCodeCount: 16
-    fixturePoolSize: 100
-    fixtureTrialCount: 2
+    runtime_auth_user_pool_size: 102
     tiers:
       - name: general
         share_percent: 50
@@ -44,18 +42,6 @@ dataset:
     coupon_redemption_percent: 30
     notifications_per_order: 2
     agreements: [terms-of-service:v1, privacy-policy:v1]
-  fixtureManifest: fixture-manifest.json
-  fixturePools:
-    auth-service: [authUsers]
-    user-service: [profileRead, profileWrite]
-    catalog-service: [drops]
-    coupon-service: [couponWallet, couponClaim, couponRedeem]
-    interest-service: [existingInterests, interestAdd, viewEvents]
-    order-service: [orderCreate, orderRead, orderCancel]
-    payment-service: [paymentReady, paymentRead]
-    notification-service: [notificationRead, notificationEvents]
-    dropmong-web: [webProducts, webCheckouts]
-  writeFixturePolicy:
-    strategy: reseed-before-each-independent-trial
-    reuseOnExhaustion: false
-    allocation: endpoint-weighted-disjoint-ranges
+  runtimeAddressing:
+    strategy: deterministic-seed-addressing-with-disjoint-write-ranges
+    authUserPoolSize: 102

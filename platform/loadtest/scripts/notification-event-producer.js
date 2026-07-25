@@ -3,20 +3,24 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { parseArgs, readJson, sanitize, utcNow, writeJsonAtomic } from './lib/io.js';
+import { parseArgs, sanitize, utcNow, writeJsonAtomic } from './lib/io.js';
+import { createAddressBook } from '../lib/deterministic-data.js';
+import { createHash } from 'node:crypto';
 
 const SECRET_KEY = /(authorization|password|token|cookie|secret|credential)/i;
 const REQUIRED_FIELDS = ['eventId', 'userId'];
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-export function selectEvents(manifest, start, count) {
-  const events = manifest?.pools?.notificationEvents;
-  if (!Array.isArray(events)) throw new TypeError('fixture manifest pools.notificationEvents must be an array');
-  if (!Number.isInteger(start) || !Number.isInteger(count) || start < 0 || count <= 0 || start + count > events.length) {
-    throw new RangeError(`notification event slice [${start}, ${start + count}) exceeds pool size ${events.length}`);
+export function selectEvents(profileDocument, seed, start, count) {
+  const addresses = createAddressBook(profileDocument, seed, {
+    sha256: (input) => createHash('sha256').update(input).digest('hex'),
+    sha1: (input) => createHash('sha1').update(input).digest('hex'),
+  });
+  if (!Number.isInteger(start) || !Number.isInteger(count) || start < 0 || count <= 0 || start + count > addresses.profile.orderCount) {
+    throw new RangeError(`notification event range [${start}, ${start + count}) exceeds dataset capacity`);
   }
-  return events.slice(start, start + count).map((event, offset) => {
-    if (!event || typeof event !== 'object' || Array.isArray(event)) throw new TypeError(`notificationEvents[${start + offset}] must be an object`);
+  return Array.from({ length: count }, (_, offset) => {
+    const event = addresses.notificationEvent(start + offset);
     for (const field of REQUIRED_FIELDS) if (!(field in event)) throw new TypeError(`notificationEvents[${start + offset}] is missing ${field}`);
     const stack = [[`notificationEvents[${start + offset}]`, event]];
     while (stack.length) {
@@ -57,15 +61,16 @@ export async function produceEvents(events, { bootstrap, topic, durationSeconds 
 
 async function main() {
   const args = parseArgs(process.argv.slice(2), {
-    fixtureManifest: {}, bootstrap: {}, topic: { default: 'notification.requested' }, runId: {}, trialId: {},
+    profileJson: {}, seed: {}, bootstrap: {}, topic: { default: 'notification.requested' }, runId: {}, trialId: {},
     service: { default: 'notification-service' }, start: { type: 'number' }, count: { type: 'number' },
     durationSeconds: { type: 'number', default: 0 }, startMarker: { default: '' }, startTimeoutSeconds: { type: 'number', default: 120 }, reportDir: {},
   });
   await waitForMarker(args.startMarker, args.startTimeoutSeconds);
   const startedAt = utcNow();
-  const events = selectEvents(readJson(args.fixtureManifest), args.start, args.count);
+  if (!args.profileJson || args.seed === undefined) throw new TypeError('--profile-json and --seed are required');
+  const events = selectEvents(JSON.parse(args.profileJson), args.seed, args.start, args.count);
   await produceEvents(events, args);
-  const result = { schema_version: 1, event: 'notification_kafka_ingress', run_id: args.runId, trial_id: args.trialId, service: args.service, topic: args.topic, fixture_range: { start: args.start, end: args.start + args.count }, produced_count: args.count, started_at: startedAt, finished_at: utcNow(), status: 'succeeded' };
+  const result = { schema_version: 1, event: 'notification_kafka_ingress', run_id: args.runId, trial_id: args.trialId, service: args.service, topic: args.topic, deterministic_range: { start: args.start, end: args.start + args.count }, produced_count: args.count, started_at: startedAt, finished_at: utcNow(), status: 'succeeded' };
   const destination = join(args.reportDir, 'raw', 'kafka', `${args.trialId}.json`);
   mkdirSync(dirname(destination), { recursive: true });
   writeJsonAtomic(destination, result);

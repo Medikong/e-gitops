@@ -10,8 +10,7 @@ environment:
     serviceValuesDirectory: ../../../../values/services
   helm:
     loadtestValues: ../aws-dev.yaml
-  # 원격 환경에서도 loadtest가 Secret을 만들거나 복사하지 않는다.
-  loadtestFixtures: {}
+  # 원격 환경에서도 loadtest가 dataset 입력 Secret을 만들거나 복사하지 않는다.
   safety:
     remote: true
     allowedKubernetesContexts: []

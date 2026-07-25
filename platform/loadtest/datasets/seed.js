@@ -3,12 +3,11 @@ import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import pg from 'pg';
-import { buildFixtureManifest } from './fixture-manifest.js';
+import { datasetAuthPasswordHash } from './auth.js';
 import { loadProfile, expectedTableCounts } from './profile.js';
 import { DatasetModel } from './model.js';
 import { DATABASES, tableContracts } from './plans.js';
 import { databaseCompatibility, liveSchemaHash, truncateService, generateService, validateService, analyzeService } from './service.js';
-import { loadCouponSecretFile, DEFAULT_COUPON_SECRET_NAME } from './coupon-secret.js';
 import { restoreService, snapshotService, validateServiceCache } from './cache.js';
 
 const { Client } = pg;
@@ -21,8 +20,7 @@ async function mapLimit(values, limit, operation) { const results = new Array(va
 export async function seed(options) {
   const profileDocument = JSON.parse(options.profileJson); const profile = loadProfile(profileDocument); const services = options.services.split(',').map((value) => value.trim()).filter(Boolean);
   const unknown = services.filter((service) => !DATABASES[service]); if (unknown.length) throw new TypeError(`unsupported dataset services: ${unknown.join(', ')}`);
-  const couponCodes = services.includes('coupon-service') ? loadCouponSecretFile(options.couponSecretFile, profile, options.seed, options.couponSecretName) : {};
-  const model = new DatasetModel(profile, options.seed, { authPasswordHash: process.env.DATASET_AUTH_PASSWORD_HASH, couponCodeHashKey: process.env.DATASET_COUPON_CODE_HASH_KEY, couponCodes });
+  const model = new DatasetModel(profile, options.seed, { authPasswordHash: datasetAuthPasswordHash(options.seed) });
   const expected = expectedTableCounts(profile); const runDirectory = resolve(options.outputDir, options.runId); mkdirSync(runDirectory, { recursive: true });
   const execution = { run_id: options.runId, status: 'running', started_at: now(), ended_at: null, dataset: { profile: profile.name, revision: options.revision, seed: String(options.seed), profile_sha256: profile.digest, schema_identifiers: options.schemaHashes }, cache: { key: options.cacheMode === 'snapshot' ? options.cacheKey : null, status: options.cacheMode === 'snapshot' ? 'unknown' : 'disabled', services: {} }, phases: {}, services: {}, total_actual_rows: 0, total_database_bytes: 0, total_snapshot_bytes: 0, total_seconds: 0 };
   const started = performance.now(); writeJson(join(runDirectory, 'execution.json'), execution);
@@ -50,14 +48,14 @@ export async function seed(options) {
       } finally { await client.end(); }
     });
     execution.services = Object.fromEntries(results); execution.cache.services = Object.fromEntries(results.map(([service, value]) => [service, value.cache])); const statuses = new Set(results.map(([, value]) => value.cache)); execution.cache.status = statuses.size === 1 ? [...statuses][0] : 'mixed'; execution.total_actual_rows = results.reduce((sum, [, value]) => sum + value.rows, 0); execution.total_database_bytes = results.reduce((sum, [, value]) => sum + value.database_bytes, 0); execution.total_snapshot_bytes = results.reduce((sum, [, value]) => sum + value.snapshot_bytes, 0);
-    const fixture = buildFixtureManifest(profile, options.seed, { authPasswordRef: process.env.DATASET_AUTH_PASSWORD_REF, couponSecretName: options.couponSecretName }); writeJson(join(runDirectory, 'fixture-manifest.json'), fixture); execution.status = 'success';
+    execution.addressing = { strategy: 'deterministic-seed-addressing', serialized_address_data: false }; execution.status = 'success';
   } catch (error) { execution.status = 'failed'; execution.error = safeError(error); process.exitCode = 1; }
   execution.ended_at = now(); execution.total_seconds = (performance.now() - started) / 1000; writeJson(join(runDirectory, 'execution.json'), execution); if (execution.status !== 'success') throw new Error(execution.error); return execution;
 }
 
-function options(argv) { const parsed = parseArgs({ args: argv, options: { 'profile-json': { type: 'string' }, seed: { type: 'string' }, revision: { type: 'string' }, services: { type: 'string' }, 'cache-key': { type: 'string' }, 'cache-dir': { type: 'string' }, 'cache-mode': { type: 'string', default: 'snapshot' }, 'generator-revision': { type: 'string' }, 'schema-hashes': { type: 'string', default: '{}' }, 'output-dir': { type: 'string' }, 'run-id': { type: 'string' }, 'batch-rows': { type: 'string', default: '10000' }, parallelism: { type: 'string', default: '2' }, 'coupon-secret-file': { type: 'string', default: '/var/run/dropmong-loadtest-coupon/coupon-codes.json' }, 'coupon-secret-name': { type: 'string', default: DEFAULT_COUPON_SECRET_NAME } }, strict: true }).values;
+function options(argv) { const parsed = parseArgs({ args: argv, options: { 'profile-json': { type: 'string' }, seed: { type: 'string' }, revision: { type: 'string' }, services: { type: 'string' }, 'cache-key': { type: 'string' }, 'cache-dir': { type: 'string' }, 'cache-mode': { type: 'string', default: 'snapshot' }, 'generator-revision': { type: 'string' }, 'schema-hashes': { type: 'string', default: '{}' }, 'output-dir': { type: 'string' }, 'run-id': { type: 'string' }, 'batch-rows': { type: 'string', default: '10000' }, parallelism: { type: 'string', default: '2' } }, strict: true }).values;
   for (const key of ['profile-json','seed','revision','services','cache-key','cache-dir','generator-revision','output-dir','run-id']) if (!parsed[key]) throw new TypeError(`--${key} is required`);
   if (!/^[a-f0-9]{64}$/.test(parsed['cache-key'])) throw new TypeError('--cache-key must be a SHA-256 hex value'); if (!['snapshot', 'direct'].includes(parsed['cache-mode'])) throw new TypeError('--cache-mode must be snapshot or direct'); const batchRows=Number(parsed['batch-rows']),parallelism=Number(parsed.parallelism); if(!Number.isSafeInteger(batchRows)||batchRows<10000||batchRows>50000)throw new TypeError('--batch-rows must be between 10000 and 50000');if(!Number.isSafeInteger(parallelism)||parallelism<1||parallelism>4)throw new TypeError('--parallelism must be between 1 and 4');
-  return { profileJson:parsed['profile-json'],seed:parsed.seed,revision:parsed.revision,services:parsed.services,cacheKey:parsed['cache-key'],cacheDirectory:resolve(parsed['cache-dir'],parsed['cache-key']),cacheMode:parsed['cache-mode'],generatorRevision:parsed['generator-revision'],schemaHashes:JSON.parse(parsed['schema-hashes']),outputDir:parsed['output-dir'],runId:parsed['run-id'],batchRows,parallelism,couponSecretFile:parsed['coupon-secret-file'],couponSecretName:parsed['coupon-secret-name'] };
+  return { profileJson:parsed['profile-json'],seed:parsed.seed,revision:parsed.revision,services:parsed.services,cacheKey:parsed['cache-key'],cacheDirectory:resolve(parsed['cache-dir'],parsed['cache-key']),cacheMode:parsed['cache-mode'],generatorRevision:parsed['generator-revision'],schemaHashes:JSON.parse(parsed['schema-hashes']),outputDir:parsed['output-dir'],runId:parsed['run-id'],batchRows,parallelism };
 }
 if (import.meta.url === `file://${process.argv[1]}`) seed(options(process.argv.slice(2))).catch((error) => { console.error(`dataset seed failed: ${safeError(error)}`); process.exitCode = 1; });

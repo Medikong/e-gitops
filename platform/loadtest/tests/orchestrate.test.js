@@ -13,6 +13,7 @@ import {
   helmOverrideArgs,
   integerCandidate,
   optionsFromArgs,
+  planWriteAllocations,
   releaseRevisionFromStatus,
   safeRunId,
   splitContainerImage,
@@ -21,7 +22,7 @@ import {
   verificationDecision,
   warmupExitAction,
 } from '../scripts/orchestrate.js';
-import { fixtureConfigurationFailures, replicaApplyArgs, replicaRestoreArgs } from '../lib/dev-rollout.js';
+import { replicaApplyArgs, replicaRestoreArgs } from '../lib/dev-rollout.js';
 
 const root = resolve(new URL('..', import.meta.url).pathname);
 const valuesRoot = resolve(root, 'values');
@@ -52,8 +53,25 @@ test('RUN 선택은 preset과 scenario, dataset, environment, replica를 함께 
 
 test('dataset 복원 범위는 서비스 계약과 실제 DB 의존성으로 제한한다', () => {
   assert.deepEqual(datasetRestoreServices('catalog-service'), ['catalog-service']);
-  assert.deepEqual(datasetRestoreServices('order-service'), ['order-service', 'payment-service']);
+  assert.deepEqual(datasetRestoreServices('coupon-service'), ['auth-service', 'coupon-service']);
+  assert.deepEqual(datasetRestoreServices('notification-service'), ['auth-service', 'notification-service']);
+  assert.deepEqual(datasetRestoreServices('order-service'), ['auth-service', 'order-service', 'payment-service']);
   assert.deepEqual(datasetRestoreServices('dropmong-web'), ['catalog-service']);
+});
+
+test('상태성 write address는 warmup과 측정에서 겹치지 않고 용량 초과를 즉시 막는다', () => {
+  const profile = {
+    endpointMix: [
+      { weight: 50, addressAccess: 'write', addressPool: 'paymentReady' },
+      { weight: 50, addressAccess: 'read', addressPool: 'paymentRead' },
+    ],
+  };
+  const offsets = {};
+  const experiment = optionsFromArgs(['--run', resolve(valuesRoot, 'runs', 'local-smoke-1day-ramp-replicas-1.yaml'), '--run-id', 'address-test']);
+  const dataset = experiment.experiment.dataset.profileDocument;
+  assert.deepEqual(planWriteAllocations(profile, dataset, offsets, 2, 1), { paymentReady: { start: 0, size: 3 } });
+  assert.deepEqual(planWriteAllocations(profile, dataset, offsets, 2, 1), { paymentReady: { start: 3, size: 3 } });
+  assert.throws(() => planWriteAllocations(profile, dataset, offsets, 2, 30), /runtime address range paymentReady exhausted/);
 });
 
 test('환경 allowlist가 없으면 원격 Kubernetes context를 기본 거부한다', () => {
@@ -92,23 +110,6 @@ test('replica 적용과 원복은 같은 layered dev values를 사용하고 repl
   assert.match(apply.join(' '), /keda\.enabled=false/);
   assert.doesNotMatch(restore.join(' '), /deployment\.replicas=/);
   assert.doesNotMatch(restore.join(' '), /hpa\.enabled=false|keda\.enabled=false/);
-});
-
-test('Dataset/k6 입력 참조가 없으면 평문 대신 configuration 실패만 기록한다', () => {
-  const failures = fixtureConfigurationFailures({ environment: { loadtestInputs: {} } }, ['auth-service', 'coupon-service']);
-  assert.deepEqual(failures.map((failure) => failure.category), ['configuration', 'configuration']);
-  assert.doesNotMatch(JSON.stringify(failures), /password=|coupon=|authorization/i);
-});
-
-test('coupon Dataset Job은 기존 coupon fixture Secret 참조가 없으면 시작하지 않는다', () => {
-  const fixtures = {
-    'coupon-service': {
-      dataset: { existingSecret: 'existing-dataset-fixture' },
-      k6: { existingSecret: 'existing-k6-fixture' },
-    },
-  };
-  const failures = fixtureConfigurationFailures({ environment: { loadtestInputs: fixtures } }, ['coupon-service']);
-  assert.deepEqual(failures.map((failure) => failure.message), ['coupon-service coupon fixture reference is unavailable']);
 });
 
 test('서비스 release revision과 현재 revision Pod 판정은 엄격하다', () => {

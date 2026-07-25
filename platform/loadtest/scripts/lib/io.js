@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const SECRET_KEY = /(authorization|password|token|cookie|secret|credential)/i;
+const DEFAULT_MAX_BUFFER = 32 * 1024 * 1024;
 
 export class LoadtestError extends Error {
   constructor(category, message) {
@@ -55,9 +56,9 @@ export function run(command, args = [], options = {}) {
     encoding: 'utf8',
     input: options.input,
     env: options.env ? { ...process.env, ...options.env } : process.env,
-    maxBuffer: 16 * 1024 * 1024,
+    maxBuffer: options.maxBuffer ?? DEFAULT_MAX_BUFFER,
   });
-  if (result.error) throw new LoadtestError('environment', `${command}: ${result.error.message}`);
+  if (result.error) throw new LoadtestError('environment', `${command} ${sanitize(args.join(' '))}: ${result.error.message}`);
   const output = { code: result.status ?? 1, stdout: result.stdout ?? '', stderr: result.stderr ?? '' };
   if (options.check !== false && output.code !== 0) {
     const detail = sanitize(output.stderr || output.stdout).slice(-1200);

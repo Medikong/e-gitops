@@ -4,10 +4,10 @@
 
 ## 이 scenario가 소유하는 것
 
-- 서비스 순서, endpoint mix, fixture가 필요한 API 계약
-- 서비스별 ramp schedule과 rolling window 판정 의미
-- endpoint별 실제 RPS, 오류율, check, p50, p95, p99와 threshold
-- 마지막 healthy RPS, 첫 degraded RPS, 연속 위반에 따른 조기 종료 이유
+- `dropmong-web`을 제외한 8개 backend 서비스의 순서, endpoint mix, 결정론적 주소가 필요한 API 계약
+- 서비스별 ramp schedule과 reference RPS 기반 rolling window 판정 의미
+- endpoint별 실제 RPS, 오류율, check, p50, p95, p99 원본
+- peak·reference·실측 RPS, 연속 저하에 따른 조기 종료 이유
 - 필요한 관측성 metric specification과 `result.json` 형식
 
 `execute.js`는 RUN·scenario·preset·dataset·environment 참조를 읽고 계약을 검증한다. `runner.js`는 이 scenario의 Dataset 한 번 준비, ramp k6 실행, window 감시를 수행한다. `window.js`는 k6 point를 최근 window 단위로 판단한다. `report.js`는 이 scenario의 raw k6 결과와 observability snapshot을 최종 보고서로 합친다.
@@ -29,21 +29,21 @@ run:
   deployment: { replicas: 1 }
 ```
 
-`local-bottleneck-ramp-replicas-1`은 `baseline-90days`와 `baseline-90days-replicas-1` preset을 쓴다. legacy RUN의 호환 fallback은 남아 있지만, 새 RUN은 preset을 명시한다.
+`local-baseline-90days-ramp-replicas-1`은 `baseline-90days`와 `baseline-90days-replicas-1` preset을 쓴다. `local-bottleneck-ramp-replicas-1`은 같은 조합을 유지하는 호환 RUN이다. 두 RUN 모두 preset을 명시한다.
 
 ## rolling window와 조기 종료
 
-k6는 누적 평균 대신 최근 window의 표본만 제공한다. 각 endpoint의 실제 RPS, 요청 수, 오류율, check 통과율, p50/p95/p99를 scenario SLO와 비교한다. 충분한 표본을 가진 window가 RUN이 정한 횟수만큼 연속으로 위반하면 k6에 중단 신호를 보낸다.
+k6는 누적 평균 대신 최근 window의 표본만 제공한다. `target_rps`는 합격선이 아니라 계속 올라가는 실험 기준점이다. 첫 정상 window의 실제 RPS를 reference로 삼고, 이후 목표는 증가하는데 실제 RPS가 직전 정상 reference를 넘지 못하면 저하로 기록한다. HTTP 오류, check 실패, dropped iteration도 저하다. p50/p95/p99는 reference와의 차이를 기록하지만 고정 SLO로 중단하지 않는다. 충분한 표본을 가진 저하 window가 RUN이 정한 횟수만큼 연속되면 k6에 중단 신호를 보낸다.
 
-예를 들어 5초 window가 두 번 연속으로 p95 기준을 넘으면 멈춘다. 첫 번째 window가 나쁘고 두 번째가 정상이라면 연속 횟수는 다시 0이므로 계속 측정한다. 병목을 찾아 조기 종료한 결과는 실험 성공이며, Dataset Job·k6 실행·결과 저장의 실제 실패와 다르다.
+예를 들어 실제 처리량이 20 RPS까지 올라간 뒤 목표가 35, 45 RPS로 계속 증가해도 실제가 20 RPS에 머문 window가 두 번 연속이면 멈춘다. 첫 번째 저하 뒤 정상적으로 다시 증가하면 연속 횟수는 0으로 돌아가므로 계속 측정한다. 병목을 찾아 조기 종료한 결과는 실험 성공이며, Dataset Job·k6 실행·결과 저장의 실제 실패와 다르다.
 
-서비스마다 Dataset Job은 ramp 시작 전에 한 번만 실행한다. window나 ramp 구간마다 데이터셋을 다시 만들지 않는다. 로컬 snapshot cache는 동일한 dataset 계약을 빠르게 복원할 뿐, 이미지·Secret·서비스 배포를 준비하지 않는다.
+서비스마다 Dataset Job은 ramp 시작 전에 한 번만 실행한다. window나 ramp 구간마다 데이터셋을 다시 만들지 않는다. 로컬 snapshot cache는 동일한 dataset 계약을 빠르게 복원할 뿐, 이미지·서비스 배포를 준비하지 않는다.
 
-## 서비스와 fixture 경계
+## 서비스와 결정론적 주소 경계
 
 이미 배포된 dev Helm release가 서비스 이미지, 환경 변수, Secret, migration, 기본 설정을 소유한다. 이 scenario는 layered values로 replica만 일시 override하고, 끝나면 같은 values를 replica override 없이 다시 적용한다.
 
-기존 fixture/Secret 참조가 없으면 비밀번호, token, cookie, Authorization 값, coupon 값을 만들지 않는다. 다만 local authenticated workload는 Dataset Job이 만든 fixture `userId` 배열로 Auth 개발 API에서 session을 발급해 k6 입력 Secret 파일에만 둔다. 필요한 fixture나 local Auth 입력 참조가 빠진 서비스는 민감한 값 없이 `configuration` 실패로 남긴다.
+Dataset Job과 k6는 profile·seed에서 같은 데이터 ID를 계산한다. 인증 token은 k6 `setup()`에서 정상 Auth 로그인으로 발급해 메모리에만 둔다. 비밀번호, token, cookie, Authorization 값, coupon 값은 artifact나 Secret으로 전달하지 않는다. 직접 DB Dataset 입력 참조가 빠진 서비스는 민감한 값 없이 `configuration` 실패로 남긴다.
 
 ## 관측성과 결과
 

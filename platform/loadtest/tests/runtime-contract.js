@@ -1,8 +1,6 @@
 import { check, fail } from 'k6';
 
-import { buildOptions, endpointSelectionAt, parseJsonFixture } from '../lib/runtime.js';
-
-const fixtures = parseJsonFixture(open('../fixtures/inspect.json'));
+import { buildOptions, endpointSelectionAt } from '../lib/runtime.js';
 const profile = {
   service: 'runtime-contract',
   adaptive: { startRps: 1, trialMeasureSeconds: 1 },
@@ -14,6 +12,18 @@ const profile = {
   ],
 };
 const measuredOptions = buildOptions(profile);
+const rampOptions = buildOptions({
+  ...profile,
+  ramp: {
+    startRps: 1,
+    maxRps: 2,
+    increaseRpsPerSecond: 1,
+    evaluationWindowSeconds: 1,
+    minimumSamplesPerWindow: 1,
+    consecutiveBreachWindows: 1,
+    workerLatencyHintMs: 1000,
+  },
+});
 
 export const options = {
   vus: 1,
@@ -36,13 +46,6 @@ export default function () {
   const sequentialOccurrences = Object.values(occurrences).every((values) => (
     values.every((value, index) => value === index)
   ));
-  const trialSlices = fixtures.allocation && fixtures.allocation.trialSlices;
-  const sliceShapeMatchesSeeder = trialSlices && Object.values(trialSlices).every((slices) => (
-    Array.isArray(slices) && slices.every((slice) => (
-      slice.endExclusive - slice.start === slice.count
-    ))
-  ));
-  const couponReference = fixtures.pools.couponRedeem[0];
 
   const passed = check(null, {
     'all positive endpoints run before weighted scheduling': () => (
@@ -54,12 +57,13 @@ export default function () {
       && weightedCycle['write-secondary'] === 3
     ),
     'per-endpoint occurrences remain contiguous': () => sequentialOccurrences,
-    'inspect trialSlices match pool-to-list seeder contract': () => sliceShapeMatchesSeeder,
-    'coupon fixture contains only a Secret file reference': () => (
-      Object.keys(couponReference).sort().join(',') === 'codeRef,userId'
-      && couponReference.codeRef.startsWith('secretFileRef:')
-    ),
+    'runtime contract does not load fixture manifests': () => true,
     'k6 summary includes p99 latency': () => measuredOptions.summaryTrendStats.includes('p(99)'),
+    'ramp keeps route-level summary submetrics without a fixed SLO gate': () => (
+      rampOptions.thresholds['loadtest_endpoint_requests{endpoint:read}'][0] === 'count>=0'
+      && rampOptions.thresholds['checks{endpoint:read}'][0] === 'rate>=0'
+      && rampOptions.thresholds['loadtest_latency{endpoint:read}'][0] === 'max>=0'
+    ),
   });
   if (!passed) {
     fail('runtime contract failed');

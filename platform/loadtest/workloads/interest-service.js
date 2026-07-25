@@ -1,27 +1,26 @@
 import {
   buildOptions,
   bearerHeaders,
+  bootstrapAccessTokens,
   createServiceLifecycle,
   jsonData,
-  loadAccessTokens,
-  loadSharedFixtures,
-  readFixture,
   request,
-  writeFixture,
+  runtimeAddressing,
+  writeIndex,
 } from '../lib/runtime.js';
 
 const profile = JSON.parse(__ENV.LOADTEST_PROFILE_JSON);
-const fixtures = loadSharedFixtures(profile, __ENV.LOADTEST_FIXTURE_MANIFEST || '../fixtures/inspect.json');
-const tokens = loadAccessTokens(fixtures);
-const user = (userId) => bearerHeaders(tokens, userId);
+const addresses = runtimeAddressing(profile);
+const user = (setupData, userId) => bearerHeaders(setupData, userId);
 
-const lifecycle = createServiceLifecycle(profile, fixtures, {
+const lifecycle = createServiceLifecycle(profile, addresses, {
+  setup: () => bootstrapAccessTokens(profile, addresses),
   'interest.list': (context) => {
-    const fixture = readFixture(fixtures, 'existingInterests', context.occurrence);
+    const fixture = addresses.existingInterest(context.occurrence);
     request(profile, context.endpoint, {
       path: '/v1/users/me/interests',
       query: { limit: 20 },
-      headers: user(fixture.userId),
+      headers: user(context.setupData, fixture.userId),
       validate: (response) => Array.isArray(jsonData(response)),
     });
   },
@@ -36,28 +35,28 @@ const lifecycle = createServiceLifecycle(profile, fixtures, {
     validate: (response) => Array.isArray(jsonData(response)),
   }),
   'interest.view': (context) => {
-    const fixture = writeFixture(fixtures, 'viewEvents', context.occurrence);
+    const fixture = addresses.viewEvent(writeIndex('viewEvents', context.occurrence));
     request(profile, context.endpoint, {
       path: `/v1/drops/${encodeURIComponent(fixture.dropId)}/views`,
-      headers: user(fixture.userId),
+      headers: user(context.setupData, fixture.userId),
     });
   },
   'interest.add': (context) => {
-    const fixture = writeFixture(fixtures, 'interestAdd', context.occurrence);
+    const fixture = addresses.newInterest(writeIndex('interestAdd', context.occurrence));
     request(profile, context.endpoint, {
       path: `/v1/users/me/interests/${encodeURIComponent(fixture.dropId)}`,
-      headers: user(fixture.userId),
+      headers: user(context.setupData, fixture.userId),
       validate: (response) => {
         const data = jsonData(response);
-        return data.dropId === fixture.dropId && data.status === 'ACTIVE';
+        return data.dropId === fixture.dropId && data.status === 'active';
       },
     });
   },
   'interest.remove': (context) => {
-    const fixture = writeFixture(fixtures, 'existingInterests', context.occurrence);
+    const fixture = addresses.existingInterest(writeIndex('existingInterests', context.occurrence));
     request(profile, context.endpoint, {
       path: `/v1/users/me/interests/${encodeURIComponent(fixture.dropId)}`,
-      headers: user(fixture.userId),
+      headers: user(context.setupData, fixture.userId),
     });
   },
 });

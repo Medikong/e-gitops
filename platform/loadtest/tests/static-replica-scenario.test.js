@@ -27,7 +27,7 @@ test('run이 시나리오, 환경, 데이터셋과 replica 수를 하나의 실�
   assert.equal(experiment.fixedComparisonConditions.loadSeed, experiment.dataset.seed);
   assert.equal(experiment.fixedComparisonConditions.datasetRevision, experiment.dataset.revision);
   assert.equal(experiment.environment.loadtestNamespace, 'dropmong-loadtest-local');
-  assert.equal(experiment.environment.loadtestInputs['auth-service'].dataset.existingSecret, 'dropmong-loadtest-dataset-input');
+  assert.equal('localDatasetValuesPath' in experiment.environment.helm, false);
   assert.equal(experiment.services['catalog-service'].namespace, 'dropmong-catalog');
   assert.equal(experiment.services['catalog-service'].baseUrl, 'http://istio-ingressgateway.istio-system.svc.cluster.local');
   assert.equal(experiment.sources.run.endsWith('/values/runs/local-smoke-replicas-1.yaml'), true);
@@ -54,7 +54,7 @@ test('AWS 용량 실행은 같은 시나리오와 baseline dataset을 참조하�
   assert.equal(aws.run.deployment.replicas, 1);
   assert.equal(aws.environment.name, 'aws-dev');
   assert.equal(aws.environment.safety.remote, true);
-  assert.deepEqual(aws.environment.loadtestInputs, {});
+  assert.equal('localDatasetValuesPath' in aws.environment.helm, false);
   assert.deepEqual(aws.environment.kubernetesContext.allowedNames, []);
   assert.equal(aws.dataset.profile, 'baseline-90days');
   assert.equal(aws.dataset.profileDocument.name, 'baseline-90days');

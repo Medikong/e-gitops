@@ -39,8 +39,6 @@ spec:
 {{ include "dropmong-loadtest.commonEnvFrom" (dict "root" . "existingSecrets" .Values.k6Job.existingSecrets) | nindent 12 }}
           env:
 {{ include "dropmong-loadtest.commonEnv" (dict "root" .) | nindent 12 }}
-            - name: LOADTEST_FIXTURE_MANIFEST
-              value: {{ printf "%s/fixture-manifest.json" (include "dropmong-loadtest.reportDir" .) | quote }}
             - name: LOADTEST_RUN_ID
               value: {{ .Values.run.id | quote }}
             - name: LOADTEST_SERVICE
@@ -61,14 +59,6 @@ spec:
               value: {{ .Values.adaptive.writeSliceSize | quote }}
             - name: LOADTEST_WEB_ORIGIN
               value: {{ .Values.run.webOrigin | quote }}
-{{- with .Values.couponSecret.existingSecret }}
-            - name: LOADTEST_COUPON_SECRET_FILE
-              value: {{ printf "%s/coupon-codes.json" $.Values.couponSecret.mountPath | quote }}
-{{- end }}
-{{- with .Values.accessTokenSecret.existingSecret }}
-            - name: LOADTEST_ACCESS_TOKEN_FILE
-              value: {{ printf "%s/%s" $.Values.accessTokenSecret.mountPath $.Values.accessTokenSecret.key | quote }}
-{{- end }}
             - name: K6_NO_USAGE_REPORT
               value: "true"
           resources:
@@ -77,34 +67,6 @@ spec:
 {{ toYaml .Values.containerSecurityContext | nindent 12 }}
           volumeMounts:
 {{ include "dropmong-loadtest.commonVolumeMounts" . | nindent 12 }}
-{{- with .Values.couponSecret.existingSecret }}
-            - name: coupon-codes
-              mountPath: {{ $.Values.couponSecret.mountPath | quote }}
-              readOnly: true
-{{- end }}
-{{- with .Values.accessTokenSecret.existingSecret }}
-            - name: access-tokens
-              mountPath: {{ $.Values.accessTokenSecret.mountPath | quote }}
-              readOnly: true
-{{- end }}
       volumes:
 {{ include "dropmong-loadtest.commonVolumes" . | nindent 8 }}
-{{- with .Values.couponSecret.existingSecret }}
-        - name: coupon-codes
-          secret:
-            secretName: {{ . | quote }}
-            defaultMode: 288
-            items:
-              - key: {{ $.Values.couponSecret.key | quote }}
-                path: coupon-codes.json
-{{- end }}
-{{- with .Values.accessTokenSecret.existingSecret }}
-        - name: access-tokens
-          secret:
-            secretName: {{ . | quote }}
-            defaultMode: 288
-            items:
-              - key: {{ $.Values.accessTokenSecret.key | quote }}
-                path: {{ $.Values.accessTokenSecret.key | quote }}
-{{- end }}
 {{- end }}

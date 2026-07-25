@@ -39,8 +39,6 @@ spec:
 {{ include "dropmong-loadtest.commonEnvFrom" (dict "root" . "existingSecrets" .Values.eventProducerJob.existingSecrets) | nindent 12 }}
           env:
 {{ include "dropmong-loadtest.commonEnv" (dict "root" .) | nindent 12 }}
-            - name: LOADTEST_FIXTURE_MANIFEST
-              value: {{ printf "%s/fixture-manifest.json" (include "dropmong-loadtest.reportDir" .) | quote }}
             - name: LOADTEST_KAFKA_BOOTSTRAP
               value: {{ .Values.eventProducerJob.bootstrap | quote }}
             - name: LOADTEST_EVENT_TOPIC

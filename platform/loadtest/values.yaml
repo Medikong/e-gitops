@@ -43,15 +43,15 @@ run:
   serviceImageId: unknown
   k6ImageId: unknown
   seederImageId: unknown
-  couponSecretName: dropmong-loadtest-coupon-codes
   webOrigin: http://dropmong-web
+  traceparent: ""
 
 dataset:
   profile: smoke
   profileDocument: {}
   seed: "20260723"
   services: auth,user,catalog,coupon,interest,order,payment,notification
-  fixtureStrategy: disjoint-trial-ranges
+  runtimeAddressingStrategy: disjoint-trial-ranges
   revision: smoke-v1
   cacheKey: "0000000000000000000000000000000000000000000000000000000000000000"
   cacheMode: snapshot
@@ -116,16 +116,6 @@ reportArchive:
   mountPath: /loadtest/reports
   keep: true
 
-couponSecret:
-  existingSecret: ""
-  key: coupon-codes.json
-  mountPath: /var/run/dropmong-loadtest-coupon
-
-accessTokenSecret:
-  existingSecret: ""
-  key: access-tokens.json
-  mountPath: /var/run/dropmong-loadtest-tokens
-
 datasetJob:
   enabled: false
   image:
@@ -159,9 +149,7 @@ datasetJob:
     - $(LOADTEST_DATASET_SCHEMA_HASHES)
     - --run-id
     - $(LOADTEST_RUN_ID)
-    - --coupon-secret-name
-    - $(LOADTEST_COUPON_SECRET_NAME)
-  existingSecrets: []
+  directEnv: {}
   annotations: {}
   activeDeadlineSeconds: 1800
   backoffLimit: 0
@@ -224,8 +212,10 @@ eventProducerJob:
     - node
   args:
     - /loadtest/scripts/notification-event-producer.js
-    - --fixture-manifest
-    - $(LOADTEST_FIXTURE_MANIFEST)
+    - --profile-json
+    - $(LOADTEST_DATASET_PROFILE_JSON)
+    - --seed
+    - $(LOADTEST_DATASET_SEED)
     - --bootstrap
     - $(LOADTEST_KAFKA_BOOTSTRAP)
     - --topic

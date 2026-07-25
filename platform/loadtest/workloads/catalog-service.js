@@ -2,27 +2,26 @@ import {
   buildOptions,
   createServiceLifecycle,
   jsonData,
-  loadSharedFixtures,
-  readFixture,
   request,
+  runtimeAddressing,
 } from '../lib/runtime.js';
 
 const profile = JSON.parse(__ENV.LOADTEST_PROFILE_JSON);
-const fixtures = loadSharedFixtures(profile, __ENV.LOADTEST_FIXTURE_MANIFEST || '../fixtures/inspect.json');
+const addresses = runtimeAddressing(profile);
 
-const lifecycle = createServiceLifecycle(profile, fixtures, {
+const lifecycle = createServiceLifecycle(profile, addresses, {
   'catalog.drop-list': (context) => request(profile, context.endpoint, {
     path: '/drops',
     query: { limit: 20 },
     validate: (response) => Array.isArray(jsonData(response)),
   }),
   'catalog.drop-detail': (context) => {
-    const fixture = readFixture(fixtures, 'drops', context.occurrence);
+    const dropId = addresses.drop(addresses.sampleIndex('drops', context.occurrence, addresses.profile.dropCount));
     request(profile, context.endpoint, {
-      path: `/drops/${encodeURIComponent(fixture.dropId)}`,
+      path: `/drops/${encodeURIComponent(dropId)}`,
       validate: (response) => {
         const data = jsonData(response);
-        return data && data.id === fixture.dropId && Array.isArray(data.products);
+        return data && data.id === dropId && Array.isArray(data.products);
       },
     });
   },

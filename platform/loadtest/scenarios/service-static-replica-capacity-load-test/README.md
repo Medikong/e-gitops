@@ -4,7 +4,7 @@
 
 ## 이 scenario가 소유하는 것
 
-- 서비스 순서, endpoint mix, fixture 계약, API별 SLO
+- 서비스 순서, endpoint mix, 결정론적 주소 계약, API별 SLO
 - `constant-arrival-rate` 후보와 adaptive search, confirmation 규칙
 - endpoint별 요청 수, 실제 RPS, 오류율, check, p50/p95/p99의 판정
 - stable RPS, 마지막 통과, 첫 실패와 scenario 전용 `result.json` 형식
@@ -31,7 +31,7 @@ run:
 
 ## 실행 규칙
 
-1. RUN과 fixture 계약을 확인한다.
+1. RUN과 결정론적 주소 계약을 확인한다.
 2. 기존 dev Helm chart의 layered values를 사용해 replica만 임시 override한다.
 3. 서비스당 Dataset Job을 한 번 준비한다. 후보나 confirmation마다 다시 만들지 않는다.
 4. 각 후보를 독립 `constant-arrival-rate` k6 Job으로 실행하고, 필요한 경우 confirmation한다.
@@ -39,7 +39,7 @@ run:
 
 HPA/KEDA가 replica 수를 바꿀 수 있는 서비스는 1 replica 측정에 필요한 최소 override와 원복 조건이 설정되어 있어야 한다. loadtest는 서비스 image build/push, Secret 생성·복사·회전, migration, 새 dev release 배포를 하지 않는다.
 
-Dataset Job은 허용 테이블만 다룬다. `alembic_version`, `goose_db_version`, `*_goose_db_version`, Auth 정책·설정 테이블, 운영 메타데이터는 보존한다. fixture가 없으면 임의 계정·coupon·기본 Secret 값을 만들지 않고, 민감한 값을 드러내지 않는 `configuration` 실패를 남긴다.
+Dataset Job은 허용 테이블만 다룬다. `alembic_version`, `goose_db_version`, `*_goose_db_version`, Auth 정책·설정 테이블, 운영 메타데이터는 보존한다. 직접 DB 입력이 없으면 임의 계정·coupon·기본 Secret 값을 만들지 않고, 민감한 값을 드러내지 않는 `configuration` 실패를 남긴다.
 
 ## 관측성과 결과
 

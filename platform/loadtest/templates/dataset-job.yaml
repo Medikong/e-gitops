@@ -38,9 +38,14 @@ spec:
 {{ toYaml . | nindent 12 }}
 {{- end }}
           envFrom:
-{{ include "dropmong-loadtest.commonEnvFrom" (dict "root" . "existingSecrets" .Values.datasetJob.existingSecrets) | nindent 12 }}
+            - configMapRef:
+                name: {{ include "dropmong-loadtest.fullname" . | quote }}
           env:
 {{ include "dropmong-loadtest.commonEnv" (dict "root" .) | nindent 12 }}
+{{- range $name, $value := .Values.datasetJob.directEnv }}
+            - name: {{ $name | quote }}
+              value: {{ $value | quote }}
+{{- end }}
             - name: SERVICE_GIT_SHA
               valueFrom:
                 configMapKeyRef:
@@ -62,20 +67,6 @@ spec:
 {{ toYaml .Values.containerSecurityContext | nindent 12 }}
           volumeMounts:
 {{ include "dropmong-loadtest.commonVolumeMounts" . | nindent 12 }}
-{{- with .Values.couponSecret.existingSecret }}
-            - name: coupon-codes
-              mountPath: {{ $.Values.couponSecret.mountPath | quote }}
-              readOnly: true
-{{- end }}
       volumes:
 {{ include "dropmong-loadtest.commonVolumes" . | nindent 8 }}
-{{- with .Values.couponSecret.existingSecret }}
-        - name: coupon-codes
-          secret:
-            secretName: {{ . | quote }}
-            defaultMode: 288
-            items:
-              - key: {{ $.Values.couponSecret.key | quote }}
-                path: coupon-codes.json
-{{- end }}
 {{- end }}

@@ -1,38 +1,37 @@
 import {
   buildOptions,
   bearerHeaders,
+  bootstrapAccessTokens,
   createServiceLifecycle,
   jsonData,
-  loadAccessTokens,
-  loadSharedFixtures,
-  readFixture,
   request,
+  runtimeAddressing,
   uniqueKey,
-  writeFixture,
+  writeIndex,
 } from '../lib/runtime.js';
 
 const profile = JSON.parse(__ENV.LOADTEST_PROFILE_JSON);
-const fixtures = loadSharedFixtures(profile, __ENV.LOADTEST_FIXTURE_MANIFEST || '../fixtures/inspect.json');
-const tokens = loadAccessTokens(fixtures);
-const user = (userId, occurrence, prefix) => ({
-  ...bearerHeaders(tokens, userId),
+const addresses = runtimeAddressing(profile);
+const user = (setupData, userId, occurrence, prefix) => ({
+  ...bearerHeaders(setupData, userId),
   ...(prefix ? { 'Idempotency-Key': uniqueKey(prefix, occurrence) } : {}),
 });
 
-const lifecycle = createServiceLifecycle(profile, fixtures, {
+const lifecycle = createServiceLifecycle(profile, addresses, {
+  setup: () => bootstrapAccessTokens(profile, addresses),
   'order.read': (context) => {
-    const fixture = readFixture(fixtures, 'orderRead', context.occurrence);
+    const fixture = addresses.orderFact(addresses.sampleIndex('order-read', context.occurrence, addresses.profile.orderCount));
     request(profile, context.endpoint, {
       path: `/orders/${encodeURIComponent(fixture.orderId)}`,
-      headers: user(fixture.userId),
+      headers: user(context.setupData, fixture.userId),
       validate: (response) => jsonData(response).id === fixture.orderId,
     });
   },
   'order.create': (context) => {
-    const fixture = writeFixture(fixtures, 'orderCreate', context.occurrence);
+    const fixture = addresses.orderCreate(writeIndex('orderCreate', context.occurrence));
     request(profile, context.endpoint, {
       path: '/orders',
-      headers: user(fixture.userId, context.occurrence, 'order-create'),
+      headers: user(context.setupData, fixture.userId, context.occurrence, 'order-create'),
       body: {
         dropId: fixture.dropId,
         productId: fixture.productId,
@@ -42,10 +41,10 @@ const lifecycle = createServiceLifecycle(profile, fixtures, {
     });
   },
   'order.cancel': (context) => {
-    const fixture = writeFixture(fixtures, 'orderCancel', context.occurrence);
+    const fixture = addresses.approvedOrderFact(writeIndex('orderCancel', context.occurrence));
     request(profile, context.endpoint, {
       path: `/orders/${encodeURIComponent(fixture.orderId)}/cancellations`,
-      headers: user(fixture.userId, context.occurrence, 'order-cancel'),
+      headers: user(context.setupData, fixture.userId, context.occurrence, 'order-cancel'),
       body: { reason: 'loadtest cancellation fixture' },
       validate: (response) => Boolean(jsonData(response).id),
     });

@@ -15,15 +15,6 @@ tasks:
         set -eu
         run='{{.RUN}}'
         run_file="values/runs/${run%.yaml}.yaml"
-        if [ ! -f "${run_file}" ]; then
-          printf 'Unknown RUN=%s (expected a file under values/runs).\n' '{{.RUN}}' >&2
-          exit 2
-        fi
-        {{.NODE}} scripts/prepare-local-inputs.js --run "${run_file}"
-      - |
-        set -eu
-        run='{{.RUN}}'
-        run_file="values/runs/${run%.yaml}.yaml"
         environment_name="$({{.NODE}} --input-type=module -e "import {loadExperiment} from './scenarios/registry.js'; console.log(loadExperiment(process.argv[1]).environment.name)" "${run_file}")"
         if [ "${environment_name}" != 'local' ]; then
           exit 0
@@ -65,24 +56,22 @@ tasks:
         set -eu
         run='{{.RUN}}'
         run_file="values/runs/${run%.yaml}.yaml"
-        token_input="$(mktemp)"
-        trap 'rm -f "${token_input}"' EXIT HUP INT TERM
-        printf '%s\n' '{"schemaVersion":1,"dataset":{"profile":"inspect-only","profileHash":"not-a-runtime-fixture","seed":"0"},"tokens":[{"userId":"user-inspect","accessToken":"inspect-only"}]}' > "${token_input}"
-        for workload in workloads/*.js; do
-          service="${workload##*/}"
-          service="${service%.js}"
+        services="$(node scenarios/service-bottleneck-ramp-load-test/execute.js "${run_file}" all | jq -r '.services[]')"
+        for service in ${services}; do
+          workload="workloads/${service}.js"
+          if [ ! -f "${workload}" ]; then
+            printf 'Missing workload for selected service: %s\n' "${service}" >&2
+            exit 2
+          fi
           profile_json="$({{.NODE}} --input-type=module -e "import {loadExperiment,workloadProfile} from './scenarios/registry.js'; console.log(JSON.stringify(workloadProfile(loadExperiment(process.argv[2]), process.argv[1])))" "${service}" "${run_file}")"
           k6 inspect \
             -e LOADTEST_PROFILE_JSON="${profile_json}" \
-            -e LOADTEST_FIXTURE_MANIFEST=../fixtures/inspect.json \
-            -e LOADTEST_ACCESS_TOKEN_FILE="${token_input}" \
             -e LOADTEST_TRIAL_ID=inspect \
             -e LOADTEST_TARGET_RPS=1 \
             -e LOADTEST_MEASURE_SECONDS=1 \
             "${workload}" >/dev/null
         done
       - k6 run --quiet tests/runtime-contract.js
-      - jq empty fixtures/inspect.json
       - task --taskfile ../monitoring/Taskfile.yml render
 
   run:

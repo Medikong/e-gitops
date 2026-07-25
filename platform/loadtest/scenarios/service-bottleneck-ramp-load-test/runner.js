@@ -56,7 +56,6 @@ async function monitorRamp(context, service, trialId, handle) {
       schedule,
       evaluationWindowSeconds: profile.ramp.evaluationWindowSeconds,
       minimumSamplesPerWindow: profile.ramp.minimumSamplesPerWindow,
-      slo: profile.slo,
       endpointMix: profile.endpointMix,
     });
     if (evaluated.length !== windows.length) {
@@ -71,6 +70,8 @@ async function monitorRamp(context, service, trialId, handle) {
         windows,
         last_healthy_rps: decision.last_healthy_rps,
         first_degraded_rps: decision.first_degraded_rps,
+        reference: decision.reference,
+        degradation: decision.degradation,
         stop_condition: decision.termination,
       };
       context.persist();
@@ -102,11 +103,10 @@ export async function executeService(context, service) {
   const durationSeconds = schedule.durationSeconds;
   const averageRps = (schedule.startRps + schedule.maxRps) / 2;
   const iterationBudget = Math.ceil(averageRps * durationSeconds) + 2;
-  const writeAllocations = context.writeAllocations(service, averageRps, durationSeconds);
-
-  // One Dataset Job per service. The same prepared fixture pool is used by the
+  // One Dataset Job per service. The same prepared deterministic data is used by the
   // continuous k6 ramp; it is never restored for each window or RPS segment.
   await context.prepareDataset(service, `${service.slice(0, 10)}-r${replicas}-ramp-dataset`);
+  const writeAllocations = context.writeAllocations(service, averageRps, durationSeconds);
   const handle = await context.beginK6({
     service,
     trialId,
@@ -126,6 +126,11 @@ export async function executeService(context, service) {
     profile,
     startedAt: monitor.startedAt,
     finishedAt,
+  });
+  const traces = await context.snapshotTempoTraces({
+    service,
+    profile,
+    traceProbe: context.traceProbeFor(service, trialId),
   });
   const decision = reduceWindowDecisions(monitor.windows, profile.ramp.consecutiveBreachWindows);
   const firstDegraded = decision.termination
@@ -157,12 +162,15 @@ export async function executeService(context, service) {
     windows: monitor.windows,
     last_healthy_rps: decision.last_healthy_rps,
     first_degraded_rps: decision.first_degraded_rps,
+    reference: decision.reference,
+    degradation: decision.degradation,
     terminated_at: monitor.stopRequestedAt ?? finishedAt,
     stop_condition: decision.termination,
     first_bottleneck_candidate: classifyBottleneck(firstDegraded),
     k6_exit_code: k6ExitCode,
     execution_reasons: executionReasons,
     observability,
+    traces,
   };
   const record = {
     trial_id: trialId,
@@ -171,6 +179,7 @@ export async function executeService(context, service) {
     phase: 'ramp',
     raw_k6_summary: summary,
     observability,
+    traces,
     metrics: {
       last_healthy_rps: ramp.last_healthy_rps,
       first_degraded_rps: ramp.first_degraded_rps,

@@ -12,7 +12,6 @@ import {
 } from '../../lib/k6-metrics.js';
 import { parseArgs, readJson, sanitize, writeJsonAtomic } from '../../scripts/lib/io.js';
 
-const PERFORMANCE_EXIT_CODES = new Set([99, 201]);
 const SERVICE_OBSERVABILITY_FIELDS = ['cpu_utilization', 'memory_utilization', 'pod_restarts'];
 
 function metricIdFor(profile, field) {
@@ -71,54 +70,11 @@ export function scenarioObservability(snapshot, profile, { startedAt = null, fin
   };
 }
 
-function thresholdsFor(profile, endpoint) {
-  const thresholds = profile?.thresholds ?? profile?.slo ?? {};
-  return {
-    requests_min: 1,
-    error_rate_max: finiteMetricValue(endpoint?.errorRate ?? thresholds.errorRate),
-    checks_rate_min: finiteMetricValue(endpoint?.checkPassRate ?? thresholds.checkPassRate),
-    p95_ms_max: finiteMetricValue(endpoint?.p95Ms ?? thresholds.p95Ms),
-    p99_ms_max: finiteMetricValue(endpoint?.p99Ms ?? thresholds.p99Ms),
-  };
-}
-
-function apiReason(code, observed, limit = null) {
-  return { code, category: 'api', observed, limit };
-}
-
-function evaluateApi(api, threshold) {
-  const reasons = [];
-  let conclusive = true;
-  if (api.requests === null) {
-    conclusive = false;
-    reasons.push(apiReason('requests_unavailable', null, threshold.requests_min));
-  } else if (api.requests < threshold.requests_min) {
-    reasons.push(apiReason('requests_below_minimum', api.requests, threshold.requests_min));
-  }
-  for (const [field, limit, code] of [
-    ['error_rate', threshold.error_rate_max, 'error_rate_exceeded'],
-    ['checks_rate', threshold.checks_rate_min, 'checks_rate_below_minimum'],
-    ['p95_ms', threshold.p95_ms_max, 'p95_slo_exceeded'],
-    ['p99_ms', threshold.p99_ms_max, 'p99_slo_exceeded'],
-  ]) {
-    if (limit === null) continue;
-    const observed = api[field];
-    if (observed === null) {
-      conclusive = false;
-      reasons.push(apiReason(`${field}_unavailable`, null, limit));
-    } else if ((field === 'checks_rate' && observed < limit) || (field !== 'checks_rate' && observed > limit)) {
-      reasons.push(apiReason(code, observed, limit));
-    }
-  }
-  return { passed: reasons.length === 0, conclusive, reasons };
-}
-
-export function buildApiResults(profile, rawK6Summary, durationSeconds) {
+export function buildApiResults(profile, rawK6Summary, durationSeconds, traces = {}) {
   const apis = {};
   for (const metric of k6EndpointMetrics(rawK6Summary, profile, { durationSeconds })) {
     if (!metric.route) throw new TypeError(`endpoint ${metric.endpoint} is missing the scenario route contract`);
     if (apis[metric.route]) throw new TypeError(`duplicate scenario route contract: ${metric.route}`);
-    const threshold = thresholdsFor(profile, profile.endpointMix.find((endpoint) => endpoint.name === metric.endpoint));
     const api = {
       endpoint: metric.endpoint,
       classification: metric.classification,
@@ -129,27 +85,25 @@ export function buildApiResults(profile, rawK6Summary, durationSeconds) {
       p50_ms: metric.p50_ms,
       p95_ms: metric.p95_ms,
       p99_ms: metric.p99_ms,
-      threshold,
+      decision: {
+        applied: false,
+        passed: null,
+        conclusive: null,
+        reason: 'reference_ramp_has_no_fixed_slo',
+      },
+      traces: traces[metric.route] ?? { trace_status: 'unavailable', trace_samples: [], reason: 'Tempo trace summary was not collected' },
     };
-    apis[metric.route] = { ...api, decision: evaluateApi(api, threshold) };
+    apis[metric.route] = api;
   }
   return apis;
 }
 
-function rampK6Decision(apis, k6ExitCode, stoppedForBottleneck) {
+function rampK6Decision(k6ExitCode, stoppedForBottleneck) {
   const reasons = [];
   let conclusive = true;
-  if (PERFORMANCE_EXIT_CODES.has(k6ExitCode)) {
-    reasons.push({ code: 'k6_performance_threshold_exit', category: 'performance', observed: k6ExitCode, limit: 0 });
-  } else if (k6ExitCode !== 0 && !(stoppedForBottleneck && k6ExitCode === 130)) {
+  if (k6ExitCode !== 0 && !(stoppedForBottleneck && [105, 130, 143].includes(k6ExitCode))) {
     conclusive = false;
-    reasons.push({ code: 'k6_execution_exit', category: 'execution', observed: k6ExitCode, limit: 0 });
-  }
-  for (const [route, api] of Object.entries(apis)) {
-    if (!api.decision.passed) {
-      conclusive = conclusive && api.decision.conclusive;
-      reasons.push({ code: 'api_threshold_failed', category: 'api', observed: route, limit: api.decision.reasons.map((reason) => reason.code) });
-    }
+    reasons.push({ code: 'k6_measurement_exit', category: 'execution', observed: k6ExitCode, limit: 0 });
   }
   return { passed: reasons.length === 0, conclusive, threshold_passed: reasons.length === 0, k6_exit_code: k6ExitCode, reasons };
 }
@@ -165,14 +119,15 @@ export function buildTrialResult({
   startedAt = null,
   finishedAt = null,
   observability = null,
+  traces = {},
   replicas = null,
   stoppedForBottleneck = false,
 } = {}) {
   if (!service) throw new TypeError('service is required');
   if (!profile) throw new TypeError('profile is required');
   const metrics = k6TrialMetrics(rawK6Summary, { targetRps, durationSeconds });
-  const apis = buildApiResults(profile, rawK6Summary, durationSeconds);
-  const decision = rampK6Decision(apis, k6ExitCode, stoppedForBottleneck);
+  const apis = buildApiResults(profile, rawK6Summary, durationSeconds, traces);
+  const decision = rampK6Decision(k6ExitCode, stoppedForBottleneck);
   return {
     trial_id: trialId ?? rawK6Summary?.trial_id ?? null,
     service,
@@ -220,6 +175,7 @@ function normalizeStoredTrial(state, trial) {
       startedAt: trial?.started_at ?? ramp.started_at,
       finishedAt: trial?.finished_at ?? ramp.terminated_at,
       observability: trial?.observability ?? ramp.observability,
+      traces: trial?.traces ?? ramp.traces,
       replicas: trial?.replicas ?? state.replicas,
       stoppedForBottleneck: Boolean(ramp.stop_condition),
     }),
@@ -312,7 +268,7 @@ function terminationSummary(state, ramp) {
     return `실행 실패(${codes.join(', ') || 'execution_failure'})`;
   }
   const stop = ramp.stop_condition;
-  if (stop) return `${stop.required_windows}개 연속 위반(${stop.reasons.join(', ')})`;
+  if (stop) return `${stop.required_windows}개 연속 reference 저하(${stop.reasons.join(', ')})`;
   if (state.status === 'max_rps_reached' || ramp.status === 'max_rps_reached') return '설정한 최대 RPS 도달';
   return '종료 상태 unavailable';
 }
@@ -326,12 +282,12 @@ export function renderAnalysis(result) {
     '',
     '## 서비스별 결과',
     '',
-    '| 서비스 | 상태 | 마지막 정상 RPS | 최초 저하 RPS | 관측 상태 |',
-    '|---|---|---:|---:|---|',
+    '| 서비스 | 상태 | peak 목표 RPS | peak 실측 RPS | 마지막 reference 실측 RPS | 최초 저하 실측 RPS | 관측 상태 |',
+    '|---|---|---:|---:|---:|---:|---|',
   ];
   for (const [service, state] of Object.entries(result.services)) {
     const ramp = state.ramp ?? {};
-    lines.push(`| ${service} | ${state.status} | ${display(ramp.last_healthy_rps)} | ${display(ramp.first_degraded_rps)} | ${state.observability?.status ?? 'unavailable'} |`);
+    lines.push(`| ${service} | ${state.status} | ${display(ramp.reference?.peak_target_rps)} | ${display(ramp.reference?.peak_actual_rps)} | ${display(ramp.reference?.last_healthy_actual_rps)} | ${display(ramp.degradation?.first?.actual_rps)} | ${state.observability?.status ?? 'unavailable'} |`);
   }
   lines.push('', '## 판정 근거');
   for (const [service, state] of Object.entries(result.services)) {
@@ -340,6 +296,7 @@ export function renderAnalysis(result) {
     lines.push('', `### ${service}`, '');
     lines.push(`- 실행: ${display(ramp.schedule?.startRps)} RPS에서 ${display(ramp.schedule?.maxRps)} RPS까지 초당 ${display(ramp.schedule?.increaseRpsPerSecond)} RPS씩 증가했습니다.`);
     lines.push(`- window: ${display(ramp.evaluation_window_seconds)}초 단위 ${ramp.windows?.length ?? 0}개를 기록했습니다. 종료: ${terminationSummary(state, ramp)}.`);
+    lines.push(`- RPS: peak 목표 ${display(ramp.reference?.peak_target_rps)}, peak 실측 ${display(ramp.reference?.peak_actual_rps)}, 마지막 정상 reference 실측 ${display(ramp.reference?.last_healthy_actual_rps)}, 최초 저하 목표/실측 ${display(ramp.degradation?.first?.target_rps)}/${display(ramp.degradation?.first?.actual_rps)}.`);
     if (ramp.execution_reasons?.length) lines.push(`- 실행 실패 근거: ${ramp.execution_reasons.map((reason) => safeDiagnosticSummary(reason.message ?? reason.code, 'unavailable')).join(' | ')}`);
     lines.push(`- API별 k6 결과는 services.${service}.apis에 route별로 보관하고, 서비스·Pod 관측성은 별도 필드에 둡니다.`);
     if (observation.status === 'unavailable') lines.push(`- 관측성 unavailable: ${sanitize(observation.reason ?? 'unavailable')}. k6 성공을 자동 실패로 바꾸지 않습니다.`);
@@ -367,8 +324,10 @@ async function main() {
       service,
       replicas: state.replicas,
       status: state.status,
-      last_healthy_rps: state.ramp?.last_healthy_rps,
-      first_degraded_rps: state.ramp?.first_degraded_rps,
+      peak_target_rps: state.ramp?.reference?.peak_target_rps,
+      peak_actual_rps: state.ramp?.reference?.peak_actual_rps,
+      reference_actual_rps: state.ramp?.reference?.last_healthy_actual_rps,
+      first_degraded_actual_rps: state.ramp?.degradation?.first?.actual_rps,
       observability_status: state.observability?.status ?? 'unavailable',
     }));
   }

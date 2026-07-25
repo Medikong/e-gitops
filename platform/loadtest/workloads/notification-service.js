@@ -1,25 +1,24 @@
 import {
   buildOptions,
   bearerHeaders,
+  bootstrapAccessTokens,
   createServiceLifecycle,
   jsonData,
-  loadAccessTokens,
-  loadSharedFixtures,
-  readFixture,
   request,
+  runtimeAddressing,
 } from '../lib/runtime.js';
 
 const profile = JSON.parse(__ENV.LOADTEST_PROFILE_JSON);
-const fixtures = loadSharedFixtures(profile, __ENV.LOADTEST_FIXTURE_MANIFEST || '../fixtures/inspect.json');
-const tokens = loadAccessTokens(fixtures);
+const addresses = runtimeAddressing(profile);
 
-const lifecycle = createServiceLifecycle(profile, fixtures, {
+const lifecycle = createServiceLifecycle(profile, addresses, {
+  setup: () => bootstrapAccessTokens(profile, addresses),
   'notification.list': (context) => {
-    const fixture = readFixture(fixtures, 'notificationRead', context.occurrence);
+    const userId = addresses.notificationUser(context.occurrence);
     request(profile, context.endpoint, {
       path: '/notifications',
       query: { limit: 20 },
-      headers: bearerHeaders(tokens, fixture.userId),
+      headers: bearerHeaders(context.setupData, userId),
       validate: (response) => Array.isArray(jsonData(response)),
     });
   },

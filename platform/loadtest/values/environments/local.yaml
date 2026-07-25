@@ -31,40 +31,7 @@ environment:
     k6: localhost:5001/dropmong-loadtest-runner:dev
     tools: localhost:5001/dropmong-loadtest-tools:dev
     seeder: localhost:5001/dropmong-dataset-seeder:dev
-  # `task loadtest:run`의 local 준비 단계가 만들고, 공통 실행기는 이름만 참조한다.
-  # Dataset/k6 입력은 fixture manifest(데이터 ID 목록)와 다르다.
   loadtestNamespace: dropmong-loadtest-local
-  accessTokenInput:
-    existingSecret: dropmong-loadtest-k6-token-input
-    key: access-tokens.json
-    auth:
-      namespace: dropmong-auth
-      secretName: auth-runtime-credentials
-      secretKey: dev-access-token
-    ingress:
-      namespace: istio-system
-      service: istio-ingressgateway
-      port: 80
-  loadtestInputs:
-    auth-service:
-      dataset: { existingSecret: dropmong-loadtest-dataset-input }
-      k6: { existingSecret: dropmong-loadtest-auth-input }
-    user-service:
-      dataset: { existingSecret: dropmong-loadtest-dataset-input }
-    catalog-service:
-      dataset: { existingSecret: dropmong-loadtest-dataset-input }
-    coupon-service:
-      dataset: { existingSecret: dropmong-loadtest-dataset-input }
-      k6: { existingSecret: dropmong-loadtest-auth-input }
-      coupon: { existingSecret: dropmong-loadtest-coupon-input }
-    interest-service:
-      dataset: { existingSecret: dropmong-loadtest-dataset-input }
-    order-service:
-      dataset: { existingSecret: dropmong-loadtest-dataset-input }
-    payment-service:
-      dataset: { existingSecret: dropmong-loadtest-dataset-input }
-    notification-service:
-      dataset: { existingSecret: dropmong-loadtest-dataset-input }
   safety:
     remote: false
     allowedKubernetesContexts: [docker-desktop, rancher-desktop]

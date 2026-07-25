@@ -31,8 +31,8 @@ data:
   LOADTEST_K6_IMAGE: {{ .Values.run.k6ImageId | quote }}
   LOADTEST_SEEDER_IMAGE_ID: {{ .Values.run.seederImageId | quote }}
   LOADTEST_SEEDER_IMAGE: {{ .Values.run.seederImageId | quote }}
-  LOADTEST_COUPON_SECRET_NAME: {{ .Values.run.couponSecretName | quote }}
   LOADTEST_WEB_ORIGIN: {{ .Values.run.webOrigin | quote }}
+  LOADTEST_TRACEPARENT: {{ .Values.run.traceparent | quote }}
   LOADTEST_REPORT_ROOT: {{ .Values.reportArchive.mountPath | quote }}
   LOADTEST_DATASET_PROFILE: {{ required "dataset.profile is required" .Values.dataset.profile | quote }}
   LOADTEST_DATASET_PROFILE_JSON: {{ toJson .Values.dataset.profileDocument | quote }}
@@ -43,7 +43,7 @@ data:
   LOADTEST_DATASET_GENERATOR_REVISION: {{ required "dataset.generatorRevision is required" .Values.dataset.generatorRevision | quote }}
   LOADTEST_DATASET_SCHEMA_HASHES: {{ toJson .Values.dataset.schemaHashes | quote }}
   LOADTEST_DATASET_SERVICES: {{ required "dataset.services is required" .Values.dataset.services | quote }}
-  LOADTEST_FIXTURE_STRATEGY: {{ required "dataset.fixtureStrategy is required" .Values.dataset.fixtureStrategy | quote }}
+  LOADTEST_RUNTIME_ADDRESSING_STRATEGY: {{ required "dataset.runtimeAddressingStrategy is required" .Values.dataset.runtimeAddressingStrategy | quote }}
   LOADTEST_ADAPTIVE_PHASE: {{ required "adaptive.phase is required" .Values.adaptive.phase | quote }}
   LOADTEST_START_RPS: {{ .Values.adaptive.startRps | quote }}
   LOADTEST_MAX_RPS: {{ .Values.adaptive.maxRps | quote }}

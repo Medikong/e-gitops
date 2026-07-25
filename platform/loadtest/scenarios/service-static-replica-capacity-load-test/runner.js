@@ -52,11 +52,11 @@ function trialId(service, replicas, phase, sequence) {
   return `${service.slice(0, 10)}-r${replicas}-${phase.slice(0, 5)}-${String(sequence).padStart(2, '0')}`;
 }
 
-async function measuredTrial(context, service, targetRps, seconds, phase, sequence, priorSeconds = 0) {
+async function measuredTrial(context, service, targetRps, seconds, phase, sequence) {
   const replicas = context.experiment.run.deployment.replicas;
   const id = trialId(service, replicas, phase, sequence);
   const profile = context.profiles[service];
-  const writeAllocations = context.writeAllocations(service, targetRps, seconds, priorSeconds);
+  const writeAllocations = context.writeAllocations(service, targetRps, seconds);
   const raw = await context.runK6({
     service,
     trialId: id,
@@ -132,7 +132,7 @@ async function runVerification(context, service) {
     trials.push(warm);
     if (!warm.decision.passed) throw context.executionError('verification', `${service}/replicas-${replicas} warmup 실행 경로를 완료하지 못했습니다`);
   }
-  const measurement = await measuredTrial(context, service, targetRps, measure, 'measurement', 1, warmup);
+  const measurement = await measuredTrial(context, service, targetRps, measure, 'measurement', 1);
   trials.push(measurement);
   if (!measurement.decision.passed) throw context.executionError('verification', `${service}/replicas-${replicas} 측정 실행 경로를 완료하지 못했습니다`);
   await context.stabilize(service);
@@ -172,7 +172,7 @@ async function runCapacity(context, service) {
         throw context.executionError('k6_script', `${service}/replicas-${replicas} warmup failed`);
       }
     }
-    const trial = await measuredTrial(context, service, candidate, measure, sequence === 1 ? 'calibration' : 'search', sequence, warmup);
+    const trial = await measuredTrial(context, service, candidate, measure, sequence === 1 ? 'calibration' : 'search', sequence);
     capacityTrials.push(trial);
     state = recordTrial(state, trial);
     sequence += 1;
@@ -201,7 +201,7 @@ async function runCapacity(context, service) {
         throw context.executionError('k6_script', `${service}/replicas-${replicas} confirmation warmup failed`);
       }
     }
-    const trial = await measuredTrial(context, service, search.reliable_stable_rps, confirmationMeasure, 'confirmation', repetition, warmup);
+    const trial = await measuredTrial(context, service, search.reliable_stable_rps, confirmationMeasure, 'confirmation', repetition);
     result.confirmation.repetitions.push(trial);
     capacityTrials.push(trial);
     await context.stabilize(service);

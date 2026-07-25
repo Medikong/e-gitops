@@ -10,6 +10,7 @@ preset:
     evaluationWindowSeconds: 5
     minimumSamplesPerWindow: 3
     consecutiveBreachWindows: 2
+    workerLatencyHintMs: 1000
     services:
       auth-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
       user-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
@@ -19,4 +20,3 @@ preset:
       order-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
       payment-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
       notification-service: { startRps: 1, maxRps: 4, durationSeconds: 12 }
-      dropmong-web: { startRps: 1, maxRps: 4, durationSeconds: 12 }

@@ -5,8 +5,12 @@ import { resolve } from 'node:path';
 
 const root = resolve(new URL('..', import.meta.url).pathname);
 
-test('coupon Dataset Job validates the same existing input Secret that it mounts', () => {
-  const source = readFileSync(resolve(root, 'scripts/orchestrate.js'), 'utf8');
-  assert.match(source, /'run\.couponSecretName': fixture\.coupon\?\.existingSecret/);
-  assert.match(source, /couponSecret\.existingSecret/);
+test('coupon code input Secret과 hash key는 loadtest 경로에 남기지 않는다', () => {
+  const source = [
+    readFileSync(resolve(root, 'scripts/orchestrate.js'), 'utf8'),
+    readFileSync(resolve(root, 'values/local.yaml'), 'utf8'),
+    readFileSync(resolve(root, 'templates/k6-job.yaml'), 'utf8'),
+    readFileSync(resolve(root, 'templates/dataset-job.yaml'), 'utf8'),
+  ].join('\n');
+  assert.doesNotMatch(source, /couponSecret|COUPON_CODE_HASH_KEY|coupon-codes\.json|LOADTEST_COUPON_SECRET/i);
 });

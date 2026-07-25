@@ -5,7 +5,8 @@ preset:
   dataset: { profile: smoke-1day }
   deployment: { replicas: 1 }
   execution:
-    warmupSeconds: 2
+    # At 1 RPS, every service's endpoint contract must receive one warmup request.
+    warmupSeconds: 6
     measureSeconds: 8
     confirmationMeasureSeconds: 4
     cooldownSeconds: 1

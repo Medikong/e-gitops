@@ -1,23 +1,21 @@
 import {
   buildOptions,
   bearerHeaders,
+  bootstrapAccessTokens,
   createServiceLifecycle,
   jsonData,
-  loadAccessTokens,
-  loadSharedFixtures,
-  readFixture,
   request,
+  runtimeAddressing,
   uniqueKey,
-  writeFixture,
+  writeIndex,
 } from '../lib/runtime.js';
 
 const profile = JSON.parse(__ENV.LOADTEST_PROFILE_JSON);
-const fixtures = loadSharedFixtures(profile, __ENV.LOADTEST_FIXTURE_MANIFEST || '../fixtures/inspect.json');
-const tokens = loadAccessTokens(fixtures);
+const addresses = runtimeAddressing(profile);
 
-function headers(userId, occurrence, mutation = false) {
+function headers(setupData, userId, occurrence, mutation = false) {
   return {
-    ...bearerHeaders(tokens, userId),
+    ...bearerHeaders(setupData, userId),
     ...(mutation ? {
       Origin: 'https://user.dropmong.internal',
       'Idempotency-Key': uniqueKey('profile-patch', occurrence),
@@ -25,22 +23,23 @@ function headers(userId, occurrence, mutation = false) {
   };
 }
 
-const lifecycle = createServiceLifecycle(profile, fixtures, {
+const lifecycle = createServiceLifecycle(profile, addresses, {
+  setup: () => bootstrapAccessTokens(profile, addresses),
   'user.profile-read': (context) => {
-    const fixture = readFixture(fixtures, 'profileRead', context.occurrence);
+    const userId = addresses.profileUser(context.occurrence);
     request(profile, context.endpoint, {
       path: '/api/v1/users/me/profile',
-      headers: headers(fixture.userId, context.occurrence),
+      headers: headers(context.setupData, userId, context.occurrence),
       validate: (response) => Boolean(jsonData(response).userId),
     });
   },
   'user.profile-update': (context) => {
-    const fixture = writeFixture(fixtures, 'profileWrite', context.occurrence);
+    const userId = addresses.profileUser(writeIndex('profileWrite', context.occurrence));
     request(profile, context.endpoint, {
       path: '/api/v1/users/me/profile',
-      headers: headers(fixture.userId, context.occurrence, true),
+      headers: headers(context.setupData, userId, context.occurrence, true),
       body: {
-        expectedUserVersion: fixture.version,
+        expectedUserVersion: 1,
         nickname: `load-${context.occurrence}`.slice(0, 30),
         introduction: `DropMong loadtest ${context.occurrence}`,
       },

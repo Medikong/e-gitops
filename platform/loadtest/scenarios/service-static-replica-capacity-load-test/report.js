@@ -622,7 +622,7 @@ function sha256(path) {
 export function archiveEvidence(runDir, outputDir = runDir) {
   mkdirSync(outputDir, { recursive: true });
   const archive = join(outputDir, 'evidence.tar.gz');
-  const entries = ['raw', 'fixture-manifest.json'].filter((entry) => existsSync(join(runDir, entry)));
+  const entries = ['raw'].filter((entry) => existsSync(join(runDir, entry)));
   if (entries.length) {
     const temporary = `${archive}.tmp`;
     const result = spawnSync('tar', ['-czf', temporary, '-C', runDir, ...entries], { encoding: 'utf8' });

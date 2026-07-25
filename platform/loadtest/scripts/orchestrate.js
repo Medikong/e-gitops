@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSy
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { datasetCacheKey, validateCacheFiles } from '../datasets/cache.js';
+import { writeCapacities } from '../lib/deterministic-data.js';
 import {
   buildLiveResult as buildStaticLiveResult,
   buildRunReport as buildStaticRunReport,
@@ -16,10 +17,9 @@ import {
 import { executeService as executeStaticCapacity } from '../scenarios/service-static-replica-capacity-load-test/runner.js';
 import { executeService as executeBottleneckRamp } from '../scenarios/service-bottleneck-ramp-load-test/runner.js';
 import { collectObservabilitySnapshot } from '../lib/observability.js';
-import { prepareLocalAccessTokens, serviceNeedsAccessTokens } from '../lib/access-token-input.js';
+import { parseTraceparent, summarizeTempoRoutes, unavailableTraceSummary } from '../lib/tempo.js';
 import {
   devReleaseContract,
-  fixtureConfigurationFailures,
   replicaApplyArgs,
   replicaRestoreArgs,
 } from '../lib/dev-rollout.js';
@@ -73,6 +73,7 @@ function contentRevision(root, files) {
 export function datasetGeneratorRevision(root = ROOT) {
   const files = [
     ...recursiveFiles(join(root, 'datasets'), (path) => path.endsWith('.js') || path.endsWith('Dockerfile')),
+    join(root, 'lib', 'deterministic-data.js'),
     join(root, 'package-lock.json'),
   ].filter(existsSync);
   return contentRevision(root, files);
@@ -95,7 +96,13 @@ export function datasetSchemaIdentifiers(serviceRoot = SERVICE_ROOT) {
 
 export function datasetRestoreServices(service) {
   if (service === 'dropmong-web') return ['catalog-service'];
-  if (service === 'order-service') return ['order-service', 'payment-service'];
+  if (service === 'order-service') return ['auth-service', 'order-service', 'payment-service'];
+  // Bearer-token workloads authenticate with the deterministic users generated
+  // by the auth dataset. Seed that dependency in the same Dataset Job so the
+  // runtime password and user IDs always match the target dataset.
+  if (['user-service', 'coupon-service', 'interest-service', 'payment-service', 'notification-service'].includes(service)) {
+    return ['auth-service', service];
+  }
   return service.endsWith('-service') ? [service] : [];
 }
 
@@ -143,6 +150,13 @@ export function safeRunId(value = null) {
   return normalized;
 }
 
+export function traceProbeFor(runId, service, trialId) {
+  const source = `${runId}|${service}|${trialId}`;
+  const traceId = createHash('sha256').update(`trace|${source}`).digest('hex').slice(0, 32);
+  const parentSpanId = createHash('sha256').update(`parent|${source}`).digest('hex').slice(0, 16);
+  return { trace_id: traceId, parent_span_id: parentSpanId, traceparent: `00-${traceId}-${parentSpanId}-01` };
+}
+
 export function boundedResourceName(prefix, runId, maxLength) {
   const full = `${prefix}${runId}`;
   if (full.length <= maxLength) return full;
@@ -183,6 +197,36 @@ export function currentRevisionReadyPods(deployment, replicaSets, pods) {
 export function warmupExitAction(code) {
   if (code === 0) return 'success';
   return [99, 201].includes(code) ? 'continue_after_threshold_failure' : 'script_failure';
+}
+
+// Stateful deterministic ranges are consumed by every k6 trial for one service. The
+// allocator deliberately has no time-derived reset, so warmup cannot reuse a
+// completed payment or another one-shot business resource during measurement.
+export function planWriteAllocations(profile, datasetProfile, offsets, targetRps, durationSeconds) {
+  const endpoints = profile.endpointMix ?? [];
+  const totalWeight = endpoints.reduce((sum, endpoint) => sum + Number(endpoint.weight ?? 0), 0);
+  if (!Number.isFinite(totalWeight) || totalWeight <= 0) throw new LoadtestError('runtime_addressing', 'endpoint mix weight is invalid');
+  const pools = new Map();
+  for (const endpoint of endpoints) {
+    if (endpoint.addressAccess !== 'write' || !endpoint.addressPool) continue;
+    const weight = Number(endpoint.weight ?? 0);
+    if (!Number.isFinite(weight) || weight <= 0) continue;
+    pools.set(endpoint.addressPool, (pools.get(endpoint.addressPool) ?? 0) + weight);
+  }
+  const capacities = writeCapacities(datasetProfile);
+  const allocations = {};
+  for (const [pool, weight] of pools) {
+    const size = Math.max(1, Math.ceil(Number(targetRps) * Number(durationSeconds) * weight / totalWeight) + 2);
+    const start = Number(offsets[pool] ?? 0);
+    if (!Number.isSafeInteger(start) || start < 0) throw new LoadtestError('runtime_addressing', `runtime address range ${pool} offset is invalid`);
+    const capacity = capacities[pool];
+    if (!Number.isSafeInteger(capacity) || capacity <= 0 || start + size > capacity) {
+      throw new LoadtestError('runtime_addressing', `runtime address range ${pool} exhausted: required end ${start + size}, capacity ${capacity ?? 'unknown'}`);
+    }
+    allocations[pool] = { start, size };
+    offsets[pool] = start + size;
+  }
+  return allocations;
 }
 
 // Kept as a public helper for verification-only static smoke tests. It only
@@ -260,24 +304,6 @@ export function preflight({ allowedContexts = null } = {}) {
   return { checked_at: utcNow(), kubernetes_context: context, nodes: nodeRows, tools };
 }
 
-function listFixtureSecrets(entry) {
-  if (!entry || typeof entry !== 'object') return [];
-  const named = [entry.existingSecret, ...(Array.isArray(entry.existingSecrets) ? entry.existingSecrets : [])]
-    .filter((value) => typeof value === 'string' && value);
-  return [...new Set(named)];
-}
-
-function datasetCredentialFingerprint(namespace, secretName = 'dropmong-loadtest-dataset-input') {
-  const fingerprint = run('kubectl', [
-    'get', 'secret', secretName, '-n', namespace,
-    '-o', "jsonpath={.metadata.annotations.loadtest\\.dropmong\\.io/auth-credential-fingerprint}",
-  ], { category: 'configuration' }).stdout.trim();
-  if (!/^[a-f0-9]{64}$/.test(fingerprint)) {
-    throw new LoadtestError('configuration', 'local dataset input credential fingerprint is unavailable');
-  }
-  return fingerprint;
-}
-
 function unavailableSnapshot({ startedAt, finishedAt, service, namespace, replicas, runId, reason }) {
   return {
     schema_version: 'dropmong.loadtest.observability-snapshot/v1',
@@ -308,6 +334,7 @@ export class Orchestrator {
     this.artifactPod = null;
     this.images = {};
     this.serviceReleaseSnapshots = new Map();
+    this.writeAddressOffsets = new Map();
     this.datasetCacheStaged = false;
     this.datasetGeneratorRevision = datasetGeneratorRevision();
     this.datasetSchemaIdentifiers = datasetSchemaIdentifiers();
@@ -315,8 +342,7 @@ export class Orchestrator {
       dataset: {
         profile: this.experiment.dataset.profile,
         parameters: this.experiment.dataset.profileDocument,
-        fixturePools: this.experiment.dataset.fixturePools,
-        writeFixturePolicy: this.experiment.dataset.writeFixturePolicy,
+        runtimeAddressing: this.experiment.dataset.runtimeAddressing,
       },
       seed: this.experiment.dataset.seed,
       revision: this.experiment.dataset.revision,
@@ -359,7 +385,7 @@ export class Orchestrator {
         profile: this.experiment.dataset.profile,
         seed: String(this.experiment.dataset.seed),
         revision: this.experiment.dataset.revision,
-        fixture_strategy: this.experiment.dataset.writeFixturePolicy.strategy,
+        runtime_addressing_strategy: this.experiment.dataset.runtimeAddressing.strategy,
         cache: {
           key: this.datasetCacheKey,
           local_directory: relative(ROOT, this.datasetCacheDirectory),
@@ -421,23 +447,6 @@ export class Orchestrator {
     for (const [name, reference] of Object.entries(this.images)) {
       this.execution.images[name] = { reference, identity: 'configured-not-inspected' };
     }
-  }
-
-  configureDatasetCacheIdentity() {
-    if (this.experiment.environment.safety?.remote === true) return;
-    this.datasetCacheIdentity.credentialFingerprint = datasetCredentialFingerprint(this.namespace);
-    this.datasetCacheKey = datasetCacheKey(this.datasetCacheIdentity);
-    this.datasetCacheDirectory = join(this.datasetCacheRoot, this.datasetCacheKey);
-    this.execution.dataset.cache.key = this.datasetCacheKey;
-    this.execution.dataset.cache.local_directory = relative(ROOT, this.datasetCacheDirectory);
-    this.execution.dataset.cache.candidate = existsSync(join(this.datasetCacheDirectory, 'manifest.json'));
-  }
-
-  fixtureReadyServices(services) {
-    const failures = fixtureConfigurationFailures(this.experiment, services);
-    const failed = new Set(failures.map((failure) => failure.service));
-    for (const failure of failures) this.fail(failure.category, failure.message, failure.service);
-    return services.filter((service) => !failed.has(service));
   }
 
   waitServiceReadiness(service) {
@@ -502,10 +511,10 @@ export class Orchestrator {
     this.waitServiceReadiness(service);
     const hpa = run('kubectl', ['get', 'hpa', '-n', namespace, '-o', 'json'], { check: false });
     const hpaPresent = hpa.code === 0 && (JSON.parse(hpa.stdout).items ?? []).some((item) => item.spec?.scaleTargetRef?.name === service);
-    if (hpaPresent) throw new LoadtestError('replica_deploy', `${service} HPA가 남아 있습니다; dev fixture에 최소 autoscaler override를 명시해야 합니다`);
+    if (hpaPresent) throw new LoadtestError('replica_deploy', `${service} HPA가 남아 있습니다; dev 설정에 최소 autoscaler override를 명시해야 합니다`);
     const scaled = run('kubectl', ['get', 'scaledobject.keda.sh', '-n', namespace, '-o', 'json'], { check: false });
     const kedaPresent = scaled.code === 0 && (JSON.parse(scaled.stdout).items ?? []).some((item) => item.spec?.scaleTargetRef?.name === service);
-    if (kedaPresent) throw new LoadtestError('replica_deploy', `${service} KEDA ScaledObject가 남아 있습니다; dev fixture에 최소 autoscaler override를 명시해야 합니다`);
+    if (kedaPresent) throw new LoadtestError('replica_deploy', `${service} KEDA ScaledObject가 남아 있습니다; dev 설정에 최소 autoscaler override를 명시해야 합니다`);
     const deployment = JSON.parse(run('kubectl', ['get', 'deployment', service, '-n', namespace, '-o', 'json']).stdout);
     const selector = Object.entries(deployment.spec?.selector?.matchLabels ?? {}).map(([key, value]) => `${key}=${value}`).join(',');
     if (!selector) throw new LoadtestError('replica_deploy', `${service} Deployment selector를 확인하지 못했습니다`);
@@ -534,21 +543,10 @@ export class Orchestrator {
     return condition;
   }
 
-  writeAllocations(service, targetRps, durationSeconds, priorSeconds = 0) {
-    const profile = this.profiles[service];
-    const allocations = {};
-    for (const endpoint of profile.endpointMix.filter((item) => item.fixtureAccess === 'write' && item.fixturePool)) {
-      const weight = profile.endpointMix
-        .filter((item) => item.fixtureAccess === 'write' && item.fixturePool === endpoint.fixturePool)
-        .reduce((sum, item) => sum + Number(item.weight), 0);
-      const size = Math.max(1, Math.ceil(targetRps * durationSeconds * weight / 100) + 2);
-      const start = Math.ceil(targetRps * priorSeconds * weight / 100);
-      const current = allocations[endpoint.fixturePool];
-      allocations[endpoint.fixturePool] = current
-        ? { start: Math.min(current.start, start), size: Math.max(current.size, size) }
-        : { start, size };
-    }
-    return allocations;
+  writeAllocations(service, targetRps, durationSeconds) {
+    const offsets = this.writeAddressOffsets.get(service) ?? {};
+    this.writeAddressOffsets.set(service, offsets);
+    return planWriteAllocations(this.profiles[service], this.experiment.dataset.profileDocument, offsets, targetRps, durationSeconds);
   }
 
   async stabilize(service) {
@@ -562,19 +560,12 @@ export class Orchestrator {
     if (pending.length) throw new LoadtestError('stabilization', `${service} cooldown 이후 Pending Pod가 남아 있습니다`);
   }
 
-  fixtureFor(service) {
-    const key = service === 'dropmong-web' ? 'catalog-service' : service;
-    return this.experiment.environment.loadtestInputs?.[key]
-      ?? this.experiment.environment.loadtestFixtures?.[key]
-      ?? {};
-  }
-
   helmArgs({ service, trialId, phase, targetRps = 1, measureSeconds = 1, warmupSeconds = 0, writeAllocations = {}, iterationBudget = null, dataset = false, k6 = false, eventProducer = false }) {
     const profile = this.profiles[service] ?? this.profiles[this.options.services[0]];
     const maximumRps = profile.ramp?.maxRps ?? profile.adaptive?.maxRps ?? targetRps;
-    const rpsTolerance = profile.ramp ? profile.slo.actualRpsTolerance : profile.adaptive.rpsTolerance;
+    const rpsTolerance = profile.ramp ? 0 : profile.adaptive.rpsTolerance;
     const budget = iterationBudget ?? Math.max(1, Math.ceil(targetRps * measureSeconds));
-    const fixture = this.fixtureFor(service);
+    const traceProbe = traceProbeFor(this.options.runId, service, trialId);
     const values = {
       'namespace.name': this.namespace,
       // Local input preparation owns the stable namespace. Ephemeral runs keep
@@ -596,9 +587,7 @@ export class Orchestrator {
       'run.gitopsGitDirty': this.execution.git.gitops.dirty,
       'run.k6ImageId': this.execution.images.k6?.identity ?? 'configured-not-inspected',
       'run.seederImageId': this.execution.images.seeder?.identity ?? 'configured-not-inspected',
-      // The Dataset Job validates that its mounted coupon file belongs to the
-      // same existing Secret reference selected by the local input preparer.
-      'run.couponSecretName': fixture.coupon?.existingSecret ?? this.experiment.run.couponSecretName ?? '',
+      'run.traceparent': traceProbe.traceparent,
       'dataset.profile': this.experiment.dataset.profile,
       'dataset.seed': String(this.experiment.dataset.seed),
       'dataset.revision': this.experiment.dataset.revision,
@@ -628,18 +617,6 @@ export class Orchestrator {
     args.push('--set-json', `dataset.profileDocument=${JSON.stringify(this.experiment.dataset.profileDocument)}`);
     args.push('--set-json', `dataset.schemaHashes=${JSON.stringify(this.datasetSchemaIdentifiers)}`);
     args.push('--set-json', `adaptive.writeAllocations=${JSON.stringify(writeAllocations)}`);
-    const datasetSecrets = dataset ? listFixtureSecrets(fixture.dataset) : [];
-    const k6Secrets = k6 ? listFixtureSecrets(fixture.k6) : [];
-    if (datasetSecrets.length) args.push('--set-json', `datasetJob.existingSecrets=${JSON.stringify(datasetSecrets)}`);
-    if (k6Secrets.length) args.push('--set-json', `k6Job.existingSecrets=${JSON.stringify(k6Secrets)}`);
-    if (eventProducer && datasetSecrets.length) args.push('--set-json', `eventProducerJob.existingSecrets=${JSON.stringify(datasetSecrets)}`);
-    const couponSecret = fixture.coupon?.existingSecret;
-    if (couponSecret) args.push('--set-string', `couponSecret.existingSecret=${couponSecret}`);
-    if (k6 && serviceNeedsAccessTokens(service)) {
-      const accessTokenSecret = this.experiment.environment.accessTokenInput?.existingSecret;
-      if (!accessTokenSecret) throw new LoadtestError('configuration', 'access token input Secret reference is unavailable');
-      args.push('--set-string', `accessTokenSecret.existingSecret=${accessTokenSecret}`);
-    }
     for (const [key, name] of [['k6Job', 'k6'], ['datasetJob', 'seeder'], ['eventProducerJob', 'tools']]) {
       const image = splitContainerImage(this.images[name]);
       args.push('--set-string', `${key}.image.registry=${image.registry}`, '--set-string', `${key}.image.repository=${image.repository}`, '--set-string', `${key}.image.tag=${image.tag}`);
@@ -723,17 +700,9 @@ export class Orchestrator {
     await this.helmApply({ service, trialId, phase: 'dataset', dataset: true });
     const code = await this.waitJob('dataset', trialId, 1900);
     if (code !== 0) throw new LoadtestError('dataset', `Dataset Job failed with exit code ${code}`);
-    this.artifactCopy(`raw/dataset/${this.options.runId}/fixture-manifest.json`, 'fixture-manifest.json');
     const datasetExecution = JSON.parse(this.artifactRead(`raw/dataset/${this.options.runId}/execution.json`));
     if (datasetExecution.status !== 'success') throw new LoadtestError('dataset', `Dataset execution status is ${datasetExecution.status}`);
-    if (serviceNeedsAccessTokens(service)) {
-      const fixtureManifest = JSON.parse(this.artifactRead('fixture-manifest.json'));
-      this.execution.services[service].token_input = await prepareLocalAccessTokens({
-        environment: this.experiment.environment,
-        service,
-        fixtureManifest,
-      });
-    }
+    this.writeAddressOffsets.set(service, {});
     this.syncDatasetCacheFromPod();
     const cache = datasetExecution.cache ?? {};
     this.execution.dataset.cache.status = cache.status ?? 'unknown';
@@ -875,10 +844,31 @@ export class Orchestrator {
     }
   }
 
+  async snapshotTempoTraces({ service, profile, traceProbe }) {
+    const routes = (profile.endpointMix ?? []).map((endpoint) => endpoint.route).filter(Boolean);
+    const unavailable = (reason) => Object.fromEntries(routes.map((route) => [route, unavailableTraceSummary(reason)]));
+    if (!routes.length) return unavailable('scenario does not declare API routes for Tempo lookup');
+    const probe = parseTraceparent(traceProbe?.traceparent);
+    if (!probe) return unavailable('invalid loadtest traceparent');
+    const tempo = this.experiment.environment.observability?.tempoService;
+    if (!tempo?.namespace || !tempo?.name || !Number.isFinite(Number(tempo.port))) return unavailable('Tempo service is not configured');
+    // The local Collector batches spans for up to five seconds. Wait once after
+    // k6 exits, then perform exactly one read-only Tempo lookup without polling.
+    await sleep(6_000);
+    const proxy = `/api/v1/namespaces/${tempo.namespace}/services/http:${tempo.name}:${Number(tempo.port)}/proxy`;
+    const result = run('kubectl', ['get', '--raw', `${proxy}/api/traces/${probe.trace_id}`], { check: false });
+    if (result.code !== 0) return unavailable('Tempo trace query failed');
+    try {
+      return summarizeTempoRoutes(JSON.parse(result.stdout), { traceparent: traceProbe.traceparent, service, routes });
+    } catch (error) {
+      return unavailable(error.message);
+    }
+  }
+
   recordTrial(record) {
     const profile = this.profiles[record.service];
     // Reports need the scenario-owned endpoint and threshold contract, but no
-    // authentication or fixture material belongs in a result artifact.
+    // authentication or database connector material belongs in a result artifact.
     this.trials.push({
       ...record,
       profile: profile ? {
@@ -908,9 +898,11 @@ export class Orchestrator {
       readK6Summary: (service, trialId, options) => this.readK6Summary(service, trialId, options),
       stopK6: (trialId) => this.stopK6(trialId),
       snapshotObservability: (input) => this.snapshotObservability(input),
+      snapshotTempoTraces: (input) => this.snapshotTempoTraces(input),
+      traceProbeFor: (service, trialId) => traceProbeFor(this.options.runId, service, trialId),
       artifactTryRead: (path) => this.artifactTryRead(path),
       artifactReadIncremental: (path, offset) => this.artifactReadIncremental(path, offset),
-      writeAllocations: (service, targetRps, seconds, priorSeconds) => this.writeAllocations(service, targetRps, seconds, priorSeconds),
+      writeAllocations: (service, targetRps, seconds) => this.writeAllocations(service, targetRps, seconds),
       stabilize: (service) => this.stabilize(service),
       recordTrial: (record) => this.recordTrial(record),
       persist: () => this.syncState(),
@@ -935,9 +927,6 @@ export class Orchestrator {
         ...preflight({ allowedContexts: this.experiment.environment.kubernetesContext.allowedNames }),
       };
       this.configureImages();
-      this.configureDatasetCacheIdentity();
-      runnableServices = this.fixtureReadyServices(runnableServices);
-      if (!runnableServices.length) throw new LoadtestError('configuration', '선택한 서비스에 사용할 기존 dev dataset/k6 fixture 참조가 없습니다');
       await this.helmApply({ service: this.options.services[0], trialId: 'bootstrap', phase: 'bootstrap' });
       this.syncState();
       const results = [];

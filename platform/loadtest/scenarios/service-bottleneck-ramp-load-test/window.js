@@ -36,7 +36,7 @@ function average(numbers, fallback = null) {
   return numbers.length ? sum(numbers) / numbers.length : fallback;
 }
 
-function endpointWindow(points, endpoint, durationSeconds, slo) {
+function endpointWindow(points, endpoint, durationSeconds) {
   const tagged = (metric) => points
     .filter((point) => point.metric === metric && point.tags?.endpoint === endpoint.name)
     .map((point) => point.value);
@@ -45,13 +45,7 @@ function endpointWindow(points, endpoint, durationSeconds, slo) {
   const errors = tagged('loadtest_error_rate');
   const checks = tagged('checks');
   const latencies = tagged('loadtest_latency');
-  const threshold = {
-    error_rate: Number(slo.errorRate),
-    checks_rate: Number(slo.checkPassRate),
-    p95_ms: Number(endpoint.p95Ms ?? slo.p95Ms),
-    p99_ms: Number(endpoint.p99Ms ?? slo.p99Ms),
-  };
-  const api = {
+  return {
     requests,
     actual_rps: durationSeconds > 0 ? requests / durationSeconds : 0,
     error_rate: average(errors, requests > 0 ? 1 : null),
@@ -59,23 +53,11 @@ function endpointWindow(points, endpoint, durationSeconds, slo) {
     p50_ms: percentile(latencies, 0.5),
     p95_ms: percentile(latencies, 0.95),
     p99_ms: percentile(latencies, 0.99),
-    threshold,
-    status: requests > 0 ? 'healthy' : 'unavailable',
-    reasons: [],
+    status: requests > 0 ? 'observed' : 'unavailable',
   };
-  if (requests === 0) {
-    api.reasons.push({ code: 'request_count_unavailable', observed: 0, limit: 1 });
-    return api;
-  }
-  if (api.error_rate > threshold.error_rate) api.reasons.push({ code: 'error_rate_exceeded', observed: api.error_rate, limit: threshold.error_rate });
-  if (api.checks_rate < threshold.checks_rate) api.reasons.push({ code: 'check_pass_rate_below_minimum', observed: api.checks_rate, limit: threshold.checks_rate });
-  if (api.p95_ms == null || api.p95_ms > threshold.p95_ms) api.reasons.push({ code: 'p95_slo_exceeded', observed: api.p95_ms, limit: threshold.p95_ms });
-  if (api.p99_ms == null || api.p99_ms > threshold.p99_ms) api.reasons.push({ code: 'p99_slo_exceeded', observed: api.p99_ms, limit: threshold.p99_ms });
-  api.status = api.reasons.length ? 'breached' : 'healthy';
-  return api;
 }
 
-export function summarizeWindow(points, { index, startTime, endTime, schedule, minimumSamplesPerWindow, slo, endpointMix = [] }) {
+export function summarizeWindow(points, { index, startTime, endTime, schedule, minimumSamplesPerWindow, endpointMix = [] }) {
   const requestValues = values(points, 'loadtest_requests');
   const requests = sum(requestValues);
   const durationSeconds = (endTime - startTime) / 1000;
@@ -103,34 +85,56 @@ export function summarizeWindow(points, { index, startTime, endTime, schedule, m
     p95_ms: percentile(latencyValues, 0.95),
     p99_ms: percentile(latencyValues, 0.99),
     latency_sample_count: latencyValues.length,
+    reference_window_index: null,
+    reference_target_rps: null,
+    reference_actual_rps: null,
+    actual_rps_delta_from_reference: null,
+    p95_ms_delta_from_reference: null,
+    p99_ms_delta_from_reference: null,
     eligible: requests >= minimumSamplesPerWindow,
     breached: false,
     reasons: [],
-    apis: Object.fromEntries(endpointMix.map((endpoint) => [endpoint.route, endpointWindow(points, endpoint, durationSeconds, slo)])),
+    apis: Object.fromEntries(endpointMix.map((endpoint) => [endpoint.route, endpointWindow(points, endpoint, durationSeconds)])),
   };
   if (!window.eligible) {
     window.status = 'insufficient_samples';
     return window;
   }
-  const reasons = [];
-  const minimumRps = targetRps * (1 - Number(slo.actualRpsTolerance));
-  if (window.actual_rps < minimumRps) reasons.push({ code: 'actual_rps_below_tolerance', observed: window.actual_rps, limit: minimumRps });
-  if (window.dropped_iterations > 0) reasons.push({ code: 'dropped_iterations', observed: window.dropped_iterations, limit: 0 });
-  if (window.error_rate > Number(slo.errorRate)) reasons.push({ code: 'error_rate_exceeded', observed: window.error_rate, limit: Number(slo.errorRate) });
-  if (window.check_pass_rate < Number(slo.checkPassRate)) reasons.push({ code: 'check_pass_rate_below_minimum', observed: window.check_pass_rate, limit: Number(slo.checkPassRate) });
-  if (window.p95_ms == null || window.p95_ms > Number(slo.p95Ms)) reasons.push({ code: 'p95_slo_exceeded', observed: window.p95_ms, limit: Number(slo.p95Ms) });
-  if (window.p99_ms == null || window.p99_ms > Number(slo.p99Ms)) reasons.push({ code: 'p99_slo_exceeded', observed: window.p99_ms, limit: Number(slo.p99Ms) });
-  for (const [api, value] of Object.entries(window.apis)) {
-    if (value.status !== 'breached') continue;
-    for (const reason of value.reasons) reasons.push({ ...reason, code: `api_${reason.code}`, api });
-  }
-  window.reasons = reasons;
-  window.breached = reasons.length > 0;
-  window.status = window.breached ? 'breached' : 'healthy';
+  window.status = 'pending_reference';
   return window;
 }
 
-export function evaluateCompletedWindows(points, { startedAt, now, schedule, evaluationWindowSeconds, minimumSamplesPerWindow, slo, endpointMix = [] }) {
+function annotateReferenceWindows(windows) {
+  let reference = null;
+  for (const window of windows) {
+    if (!window.eligible) continue;
+    if (!reference) {
+      window.status = 'reference';
+      reference = window;
+      continue;
+    }
+    window.reference_window_index = reference.index;
+    window.reference_target_rps = reference.target_rps;
+    window.reference_actual_rps = reference.actual_rps;
+    window.actual_rps_delta_from_reference = window.actual_rps - reference.actual_rps;
+    window.p95_ms_delta_from_reference = window.p95_ms == null || reference.p95_ms == null ? null : window.p95_ms - reference.p95_ms;
+    window.p99_ms_delta_from_reference = window.p99_ms == null || reference.p99_ms == null ? null : window.p99_ms - reference.p99_ms;
+    const reasons = [];
+    if (window.target_rps > reference.target_rps && window.actual_rps <= reference.actual_rps) {
+      reasons.push({ code: 'actual_rps_stalled_against_reference', observed: window.actual_rps, limit: reference.actual_rps });
+    }
+    if (window.dropped_iterations > 0) reasons.push({ code: 'dropped_iterations_observed', observed: window.dropped_iterations, limit: 0 });
+    if (window.error_rate > 0) reasons.push({ code: 'http_error_observed', observed: window.error_rate, limit: 0 });
+    if (window.check_pass_rate < 1) reasons.push({ code: 'check_failure_observed', observed: window.check_pass_rate, limit: 1 });
+    window.reasons = reasons;
+    window.breached = reasons.length > 0;
+    window.status = window.breached ? 'degraded' : 'healthy';
+    if (!window.breached) reference = window;
+  }
+  return windows;
+}
+
+export function evaluateCompletedWindows(points, { startedAt, now, schedule, evaluationWindowSeconds, minimumSamplesPerWindow, endpointMix = [] }) {
   const started = Date.parse(startedAt);
   const current = Math.min(Date.parse(now), started + schedule.durationSeconds * 1000);
   if (!Number.isFinite(started) || !Number.isFinite(current)) throw new TypeError('window timestamps must be valid');
@@ -148,29 +152,28 @@ export function evaluateCompletedWindows(points, { startedAt, now, schedule, eva
       endTime,
       schedule: withStart,
       minimumSamplesPerWindow,
-      slo,
       endpointMix,
     }));
   }
-  return output;
+  return annotateReferenceWindows(output);
 }
 
 export function reduceWindowDecisions(windows, consecutiveBreachWindows) {
   let streak = [];
-  let lastHealthyRps = null;
+  let lastHealthy = null;
   let termination = null;
   for (const window of windows) {
     if (!window.eligible) continue;
     if (!window.breached) {
       streak = [];
-      lastHealthyRps = window.target_rps;
+      lastHealthy = window;
       continue;
     }
     streak.push(window);
     if (streak.length >= consecutiveBreachWindows) {
       const confirmed = streak.slice(0, consecutiveBreachWindows);
       termination = {
-        reason: 'consecutive_breach_windows',
+        reason: 'consecutive_reference_degradation_windows',
         required_windows: consecutiveBreachWindows,
         first_window_index: confirmed[0].index,
         last_window_index: confirmed.at(-1).index,
@@ -181,23 +184,46 @@ export function reduceWindowDecisions(windows, consecutiveBreachWindows) {
       break;
     }
   }
+  const eligible = windows.filter((window) => window.eligible);
+  const peak = (field) => eligible.reduce((maximum, window) => Math.max(maximum, Number(window[field]) || 0), 0);
+  const firstDegraded = termination ? windows.find((window) => window.index === termination.first_window_index) : null;
   return {
-    last_healthy_rps: lastHealthyRps,
+    // Legacy fields remain target-RPS values. New fields below make target,
+    // reference and actual throughput unambiguous for exploratory analysis.
+    last_healthy_rps: lastHealthy?.target_rps ?? null,
     first_degraded_rps: termination?.first_degraded_rps ?? null,
     consecutive_breach_count: termination ? consecutiveBreachWindows : streak.length,
     termination,
+    reference: {
+      last_healthy_window_index: lastHealthy?.index ?? null,
+      last_healthy_target_rps: lastHealthy?.target_rps ?? null,
+      last_healthy_actual_rps: lastHealthy?.actual_rps ?? null,
+      peak_target_rps: eligible.length ? peak('target_rps') : null,
+      peak_actual_rps: eligible.length ? peak('actual_rps') : null,
+    },
+    degradation: firstDegraded ? {
+      first: {
+        window_index: firstDegraded.index,
+        target_rps: firstDegraded.target_rps,
+        actual_rps: firstDegraded.actual_rps,
+        reference_target_rps: firstDegraded.reference_target_rps,
+        reference_actual_rps: firstDegraded.reference_actual_rps,
+      },
+    } : { first: null },
   };
 }
 
 export function classifyBottleneck(window) {
   if (!window) return { candidate: 'not-observed', evidence: [] };
   const codes = window.reasons.map((reason) => reason.code);
-  if (codes.some((code) => ['actual_rps_below_tolerance', 'dropped_iterations'].includes(code))) return { candidate: 'runner-or-service-capacity', evidence: window.reasons };
-  if (codes.length) return { candidate: 'api-slo-or-error', evidence: window.reasons };
+  if (codes.some((code) => ['actual_rps_stalled_against_reference', 'dropped_iterations_observed'].includes(code))) return { candidate: 'service-capacity-growth-stalled', evidence: window.reasons };
+  if (codes.length) return { candidate: 'http-or-check-regression', evidence: window.reasons };
   return { candidate: 'unknown', evidence: [] };
 }
 
 export function rampExitIsExecutionFailure(code, stoppedForBottleneck) {
-  const accepted = new Set(stoppedForBottleneck ? [0, 99, 105, 130, 143, 201] : [0, 99, 201]);
+  // Reference ramps no longer use k6 performance thresholds. A threshold exit
+  // therefore means that even the minimal measurement contract was not met.
+  const accepted = new Set(stoppedForBottleneck ? [0, 105, 130, 143] : [0]);
   return !accepted.has(Number(code));
 }

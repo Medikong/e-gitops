@@ -1,32 +1,8 @@
 import { createHash } from 'node:crypto';
 import { canonicalJson } from './profile.js';
+import { createAddressBook, coprimeStep as sharedCoprimeStep } from '../lib/deterministic-data.js';
 
-const UUID_URL_NAMESPACE = Buffer.from('6ba7b8119dad11d180b400c04fd430c8', 'hex');
-
-function uuidBuffer(value) {
-  return Buffer.from(value.replaceAll('-', ''), 'hex');
-}
-
-function uuid5(namespace, name) {
-  const digest = createHash('sha1').update(namespace).update(name).digest().subarray(0, 16);
-  digest[6] = (digest[6] & 0x0f) | 0x50;
-  digest[8] = (digest[8] & 0x3f) | 0x80;
-  const hex = digest.toString('hex');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
-export function gcd(first, second) {
-  let a = Math.abs(first); let b = Math.abs(second);
-  while (b) [a, b] = [b, a % b];
-  return a;
-}
-
-export function coprimeStep(size, candidate) {
-  if (size <= 1) return 1;
-  let step = Math.max(1, candidate % size);
-  while (gcd(step, size) !== 1) { step = (step + 1) % size; if (step === 0) step = 1; }
-  return step;
-}
+export const coprimeStep = sharedCoprimeStep;
 
 export function iso(value) { return new Date(value).toISOString().replace('.000Z', 'Z'); }
 export function compactJson(value) { return canonicalJson(value); }
@@ -36,19 +12,20 @@ export class DatasetModel {
   constructor(profile, seed, secrets = {}) {
     this.profile = profile;
     this.seed = String(seed);
-    this.namespace = uuidBuffer(uuid5(UUID_URL_NAMESPACE, `dropmong:${profile.name}:${this.seed}`));
-    this.token = createHash('sha256').update(this.seed).digest('hex').slice(0, 8);
+    this.addresses = createAddressBook(profile.source, this.seed, {
+      sha256: (input) => createHash('sha256').update(input).digest('hex'),
+      sha1: (input) => createHash('sha1').update(input).digest('hex'),
+    });
+    this.token = this.addresses.token;
     this.authPasswordHash = secrets.authPasswordHash ?? null;
-    this.couponCodeHashKey = secrets.couponCodeHashKey ?? null;
-    this.couponCodes = secrets.couponCodes ?? {};
     this.orderPrefixes = this.prefixes([...Array(profile.dropCount).keys()].map((index) => profile.ordersForDrop(index)));
     this.viewPrefixes = this.prefixes([...Array(profile.dropCount).keys()].map((index) => profile.tierForDrop(index).viewsPerDrop));
     this.soldCache = null; this.reservedCache = null;
   }
 
   prefixes(counts) { const values = [0]; for (const count of counts) values.push(values.at(-1) + count); return values; }
-  uuid(kind, index) { return uuid5(this.namespace, `${kind}:${index}`); }
-  user(index) { return this.uuid('user', index); }
+  uuid(kind, index) { return this.addresses.uuid(kind, index); }
+  user(index) { return this.addresses.user(index); }
   identity(index) { return this.uuid('identity', index); }
   identityLink(index) { return this.uuid('identity-link', index); }
   drop(index) { return `drop-${this.token}-${String(index).padStart(6, '0')}`; }
@@ -61,14 +38,10 @@ export class DatasetModel {
   redemption(index) { return `redm_${this.token}_${String(index).padStart(8, '0')}`; }
   notification(index) { return `notification-${this.token}-${String(index).padStart(9, '0')}`; }
 
-  stableInt(purpose, index, modulus) {
-    if (modulus <= 0) return 0;
-    const bytes = createHash('sha256').update(`${this.seed}:${purpose}:${index}`).digest().subarray(0, 8);
-    return Number(bytes.readBigUInt64BE() % BigInt(modulus));
-  }
+  stableInt(purpose, index, modulus) { return this.addresses.stableInt(purpose, index, modulus); }
 
   memberIndex(purpose, ownerIndex, memberIndex) {
-    const size = this.profile.userCount;
+    const size = this.profile.authUserPoolSize;
     const offset = this.stableInt(`${purpose}-offset`, ownerIndex, size);
     const step = coprimeStep(size, this.stableInt(`${purpose}-step`, ownerIndex, size));
     return (offset + step * memberIndex) % size;
@@ -104,7 +77,7 @@ export class DatasetModel {
     const dropIndex = this.profile.dropCount - 1 - (index % recent);
     const productIndex = dropIndex * this.profile.productsPerDrop + this.stableInt('payment-ready-product', index, this.profile.productsPerDrop);
     const quantity = 1 + Number(this.stableInt('payment-ready-quantity', index, 10) === 0);
-    return { index: globalIndex, orderId: this.order(globalIndex), paymentId: this.payment(globalIndex), userId: this.user(this.stableInt('payment-ready-user', index, this.profile.userCount)), dropId: this.drop(dropIndex), productId: this.product(productIndex), productIndex, quantity, amount: this.productPrice(productIndex) * quantity, approved: false, createdAt: addMilliseconds(this.profile.asOf, -(this.profile.paymentReadyOrderCount - index) * 1000) };
+    return { index: globalIndex, orderId: this.order(globalIndex), paymentId: this.payment(globalIndex), userId: this.user(this.stableInt('payment-ready-user', index, this.profile.authUserPoolSize)), dropId: this.drop(dropIndex), productId: this.product(productIndex), productIndex, quantity, amount: this.productPrice(productIndex) * quantity, approved: false, createdAt: addMilliseconds(this.profile.asOf, -(this.profile.paymentReadyOrderCount - index) * 1000) };
   }
 
   soldByProduct() {
@@ -118,9 +91,7 @@ export class DatasetModel {
   dividedCount(total, owner) { return Math.floor(total / this.profile.couponCampaignCount) + Number(owner < total % this.profile.couponCampaignCount); }
   couponIssuedCount(index) { return this.dividedCount(this.profile.userCouponCount, index); }
   couponClaimCount(index) { return this.dividedCount(this.profile.couponClaimHeadroom, index); }
-  couponCodeCount(index) { return this.dividedCount(this.profile.couponCodeCount, index); }
   couponUserIndex(index) { const campaign = index % this.profile.couponCampaignCount; return this.memberIndex('coupon-user', campaign, Math.floor(index / this.profile.couponCampaignCount)); }
   couponClaimTarget(index) { const campaign = index % this.profile.couponCampaignCount; return [campaign, this.memberIndex('coupon-user', campaign, this.couponIssuedCount(campaign) + Math.floor(index / this.profile.couponCampaignCount))]; }
-  couponCodeTarget(index) { const campaign = index % this.profile.couponCampaignCount; return [campaign, this.memberIndex('coupon-user', campaign, this.couponIssuedCount(campaign) + this.couponClaimCount(campaign) + Math.floor(index / this.profile.couponCampaignCount))]; }
   dropForVirtualView(index) { let drop = 0; while (this.viewPrefixes[drop + 1] <= index) drop += 1; return drop; }
 }

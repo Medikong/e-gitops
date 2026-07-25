@@ -2,14 +2,14 @@ import {
   buildOptions,
   createServiceLifecycle,
   jsonData,
-  loadSharedFixtures,
-  readFixture,
+  datasetAuthPassword,
   request,
+  runtimeAddressing,
   uniqueKey,
 } from '../lib/runtime.js';
 
 const profile = JSON.parse(__ENV.LOADTEST_PROFILE_JSON);
-const fixtures = loadSharedFixtures(profile, __ENV.LOADTEST_FIXTURE_MANIFEST || '../fixtures/inspect.json');
+const addresses = runtimeAddressing(profile);
 const supportIntent = {
   name: 'auth.support.intent',
   method: 'POST',
@@ -36,7 +36,7 @@ function createIntent(context, measured) {
   return jsonData(response);
 }
 
-const lifecycle = createServiceLifecycle(profile, fixtures, {
+const lifecycle = createServiceLifecycle(profile, addresses, {
   'auth.intent': (context) => createIntent(context, true),
   'auth.methods': (context) => {
     const intent = createIntent(context, false);
@@ -49,11 +49,7 @@ const lifecycle = createServiceLifecycle(profile, fixtures, {
   },
   'auth.email-signin': (context) => {
     const intent = createIntent(context, false);
-    const user = readFixture(fixtures, 'authUsers', context.occurrence);
-    const password = __ENV.LOADTEST_AUTH_PASSWORD;
-    if (!password) {
-      throw new Error('LOADTEST_AUTH_PASSWORD is required by auth.email-signin');
-    }
+    const userIndex = addresses.sampleIndex('auth-users', context.occurrence, addresses.profile.authUserPoolSize);
     request(profile, context.endpoint, {
       path: '/api/v1/auth/signins/email',
       headers: {
@@ -62,8 +58,8 @@ const lifecycle = createServiceLifecycle(profile, fixtures, {
       },
       body: {
         authIntentId: intent.authIntentId,
-        email: user.email,
-        password,
+        email: addresses.email(userIndex),
+        password: datasetAuthPassword(profile),
         rememberMe: false,
       },
       validate: (response) => {

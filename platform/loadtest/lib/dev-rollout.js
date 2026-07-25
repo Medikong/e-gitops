@@ -95,23 +95,3 @@ export function replicaRestoreArgs(contract) {
     // survive the restore operation.
   ];
 }
-
-export function fixtureConfigurationFailures(experiment, services) {
-  const fixtures = experiment.environment?.loadtestInputs ?? experiment.environment?.loadtestFixtures;
-  const failures = [];
-  for (const service of services) {
-    const needsDataset = service === 'dropmong-web' ? 'catalog-service' : service;
-    const entry = fixtures?.[needsDataset];
-    if (!entry?.dataset?.existingSecret) {
-      failures.push({ service, category: 'configuration', message: `${needsDataset} dataset fixture reference is unavailable` });
-      continue;
-    }
-    if (['auth-service', 'coupon-service'].includes(service) && !entry.k6?.existingSecret) {
-      failures.push({ service, category: 'configuration', message: `${service} k6 fixture reference is unavailable` });
-    }
-    if (service === 'coupon-service' && !entry.coupon?.existingSecret) {
-      failures.push({ service, category: 'configuration', message: 'coupon-service coupon fixture reference is unavailable' });
-    }
-  }
-  return failures;
-}

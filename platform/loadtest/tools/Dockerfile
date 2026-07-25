@@ -8,6 +8,7 @@ RUN apk add --no-cache kcat \
 WORKDIR /loadtest
 COPY --chown=12345:12345 scripts ./scripts
 COPY --chown=12345:12345 lib/k6-metrics.js ./lib/k6-metrics.js
+COPY --chown=12345:12345 lib/deterministic-data.js ./lib/deterministic-data.js
 COPY --chown=12345:12345 scenarios/service-static-replica-capacity-load-test/report.js ./scenarios/service-static-replica-capacity-load-test/report.js
 COPY --chown=12345:12345 scenarios/service-bottleneck-ramp-load-test/report.js ./scenarios/service-bottleneck-ramp-load-test/report.js
 COPY --chown=12345:12345 package.json ./package.json

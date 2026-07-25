@@ -10,6 +10,15 @@ reportArchive:
   size: 2Gi
 
 datasetJob:
+  directEnv:
+    DATASET_DATABASE_URL_AUTH_SERVICE: postgresql://user:password@auth-db.dropmong-auth.svc.cluster.local:5432/auth_db?sslmode=disable
+    DATASET_DATABASE_URL_USER_SERVICE: postgresql://user:password@user-db.dropmong-user.svc.cluster.local:5432/user_db
+    DATASET_DATABASE_URL_CATALOG_SERVICE: postgresql://user:password@catalog-db.dropmong-catalog.svc.cluster.local:5432/catalog_db
+    DATASET_DATABASE_URL_COUPON_SERVICE: postgresql://user:password@coupon-db.dropmong-coupon.svc.cluster.local:5432/coupon_db?sslmode=disable
+    DATASET_DATABASE_URL_INTEREST_SERVICE: postgresql://user:password@interest-db.dropmong-interest.svc.cluster.local:5432/interest_db
+    DATASET_DATABASE_URL_ORDER_SERVICE: postgresql://user:password@order-db.dropmong-order.svc.cluster.local:5432/order_db
+    DATASET_DATABASE_URL_PAYMENT_SERVICE: postgresql://user:password@payment-db.dropmong-payment.svc.cluster.local:5432/payment_db
+    DATASET_DATABASE_URL_NOTIFICATION_SERVICE: postgresql://user:password@notification-db.dropmong-notification.svc.cluster.local:5432/notification_db
   image:
     registry: localhost:5001
     repository: dropmong-dataset-seeder
@@ -24,7 +33,4 @@ k6Job:
     pullPolicy: Always
 
 crossNamespaceAccess:
-  # The persistent namespace is labelled app.kubernetes.io/component=loadtest
-  # by prepare-local-inputs. Existing data policies allow that label; adding a
-  # second policy for an otherwise unisolated DB would block its own service.
   enabled: false

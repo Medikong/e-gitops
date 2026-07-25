@@ -8,6 +8,7 @@ RUN npm ci --omit=dev --ignore-scripts \
     && chown -R 12345:12345 /loadtest
 
 COPY --chown=12345:12345 datasets ./datasets
+COPY --chown=12345:12345 lib/deterministic-data.js ./lib/deterministic-data.js
 
 USER 12345:12345
 

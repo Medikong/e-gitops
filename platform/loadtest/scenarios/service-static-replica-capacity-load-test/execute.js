@@ -22,8 +22,8 @@ export function requiredObject(name, value) {
 const DATASET_PARAMETER_KEYS = [
   'version', 'as_of', 'days', 'initial_users', 'daily_new_users', 'daily_drops',
   'products_per_drop', 'raw_view_hours', 'active_inventory_per_product',
-  'paymentReadyOrderCount', 'couponClaimHeadroom', 'couponCodeCount',
-  'fixturePoolSize', 'fixtureTrialCount', 'tiers', 'daily_coupon_campaigns',
+  'paymentReadyOrderCount', 'couponClaimHeadroom',
+  'runtime_auth_user_pool_size', 'tiers', 'daily_coupon_campaigns',
   'seasonal_coupon_campaigns', 'daily_coupon_issues', 'event_coupon_issues',
   'coupon_redemption_percent', 'notifications_per_order', 'agreements',
 ];
@@ -104,10 +104,6 @@ export function resolveEnvironment(environmentSource) {
   if (!prometheus.namespace || !prometheus.name || !Number.isFinite(Number(prometheus.port))) throw new TypeError('Prometheus service namespace, name, and port are required');
   const tempo = requiredObject('environment.observability.tempoService', environment.observability?.tempoService);
   if (!tempo.namespace || !tempo.name || !Number.isFinite(Number(tempo.port))) throw new TypeError('Tempo service namespace, name, and port are required');
-  const loadtestInputs = environment.loadtestInputs ?? environment.loadtestFixtures ?? {};
-  if (!loadtestInputs || typeof loadtestInputs !== 'object' || Array.isArray(loadtestInputs)) {
-    throw new TypeError('environment.loadtestInputs must be an object when provided');
-  }
   const port = Number(prometheus.port);
   const tempoPort = Number(tempo.port);
   return {
@@ -118,11 +114,6 @@ export function resolveEnvironment(environmentSource) {
     prometheusUrl: `http://${prometheus.name}.${prometheus.namespace}.svc.cluster.local:${port}`,
     prometheusKubernetesProxyPath: `/api/v1/namespaces/${prometheus.namespace}/services/http:${prometheus.name}:${port}/proxy`,
     tempoUrl: `http://${tempo.name}.${tempo.namespace}.svc.cluster.local:${tempoPort}`,
-    // These are references to pre-existing Dataset/k6 inputs. The common
-    // runner consumes references only; local Task preparation owns creation.
-    loadtestInputs,
-    // Compatibility for existing RUN/environment documents during migration.
-    loadtestFixtures: loadtestInputs,
   };
 }
 
@@ -253,9 +244,7 @@ export function validateExperiment(document) {
     const config = requiredObject(`services.${service}`, document.services[service]);
     if (config.service !== service || !['go', 'python', 'node'].includes(config.runtime) || !config.workload || !config.baseUrl || !config.readinessUrl || !config.authentication?.method) throw new TypeError(`invalid service contract: ${service}`);
     if (!Array.isArray(config.endpointMix) || !config.endpointMix.length) throw new TypeError(`${service} endpointMix is required`);
-    const fixturePools = new Set(document.dataset.fixturePools?.[service] ?? []);
-    const unknownFixturePools = config.endpointMix.map((endpoint) => endpoint.fixturePool).filter((pool) => pool && !fixturePools.has(pool));
-    if (unknownFixturePools.length) throw new TypeError(`${service} dataset is missing fixture pools: ${[...new Set(unknownFixturePools)].join(', ')}`);
+    if (config.endpointMix.some((endpoint) => endpoint.addressPool && !endpoint.addressAccess)) throw new TypeError(`${service} endpoint address access is required`);
     if (config.dependencies?.requireKafkaLag && !config.dependencies.kafkaLagQuery) throw new TypeError(`${service} kafkaLagQuery is required when Kafka lag is required`);
     const weight = config.endpointMix.reduce((sum, endpoint) => sum + finite(`${service}.${endpoint.name}.weight`, endpoint.weight, { minimum: 1 }), 0);
     if (weight !== 100) throw new TypeError(`${service} endpoint weights must total 100`);
@@ -364,6 +353,11 @@ export function workloadProfile(experiment, service) {
     authentication: config.authentication,
     dependencies: config.dependencies,
     endpointMix: config.endpointMix,
+    dataset: {
+      profile: experiment.dataset.profile,
+      seed: String(experiment.dataset.seed),
+      parameters: experiment.dataset.profileDocument,
+    },
     adaptive: {
       startRps: config.capacity.startRps,
       maxRps: config.capacity.maxRps,

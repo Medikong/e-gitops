@@ -1,18 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Writable } from 'node:stream';
 import { parse } from 'yaml';
 import { datasetCacheKey, validateServiceCache } from '../datasets/cache.js';
-import { couponCodeKey } from '../datasets/coupon-secret.js';
 import { copyGeneratedTable, streamRowsToCopy } from '../datasets/copy.js';
-import { assertSecretFreeManifest, buildFixtureManifest, WRITE_POOLS } from '../datasets/fixture-manifest.js';
+import { createAddressBook, writeCapacities } from '../lib/deterministic-data.js';
 import { DatasetModel } from '../datasets/model.js';
+import { datasetAuthPassword, datasetAuthPasswordHash } from '../datasets/auth.js';
 import { expectedTableCounts, loadProfile } from '../datasets/profile.js';
-import { plansForService } from '../datasets/plans.js';
+import { ORDER_SERVICE_LOADTEST_PRODUCT, plansForService } from '../datasets/plans.js';
 import { safeError } from '../datasets/seed.js';
 import { isMigrationMetadataTable, truncateService } from '../datasets/service.js';
 
@@ -31,12 +32,40 @@ test('YAML profile 계약을 검증하고 예상 행 수를 계산한다', () =>
   assert.throws(() => loadProfile({ ...profile.source, days: 0 }), /positive integer/);
 });
 
-test('Coupon fixture는 기존 Secret 파일 참조만 보존하고 평문 코드를 넣지 않는다', () => {
+function addressesFor(document) {
+  return createAddressBook({ profile: document.profile, parameters: document.parameters }, document.seed, {
+    sha256: (value) => createHash('sha256').update(value).digest('hex'),
+    sha1: (value) => createHash('sha1').update(value).digest('hex'),
+  });
+}
+
+test('Coupon runtime addressing은 코드 원문이나 Secret 참조 없이 사용자 공개 API만 측정한다', () => {
   const document = parse(readFileSync(join(root, 'values', 'datasets', 'baseline-90days.yaml'), 'utf8')).dataset;
-  const baseline = loadProfile({ name: document.profile, ...document.parameters });
-  const manifest = buildFixtureManifest(baseline, document.seed, { couponSecretName: 'existing-dev-coupon-fixture' });
-  assert.ok(manifest.pools.couponRedeem.every(({ codeRef }) => codeRef.startsWith('secretFileRef:existing-dev-coupon-fixture/')));
-  assert.doesNotMatch(JSON.stringify(manifest), /DM-[A-Z0-9-]{8,}/);
+  const addresses = addressesFor(document);
+  assert.ok(addresses.couponWallet(0).userCouponId);
+  assert.doesNotMatch(JSON.stringify(addresses.couponClaim(0)), /secretFileRef|coupon-codes\.json/i);
+});
+
+test('90일 runtime addressing은 대형 artifact manifest를 만들지 않는다', () => {
+  const document = parse(readFileSync(join(root, 'values', 'datasets', 'baseline-90days.yaml'), 'utf8')).dataset;
+  const addresses = addressesFor(document);
+  assert.ok(addresses.profile.dropCount > 0);
+  assert.ok(writeCapacities({ profile: document.profile, parameters: document.parameters }).paymentReady > 0);
+});
+
+test('seeder와 k6는 같은 seed에서 같은 주소를 계산하고 인증값은 파일 없이 검증된다', () => {
+  const model = new DatasetModel(profile, smokeDocument.seed);
+  const addresses = addressesFor(smokeDocument);
+  assert.equal(model.user(7), addresses.user(7));
+  for (const key of ['orderId', 'paymentId', 'userId', 'dropId', 'productId', 'quantity', 'amount', 'approved']) {
+    assert.equal(model.orderFact(3)[key], addresses.orderFact(3)[key]);
+  }
+  for (const key of ['orderId', 'userId', 'dropId', 'productId', 'quantity', 'amount']) {
+    assert.equal(model.paymentReadyOrderFact(2)[key], addresses.paymentReadyOrderFact(2)[key]);
+  }
+  const password = datasetAuthPassword(smokeDocument.seed);
+  assert.equal(password, datasetAuthPassword(smokeDocument.seed));
+  assert.equal(bcrypt.compareSync(password, datasetAuthPasswordHash(smokeDocument.seed)), true);
 });
 
 test('dataset 초기화는 계약에 있는 데이터 테이블만 비우고 migration과 정책 테이블을 보존한다', async () => {
@@ -48,21 +77,31 @@ test('dataset 초기화는 계약에 있는 데이터 테이블만 비우고 mig
   assert.deepEqual(statements, ['TRUNCATE TABLE "auth_identities" RESTART IDENTITY CASCADE']);
 });
 
-test('같은 seed의 행과 fixture는 결정론적이며 쓰기 pool은 중복되지 않는다', () => {
+test('같은 seed의 행과 runtime address는 결정론적이며 쓰기 범위는 용량을 가진다', () => {
   const first = new DatasetModel(profile, smokeDocument.seed ?? '20260723');
   const second = new DatasetModel(profile, smokeDocument.seed ?? '20260723');
   const rows = (model) => Array.from(plansForService('catalog-service', model)).map((value) => Array.from(value.rows).slice(0, 3));
   assert.deepEqual(rows(first), rows(second));
-  const manifest = buildFixtureManifest(profile, '20260723', { couponSecretName: 'existing-dev-coupon-fixture' });
-  const repeated = buildFixtureManifest(profile, '20260723', { couponSecretName: 'existing-dev-coupon-fixture' });
-  assert.deepEqual(manifest, repeated); assert.doesNotThrow(() => assertSecretFreeManifest(manifest));
-  for (const pool of WRITE_POOLS) assert.equal(new Set(manifest.pools[pool].map((value) => JSON.stringify(value))).size, manifest.pools[pool].length, pool);
+  const firstAddresses = addressesFor(smokeDocument);
+  const secondAddresses = addressesFor(smokeDocument);
+  assert.deepEqual(firstAddresses.couponClaim(0), secondAddresses.couponClaim(0));
+  assert.ok(writeCapacities({ profile: smokeDocument.profile, parameters: smokeDocument.parameters }).paymentReady > 0);
+});
+
+test('Order 생성 address는 현재 Order 서비스가 판매 가능으로 허용한 상품과 inventory를 함께 준비한다', () => {
+  const model = new DatasetModel(profile, '20260725');
+  const addresses = addressesFor({ ...smokeDocument, seed: '20260725' });
+  const address = addresses.orderCreate(0);
+  assert.equal(address.dropId, ORDER_SERVICE_LOADTEST_PRODUCT.dropId);
+  assert.equal(address.productId, ORDER_SERVICE_LOADTEST_PRODUCT.productId);
+  const inventory = Array.from(plansForService('order-service', model)).find((entry) => entry.table === 'inventory_items');
+  assert.ok(inventory);
+  assert.ok(Array.from(inventory.rows).some(([dropId, productId, total]) => dropId === ORDER_SERVICE_LOADTEST_PRODUCT.dropId && productId === ORDER_SERVICE_LOADTEST_PRODUCT.productId && total > 0));
 });
 
 test('모든 서비스 generator가 예상 행 수와 column 계약을 지킨다', () => {
   const seed = '20260723';
-  const couponCodes = Object.fromEntries(Array.from({ length: profile.couponCodeCount }, (_, index) => [couponCodeKey(index), `DM-TEST-${String(index).padStart(8, '0')}`]));
-  const model = new DatasetModel(profile, seed, { authPasswordHash: 'test-only-password-hash', couponCodeHashKey: 'test-only-hash-key-000000000000000000', couponCodes });
+  const model = new DatasetModel(profile, seed, { authPasswordHash: 'test-only-password-hash' });
   const expected = expectedTableCounts(profile);
   for (const service of Object.keys(expected)) {
     for (const value of plansForService(service, model)) {
@@ -102,4 +141,10 @@ test('checksum이 바뀐 local cache는 hit로 인정하지 않는다', () => {
 test('dataset 오류는 DSN, password, Authorization, cookie 값을 노출하지 않는다', () => {
   const message = safeError(new Error('postgresql://user:dsn-secret@db:5432/app password=pw-secret Authorization: Bearer token-secret cookie=cookie-secret'));
   for (const secret of ['user:dsn-secret', 'pw-secret', 'token-secret', 'cookie-secret']) assert.doesNotMatch(message, new RegExp(secret));
+});
+
+test('Dataset 검증은 운영 outbox를 seed 실패 조건으로 취급하지 않는다', () => {
+  const service = readFileSync(join(root, 'datasets', 'service.js'), 'utf8');
+  assert.doesNotMatch(service, /pending_outbox/);
+  assert.match(service, /Dataset jobs neither truncate nor/);
 });

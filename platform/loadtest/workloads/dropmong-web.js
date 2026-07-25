@@ -3,17 +3,17 @@ import {
   createServiceLifecycle,
   decodeSignedDevelopmentSession,
   jsonData,
-  loadSharedFixtures,
-  readFixture,
   request,
+  runtimeAddressing,
   uniqueKey,
-  writeFixture,
+  writeIndex,
 } from '../lib/runtime.js';
 import { fail } from 'k6';
+import encoding from 'k6/encoding';
 import http from 'k6/http';
 
 const profile = JSON.parse(__ENV.LOADTEST_PROFILE_JSON);
-const fixtures = loadSharedFixtures(profile, __ENV.LOADTEST_FIXTURE_MANIFEST || '../fixtures/inspect.json');
+const addresses = runtimeAddressing(profile);
 const supportSession = {
   name: 'web.support.development-session',
   method: 'GET',
@@ -65,14 +65,18 @@ function requireDevelopmentSession(context) {
   return session;
 }
 
-const lifecycle = createServiceLifecycle(profile, fixtures, {
+function checkoutId(value) {
+  return `dev.${encoding.b64encode(JSON.stringify({ dropId: value.dropId, option: 'S', productId: value.productId, quantity: value.quantity }), 'rawurl')}`;
+}
+
+const lifecycle = createServiceLifecycle(profile, addresses, {
   setup: () => ({ developmentSession: developmentSession() }),
   'web.home': (context) => request(profile, context.endpoint, {
     path: '/api/web/home',
     validate: (response) => Boolean(jsonData(response)),
   }),
   'web.product': (context) => {
-    const fixture = readFixture(fixtures, 'webProducts', context.occurrence);
+    const fixture = addresses.webCheckout(context.occurrence);
     request(profile, context.endpoint, {
       path: `/api/web/products/${encodeURIComponent(fixture.productId)}`,
       query: { dropId: fixture.dropId },
@@ -80,7 +84,7 @@ const lifecycle = createServiceLifecycle(profile, fixtures, {
     });
   },
   'web.checkout': (context) => {
-    const fixture = readFixture(fixtures, 'webCheckouts', context.occurrence);
+    const fixture = { ...addresses.webCheckout(context.occurrence), checkoutId: checkoutId(addresses.webCheckout(context.occurrence)) };
     const session = requireDevelopmentSession(context);
     request(profile, context.endpoint, {
       path: `/api/web/checkouts/${encodeURIComponent(fixture.checkoutId)}`,
@@ -89,7 +93,8 @@ const lifecycle = createServiceLifecycle(profile, fixtures, {
     });
   },
   'web.checkout-confirm': (context) => {
-    const fixture = writeFixture(fixtures, 'webCheckouts', context.occurrence);
+    const addressed = addresses.webCheckout(writeIndex('webCheckouts', context.occurrence));
+    const fixture = { ...addressed, checkoutId: checkoutId(addressed) };
     const session = requireDevelopmentSession(context);
     const webOrigin = __ENV.LOADTEST_WEB_ORIGIN;
     if (!webOrigin) {

@@ -264,7 +264,6 @@ test('final report archives raw artifacts without introducing a resource collect
     writeFileSync(join(directory, 'result.json'), `${JSON.stringify(result)}\n`);
     mkdirSync(join(directory, 'raw', 'k6', 'catalog-service'), { recursive: true });
     writeFileSync(join(directory, 'raw', 'k6', 'catalog-service', 'summary.json'), '{}\n');
-    writeFileSync(join(directory, 'fixture-manifest.json'), '{}\n');
     const finalized = buildRunReport(directory);
     assert.equal(finalized.artifacts.evidence_status, 'archived');
     assert.equal(existsSync(join(directory, 'raw')), false);
