@@ -1,6 +1,6 @@
-{{- if not .Values.rollout.enabled }}
-apiVersion: apps/v1
-kind: Deployment
+{{- if .Values.rollout.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ .Values.app.name | quote }}
   namespace: {{ .Values.app.namespace | quote }}
@@ -18,14 +18,10 @@ metadata:
 {{ toYaml . | nindent 4 }}
 {{- end }}
 spec:
-{{- if and (not .Values.hpa.enabled) (ne .Values.deployment.replicasManaged false) }}
   replicas: {{ .Values.deployment.replicas }}
-{{- end }}
   selector:
     matchLabels:
       app: {{ .Values.app.name | quote }}
-  strategy:
-{{ toYaml .Values.deployment.strategy | nindent 4 }}
   template:
     metadata:
       labels:
@@ -157,4 +153,30 @@ spec:
       tolerations:
 {{ toYaml . | nindent 8 }}
 {{- end }}
+  strategy:
+    canary:
+{{- with .Values.rollout.canary.stableMetadata }}
+      stableMetadata:
+        labels:
+{{ toYaml . | nindent 10 }}
+{{- end }}
+{{- with .Values.rollout.canary.canaryMetadata }}
+      canaryMetadata:
+        labels:
+{{ toYaml . | nindent 10 }}
+{{- end }}
+      trafficRouting:
+        istio:
+          virtualService:
+            name: {{ .Values.rollout.trafficRouting.virtualService.name | quote }}
+            namespace: {{ .Values.rollout.trafficRouting.virtualService.namespace | quote }}
+            routes:
+{{ toYaml .Values.rollout.trafficRouting.virtualService.routes | nindent 14 }}
+          destinationRule:
+            name: {{ .Values.rollout.trafficRouting.destinationRule.name | quote }}
+            namespace: {{ .Values.rollout.trafficRouting.destinationRule.namespace | quote }}
+            canarySubsetName: {{ .Values.rollout.trafficRouting.destinationRule.canarySubsetName | quote }}
+            stableSubsetName: {{ .Values.rollout.trafficRouting.destinationRule.stableSubsetName | quote }}
+      steps:
+{{ toYaml .Values.rollout.steps | nindent 8 }}
 {{- end }}
