@@ -5,7 +5,7 @@ require "open3"
 require "pathname"
 require "yaml"
 
-SHARED_VIRTUAL_SERVICE_SHA256 = "bcf6f01a509c47baf2e3cf08cc9252437e9a251f7e3946c742a59e41807e0722"
+SHARED_VIRTUAL_SERVICE_SHA256 = "426abdf4eee0754718710f5caf5ff95fc8eac580bcdbbef1e108aa9903c3c130"
 GRAFANA_NLB_HOST = "graf-51ca5674fe76db4da774a53253-b75bc5128e983831.elb.ap-northeast-2.amazonaws.com"
 GRAFANA_PUBLIC_URL = "http://#{GRAFANA_NLB_HOST}/grafana/"
 
