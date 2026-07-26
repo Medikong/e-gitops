@@ -19,7 +19,7 @@ def render(kubectl, path)
   stdout, stderr, status = Open3.capture3(kubectl, "kustomize", path.to_s)
   raise ContractError, "kubectl kustomize #{path} failed: #{stderr.strip}" unless status.success?
 
-  YAML.safe_load_stream(stdout, aliases: true).compact
+  YAML.load_stream(stdout).compact
 rescue Psych::SyntaxError => error
   raise ContractError, "kubectl kustomize #{path} emitted malformed YAML: #{error.message}"
 end
