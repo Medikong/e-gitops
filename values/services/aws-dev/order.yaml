@@ -1,12 +1,14 @@
-# 2026-07-24: base(v1)는 배포 파이프라인이 갱신하는 공용 image(현재 v0.1.7)를 그대로
-# 따라가지 않고 마지막 검증된 안정 버전(v0.1.6)에 고정한다. 그래야 canary(v2,
-# v0.1.7)가 "다음에 승격할 새 릴리스"로서 base와 실제로 구분됨 — 안 그러면 deploy:tag가
-# 공용 values/services/order.yaml을 갱신할 때마다 v1도 같이 최신 태그로 따라가버려서
-# 카나리가 아무 차이 없는 트래픽 분할이 돼버린다. v1을 v0.1.7로 승격하려면(카나리 성공
-# 확정 시) 이 오버라이드를 지우거나 v0.1.7로 갱신한다.
+# 2026-07-24: base(v1)는 배포 파이프라인이 갱신하는 공용 image를 그대로 따라가지 않고
+# 마지막 검증된 안정 버전에 고정한다. 그래야 canary(v2)가 "다음에 승격할 새 릴리스"로서
+# base와 실제로 구분됨 — 안 그러면 deploy:tag가 공용 values/services/order.yaml을 갱신할
+# 때마다 v1도 같이 최신 태그로 따라가버려서 카나리가 아무 차이 없는 트래픽 분할이 돼버린다.
+# 2026-07-27: Argo Rollouts 실제 승급 시연을 위해 v0.1.6 -> v0.1.8로 갱신. 이 커밋이
+# 머지되는 순간 Rollout 컨트롤러가 새 ReplicaSet(v2)을 만들고 steps의 setWeight: 10부터
+# 카나리를 시작한다(1단계는 pause: {}로 무기한 대기, kubectl argo-rollouts promote로 수동
+# 승격). 시연 성공 확정 시 이 오버라이드를 지우거나 v0.1.8로 재고정한다.
 image:
-  digest: "sha256:85c601ce6691dcdcd276a04311f9e080d114a0ae4ad00a147b2b076a6a9347d2"
-  version: "v0.1.6"
+  digest: "sha256:76b351fae31ca99e1caea35e5cf939befe6efdd2283ee4ffd407ac4cbbb32403"
+  version: "v0.1.8"
 
 deployment:
   podLabels:
