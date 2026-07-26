@@ -1,5 +1,5 @@
 {{- $canary := default dict .Values.canary }}
-{{- if and (default false $canary.enabled) (not .Values.rollout.enabled) }}
+{{- if default false $canary.enabled }}
 {{- $canaryImage := default dict $canary.image }}
 {{- $canaryVersion := default "v2" $canary.version }}
 {{- $serviceVersion := default (include "medikong-service.imageVersion" .) $canaryImage.tag }}
