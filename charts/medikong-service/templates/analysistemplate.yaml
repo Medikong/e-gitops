@@ -1,0 +1,15 @@
+{{- if and .Values.rollout.enabled .Values.rollout.canary.analysis.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ printf "%s-canary-analysis" .Values.app.name | quote }}
+  namespace: {{ .Values.app.namespace | quote }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.app.name | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/part-of: medikong
+spec:
+  metrics:
+{{ toYaml .Values.rollout.canary.analysis.metrics | nindent 4 }}
+{{- end }}

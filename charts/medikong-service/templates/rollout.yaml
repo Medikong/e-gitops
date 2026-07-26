@@ -165,6 +165,14 @@ spec:
         labels:
 {{ toYaml . | nindent 10 }}
 {{- end }}
+{{- if .Values.rollout.canary.analysis.enabled }}
+      analysis:
+        templates:
+          - templateName: {{ printf "%s-canary-analysis" .Values.app.name | quote }}
+{{- if .Values.rollout.canary.analysis.startingStep }}
+        startingStep: {{ .Values.rollout.canary.analysis.startingStep }}
+{{- end }}
+{{- end }}
       # virtualService/destinationRule에는 namespace 필드를 일부러 안 씀 — Rollout CRD가
       # 그런 필드를 아예 지원 안 해서(v1.9.1 확인), 대상은 항상 이 Rollout과 같은
       # 네임스페이스에 있어야 함. 다른 네임스페이스를 참조해야 하면 Istio

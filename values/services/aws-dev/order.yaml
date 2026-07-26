@@ -39,9 +39,42 @@ deployment:
 #
 # 1단계(10%)는 pause: {}(무기한, 수동 kubectl argo-rollouts promote 필요)로 5.4절의
 # "수동 승격 판단"을 유지하고, 이후 단계는 60초 자동 진행으로 Rollouts의 점진적 승급을
-# 실증한다. AnalysisTemplate 연결은 다음 단계에서 추가.
+# 실증한다.
+#
+# AnalysisTemplate: kube-prometheus-stack(monitoring 네임스페이스)에 이미 Istio가 자동
+# 수집하는 istio_requests_total/istio_request_duration_milliseconds_bucket을 그대로
+# 재사용 — destination_version 라벨이 stableMetadata/canaryMetadata가 주입하는 v1/v2와
+# 정확히 일치해서 앱 코드 수정 없이 바로 됨(2026-07-26 실측 확인). startingStep: 1부터
+# (10% 진입 직후) 백그라운드로 계속 돌면서 v2(카나리)의 에러율/p95를 감시하고,
+# failureLimit 넘으면 Rollouts가 자동으로 중단/롤백한다. 트래픽이 거의 없으면 쿼리가
+# 빈 결과를 반환할 수 있어서(0으로 나누기), 실제 시연 때는 부하테스트를 병행해야 함.
 rollout:
   enabled: true
+  canary:
+    analysis:
+      enabled: true
+      startingStep: 1
+      metrics:
+        - name: canary-error-rate
+          interval: 20s
+          failureLimit: 3
+          successCondition: result[0] >= 0.90
+          provider:
+            prometheus:
+              address: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+              query: |
+                sum(rate(istio_requests_total{destination_service_name="order-service",destination_version="v2",response_code!~"5.."}[2m]))
+                /
+                sum(rate(istio_requests_total{destination_service_name="order-service",destination_version="v2"}[2m]))
+        - name: canary-p95-latency-ms
+          interval: 20s
+          failureLimit: 3
+          successCondition: result[0] <= 500
+          provider:
+            prometheus:
+              address: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+              query: |
+                histogram_quantile(0.95, sum(rate(istio_request_duration_milliseconds_bucket{destination_service_name="order-service",destination_version="v2"}[2m])) by (le))
   trafficRouting:
     virtualService:
       name: order-service

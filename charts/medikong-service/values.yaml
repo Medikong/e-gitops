@@ -47,6 +47,13 @@ rollout:
       version: v1
     canaryMetadata:
       version: v2
+    # 켜면 AnalysisTemplate(app.name-canary-analysis)이 렌더링되고, Rollout이 카나리
+    # 진행 중 내내(startingStep부터) 그 지표를 백그라운드로 체크한다 — 기준 미달이면
+    # failureLimit 넘는 순간 자동 중단/롤백.
+    analysis:
+      enabled: false
+      startingStep: 0
+      metrics: []
   trafficRouting:
     virtualService:
       name: ""
