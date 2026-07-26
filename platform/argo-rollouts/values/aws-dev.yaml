@@ -1,0 +1,6 @@
+# 2026-07-26: order-service R24/R25(카나리 vs 블루그린 PoC, Deployment-analysis.md)에서
+# 손으로 하던 VirtualService weight 편집 + 수동 승격/롤백 판단(5.4/5.5절)을
+# Argo Rollouts로 자동화하기 위해 신규 도입. dashboard는 아직 안 씀(데모는
+# `kubectl argo-rollouts get rollout --watch` CLI로 충분) — 필요해지면 별도로 켠다.
+dashboard:
+  enabled: false
