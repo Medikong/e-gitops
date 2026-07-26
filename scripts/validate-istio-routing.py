@@ -172,10 +172,11 @@ def virtual_services(repo: Path) -> list[dict[str, YamlValue]]:
             continue
 
         resource = load(path)
-        gateways = sequence(
-            mapping(resource.get("spec"), "spec").get("gateways"),
-            "spec.gateways",
-        )
+        # Istio delegate VirtualServices (spec.http[].delegate) intentionally omit
+        # hosts/gateways -- they inherit both from whichever root VirtualService
+        # delegates to them, so a missing gateways field here is valid, not malformed.
+        raw_gateways = mapping(resource.get("spec"), "spec").get("gateways")
+        gateways = [] if raw_gateways is None else sequence(raw_gateways, "spec.gateways")
         if (
             resource.get("kind") == "VirtualService"
             and "medikong-internal" in gateways

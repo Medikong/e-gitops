@@ -1,6 +1,6 @@
-{{- if not .Values.rollout.enabled }}
-apiVersion: apps/v1
-kind: Deployment
+{{- if .Values.rollout.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ .Values.app.name | quote }}
   namespace: {{ .Values.app.namespace | quote }}
@@ -18,14 +18,10 @@ metadata:
 {{ toYaml . | nindent 4 }}
 {{- end }}
 spec:
-{{- if and (not .Values.hpa.enabled) (ne .Values.deployment.replicasManaged false) }}
   replicas: {{ .Values.deployment.replicas }}
-{{- end }}
   selector:
     matchLabels:
       app: {{ .Values.app.name | quote }}
-  strategy:
-{{ toYaml .Values.deployment.strategy | nindent 4 }}
   template:
     metadata:
       labels:
@@ -157,4 +153,32 @@ spec:
       tolerations:
 {{ toYaml . | nindent 8 }}
 {{- end }}
+  strategy:
+    canary:
+{{- with .Values.rollout.canary.stableMetadata }}
+      stableMetadata:
+        labels:
+{{ toYaml . | nindent 10 }}
+{{- end }}
+{{- with .Values.rollout.canary.canaryMetadata }}
+      canaryMetadata:
+        labels:
+{{ toYaml . | nindent 10 }}
+{{- end }}
+      # virtualService/destinationRule에는 namespace 필드를 일부러 안 씀 — Rollout CRD가
+      # 그런 필드를 아예 지원 안 해서(v1.9.1 확인), 대상은 항상 이 Rollout과 같은
+      # 네임스페이스에 있어야 함. 다른 네임스페이스를 참조해야 하면 Istio
+      # VirtualService의 delegate로 우회할 것(order-service 사례 참고).
+      trafficRouting:
+        istio:
+          virtualService:
+            name: {{ .Values.rollout.trafficRouting.virtualService.name | quote }}
+            routes:
+{{ toYaml .Values.rollout.trafficRouting.virtualService.routes | nindent 14 }}
+          destinationRule:
+            name: {{ .Values.rollout.trafficRouting.destinationRule.name | quote }}
+            canarySubsetName: {{ .Values.rollout.trafficRouting.destinationRule.canarySubsetName | quote }}
+            stableSubsetName: {{ .Values.rollout.trafficRouting.destinationRule.stableSubsetName | quote }}
+      steps:
+{{ toYaml .Values.rollout.steps | nindent 8 }}
 {{- end }}

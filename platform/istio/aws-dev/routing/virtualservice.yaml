@@ -178,24 +178,17 @@ spec:
       match:
         - uri:
             prefix: /orders
-      route:
-        # 2026-07-24: R24/R25 PoC 결과로 order-service의 실제 배포 전략을 Istio
-        # 가중치 카나리로 채택(Deployment-analysis.md 5.1절). v2=v0.1.7 신규 릴리스를
-        # 10%로 개시. 문제 없으면 v1로 승격(weight 100/0 + v1 image.tag를 v0.1.7로),
-        # 문제 있으면 즉시 0/100으로 되돌림 — 승격/롤백 판단 기준은 아직 수동(5.4/5.5절
-        # 설계 전).
-        - destination:
-            host: order-service.dropmong-order.svc.cluster.local
-            subset: v1
-            port:
-              number: 8082
-          weight: 90
-        - destination:
-            host: order-service.dropmong-order.svc.cluster.local
-            subset: v2
-            port:
-              number: 8082
-          weight: 10
+      # 2026-07-26: order-service를 Argo Rollouts로 전환하면서 실제 weight 목록을
+      # dropmong-order 네임스페이스의 delegate VirtualService(order-service)로 옮김 —
+      # Argo Rollouts의 Istio 연동은 대상 VirtualService가 Rollout과 같은 네임스페이스에
+      # 있어야만 찾을 수 있어서(istio-system에 있는 이 root VS는 직접 참조 불가), 위임
+      # (delegate)으로 우회. 이 root 항목의 위치(catch-all "web"보다 앞)는 그대로 유지 —
+      # 순서를 안 지키면(별도 객체로 완전히 분리하면) dropmong-web catch-all에 먹힘을
+      # 라이브 실험으로 확인함. platform/istio/traffic/order/virtualservice-delegate.yaml
+      # 참고.
+      delegate:
+        name: order-service
+        namespace: dropmong-order
 
     - name: payment
       match:

@@ -34,6 +34,29 @@ canary:
   # base container.env에 추가로 얹히는 canary 전용 env var (base엔 영향 없음).
   env: []
 
+# Argo Rollouts로 전환한 서비스 전용(2026-07-26, order-service부터). enabled: true면
+# deployment.yaml/deployment-canary.yaml 대신 rollout.yaml이 렌더링됨 — canary 블록은
+# 무시된다. 기존 DestinationRule(subset v1/v2)을 그대로 재사용하도록 stableMetadata/
+# canaryMetadata로 version 라벨을 주입하는 방식(별도 canary Service 불필요). VirtualService/
+# DestinationRule은 반드시 이 서비스와 같은 네임스페이스에 있어야 함(Rollout CRD 제약,
+# 다른 네임스페이스 참조가 필요하면 Istio delegate로 우회 — order-service 사례 참고).
+rollout:
+  enabled: false
+  canary:
+    stableMetadata:
+      version: v1
+    canaryMetadata:
+      version: v2
+  trafficRouting:
+    virtualService:
+      name: ""
+      routes: []
+    destinationRule:
+      name: ""
+      canarySubsetName: v2
+      stableSubsetName: v1
+  steps: []
+
 image:
   registry: ""
   repository: ""

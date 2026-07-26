@@ -26,27 +26,41 @@ deployment:
       maxSurge: 0
       maxUnavailable: 1
 
-# 2026-07-24: R24/R25 PoC(Deployment-analysis.md 5~9장) 결과에 따라 order-service의
-# 실제 배포 전략으로 Istio 가중치 기반 카나리를 채택. 합성 결함 스위치
-# (SYNTHETIC_REGRESSION_SKIP_LOCK 등)는 비교실험 전용이었고 여기엔 없음 — canary는
-# base와 동일한 코드베이스의 새 릴리스(v0.1.7)일 뿐, 버그 주입 없음. 신규 배포 시
-# 이 canary 슬롯에 새 버전을 얹고 트래픽 10%로 관찰 후, 문제없으면 v1로 승격(현재는
-# 수동 절차 — 5.4/5.5절 자동 분석/롤백 기준은 아직 설계 전).
-canary:
+# 2026-07-26: R24/R25(Deployment-analysis.md 5~9장) 이후 채택한 카나리 전략을, 손으로
+# 하던 VirtualService weight 편집 대신 Argo Rollouts로 전환한다(위 canary: 블록은
+# rollout.enabled: true에서는 무시되므로 제거). Argo Rollouts의 Istio 연동은 대상
+# VirtualService가 Rollout과 같은 네임스페이스에 있어야만 weight를 편집할 수 있어서,
+# 기존 공유 VirtualService(medikong-aws-dev, istio-system)를 직접 참조할 수 없었다
+# (1차 시도에서 InvalidSpec으로 실제 장애 발생, 즉시 revert함 — 아래 참고). 대신
+# platform/istio/traffic/order/virtualservice-delegate.yaml(dropmong-order 네임스페이스)를
+# 새로 만들고, 공유 VS의 order 항목은 거기로 delegate만 하도록 바꿨다 — 라우팅
+# 우선순위(dropmong-web catch-all보다 먼저 매치)는 root VS 안에서 그대로 유지되므로
+# 안전함(라이브 실험으로 검증 완료).
+#
+# 1단계(10%)는 pause: {}(무기한, 수동 kubectl argo-rollouts promote 필요)로 5.4절의
+# "수동 승격 판단"을 유지하고, 이후 단계는 60초 자동 진행으로 Rollouts의 점진적 승급을
+# 실증한다. AnalysisTemplate 연결은 다음 단계에서 추가.
+rollout:
   enabled: true
-  version: v2
-  replicas: 1
-  image:
-    tag: v0.1.7
-  podLabels:
-    sidecar.istio.io/inject: "true"
-  podAnnotations:
-    medikong.io/runtime-recovery: "2026-07-25T15:00:00Z"
-    sidecar.istio.io/inject: "true"
-    sidecar.istio.io/proxyCPU: 25m
-    sidecar.istio.io/proxyMemory: 64Mi
-    sidecar.istio.io/proxyCPULimit: 200m
-    sidecar.istio.io/proxyMemoryLimit: 256Mi
+  trafficRouting:
+    virtualService:
+      name: order-service
+      routes:
+        - order
+    destinationRule:
+      name: order-service
+      canarySubsetName: v2
+      stableSubsetName: v1
+  steps:
+    - setWeight: 10
+    - pause: {}
+    - setWeight: 30
+    - pause:
+        duration: 60
+    - setWeight: 50
+    - pause:
+        duration: 60
+    - setWeight: 100
 
 container:
   env:

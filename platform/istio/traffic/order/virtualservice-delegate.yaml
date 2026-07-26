@@ -1,0 +1,36 @@
+# 2026-07-26: order-service를 Argo Rollouts로 전환하면서 신설. Argo Rollouts의 Istio
+# 연동은 대상 VirtualService가 Rollout과 같은 네임스페이스(dropmong-order)에 있어야만
+# weight를 편집할 수 있어서, 실제 destination/weight는 여기로 옮기고 root VS
+# (platform/istio/aws-dev/routing/virtualservice.yaml의 medikong-aws-dev, order 항목)는
+# 여기로 delegate만 한다. hosts/gateways는 delegate VirtualService에 지정하지 않는다
+# (root에서 상속됨 — 지정하면 Istio가 거부함).
+#
+# weight는 100/0으로 시작한다 — Rollout은 pod template 기준 "이미 안정된 단일
+# 리비전"으로 처음 생성되므로(과거 수동으로 유지하던 상시 90/10 분할과 다름) 카나리
+# 단계가 없다. 다음에 새 버전을 배포할 때(pod template 변경, 예: image 태그 교체)에만
+# Rollout이 steps대로 실제 점진적 승급을 시작하고, 그때 weight를 스스로 편집한다.
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: order-service
+  namespace: dropmong-order
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/part-of: medikong
+    medikong.io/traffic-policy: canary
+spec:
+  http:
+    - name: order
+      route:
+        - destination:
+            host: order-service.dropmong-order.svc.cluster.local
+            subset: v1
+            port:
+              number: 8082
+          weight: 100
+        - destination:
+            host: order-service.dropmong-order.svc.cluster.local
+            subset: v2
+            port:
+              number: 8082
+          weight: 0
